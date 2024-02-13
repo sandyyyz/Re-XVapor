@@ -212,6 +212,7 @@ alloc3_desc(int *idx)
   return 0;
 }
 
+// 0,1 for read or write
 void
 virtio_disk_rw(struct buf *b, int write)
 {

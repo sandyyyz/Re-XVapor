@@ -1,5 +1,7 @@
 // Buffer cache.
 //
+// bcache -- spinlock
+// buf -- sleeplock
 // The buffer cache is a linked list of buf structures holding
 // cached copies of disk block contents.  Caching disk blocks
 // in memory reduces the number of disk reads and also provides
@@ -25,8 +27,13 @@
 
 struct {
   struct spinlock lock;
+  // NBUF == 10*3??
+  // cache number
+  // buf 是 LRU node 
+  // 指针在buf内
   struct buf buf[NBUF];
 
+  //应该是一个双向循环列表？
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
@@ -43,6 +50,8 @@ binit(void)
   // Create linked list of buffers
   bcache.head.prev = &bcache.head;
   bcache.head.next = &bcache.head;
+  // 遍历整个buf
+  // 在head之后插入b
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
     b->next = bcache.head.next;
     b->prev = &bcache.head;
@@ -55,6 +64,8 @@ binit(void)
 // Look through buffer cache for block on device dev.
 // If not found, allocate a buffer.
 // In either case, return locked buffer.
+// 并不会从硬盘读取数据块
+// 若未找到，则返回一个locked buffer(refcnt == 0)(不抹除数据块)
 static struct buf*
 bget(uint dev, uint blockno)
 {
@@ -96,6 +107,7 @@ bread(uint dev, uint blockno)
 
   b = bget(dev, blockno);
   if(!b->valid) {
+    // read new block from disk
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }
@@ -113,6 +125,7 @@ bwrite(struct buf *b)
 
 // Release a locked buffer.
 // Move to the head of the most-recently-used list.
+// why??
 void
 brelse(struct buf *b)
 {
@@ -127,6 +140,7 @@ brelse(struct buf *b)
     // no one is waiting for it.
     b->next->prev = b->prev;
     b->prev->next = b->next;
+    // head 后 插入
     b->next = bcache.head.next;
     b->prev = &bcache.head;
     bcache.head.next->prev = b;
@@ -136,6 +150,7 @@ brelse(struct buf *b)
   release(&bcache.lock);
 }
 
+// b->refcnt++
 void
 bpin(struct buf *b) {
   acquire(&bcache.lock);
@@ -143,6 +158,7 @@ bpin(struct buf *b) {
   release(&bcache.lock);
 }
 
+//b->refcnt--
 void
 bunpin(struct buf *b) {
   acquire(&bcache.lock);

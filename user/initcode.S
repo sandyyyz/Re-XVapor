@@ -1,3 +1,4 @@
+// SYSCALL 入口点？
 # Initial process that execs /init.
 # This code runs in user space.
 

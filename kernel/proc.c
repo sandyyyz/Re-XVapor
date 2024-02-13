@@ -6,9 +6,12 @@
 #include "proc.h"
 #include "defs.h"
 
+// cpu table
 struct cpu cpus[NCPU];
 
+// process table
 struct proc proc[NPROC];
+
 
 struct proc *initproc;
 
@@ -26,6 +29,7 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+// 总共64个进程
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -89,6 +93,7 @@ myproc(void)
   return p;
 }
 
+// increase from 1
 int
 allocpid()
 {
@@ -284,6 +289,7 @@ fork(void)
   struct proc *p = myproc();
 
   // Allocate process.
+  // return with np->lock held
   if((np = allocproc()) == 0){
     return -1;
   }
@@ -303,6 +309,7 @@ fork(void)
   np->trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
+  // child process "open" the files
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
@@ -325,6 +332,8 @@ fork(void)
   return pid;
 }
 
+// initproc接管即将退出的父进程的所有子进程
+// 将p所有子进程的父进程修改为initproc,并wakeup(initproc)
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void
@@ -471,6 +480,7 @@ scheduler(void)
   }
 }
 
+// p->scheduler
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
@@ -530,6 +540,8 @@ forkret(void)
   usertrapret();
 }
 
+// 传入chan来标记sleep原因？
+// 即wait channel
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
 void

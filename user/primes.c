@@ -15,6 +15,7 @@ void do_prime_sieve(int oldChan[2]) {
     close(oldChan[READ_END]);
     return;
   }
+  // 当前未被剔除的最小数字是质数
   printf("prime %d\n", p);
 
   if (pipe(newChan) < 0) {
@@ -29,6 +30,9 @@ void do_prime_sieve(int oldChan[2]) {
   } else {
     // parent
     close(newChan[READ_END]);
+    // 若当前数字不被筛出最小数字(质数)整除
+    // 则当前数字为质数，加入newchan(筛出的数字)
+    // 否则跳过
     while (read(oldChan[READ_END], &n, 4) != 0) {
       if (n % p != 0) {
         write(newChan[WRITE_END], &n, 4);

@@ -106,6 +106,7 @@ userret:
 
         # switch to the user page table.
         sfence.vma zero, zero
+        // pagetable_addr in a0
         csrw satp, a0
         sfence.vma zero, zero
 

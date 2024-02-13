@@ -27,6 +27,7 @@ void find(char *path, char *name) {
     return;
   }
 
+  // 遍历文件中所有目录项
   while (read(fd, &de, sizeof(de)) == sizeof(de)) {
     if (de.inum == 0)
       continue;
@@ -49,6 +50,7 @@ void find(char *path, char *name) {
     } else {
       buf[len] = '\0';
     }
+    // 递归在子目录中寻找
     find(buf, name);
   }
 

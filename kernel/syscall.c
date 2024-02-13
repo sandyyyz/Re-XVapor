@@ -7,6 +7,8 @@
 #include "syscall.h"
 #include "defs.h"
 
+// ip-pa  （因为内核页表直接映射？）
+// addr-va
 // Fetch the uint64 at addr from the current process.
 int
 fetchaddr(uint64 addr, uint64 *ip)
@@ -19,6 +21,9 @@ fetchaddr(uint64 addr, uint64 *ip)
   return 0;
 }
 
+
+// buf -- pa
+// addr --va
 // Fetch the nul-terminated string at addr from the current process.
 // Returns length of string, not including nul, or -1 for error.
 int
@@ -30,6 +35,7 @@ fetchstr(uint64 addr, char *buf, int max)
   return strlen(buf);
 }
 
+// return p->trapfram->an,n (- [0,5]
 static uint64
 argraw(int n)
 {
@@ -102,6 +108,7 @@ extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 
+// 函数指针数组
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {

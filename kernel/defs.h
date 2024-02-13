@@ -108,6 +108,7 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
 // swtch.S
+// push a1, push a0
 void            swtch(struct context*, struct context*);
 
 // spinlock.c

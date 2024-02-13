@@ -42,9 +42,13 @@ struct dinode {
 #define IPB           (BSIZE / sizeof(struct dinode))
 
 // Block containing inode i
+// 将inode号转化为磁盘块号
+// 1. i/IPB得到inode所在的inode块号
+// 2. +sb.inodestart得到所在磁盘块号
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
 // Bitmap bits per block
+// 1byte = 8bits, so 8*BSIZE
 #define BPB           (BSIZE*8)
 
 // Block of free map containing bit for block b

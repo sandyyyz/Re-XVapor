@@ -199,6 +199,7 @@ w_pmpaddr0(uint64 x)
 // use riscv's sv39 page table scheme.
 #define SATP_SV39 (8L << 60)
 
+//设置模式位为SATP_SV39，以及设置物理页号
 #define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 12))
 
 // supervisor address translation and protection;
@@ -335,7 +336,12 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define PGSIZE 4096 // bytes per page
 #define PGSHIFT 12  // bits of offset within a page
 
+// bit trick
+// 先预加上了一个PAGESIZE，然后屏蔽了末12位0
+// 向上对齐PGSIZE
 #define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
+// 屏蔽末十二位0
+// 向下对齐PGSIZE
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
 
 #define PTE_V (1L << 0) // valid
@@ -347,13 +353,19 @@ typedef uint64 *pagetable_t; // 512 PTEs
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
 
+// PTE->PA 屏蔽掉第十位flags 再左移十二位(PGSHIFT)
 #define PTE2PA(pte) (((pte) >> 10) << 12)
 
 #define PTE_FLAGS(pte) ((pte) & 0x3FF)
 
 // extract the three 9-bit page table indices from a virtual address.
 #define PXMASK          0x1FF // 9 bits
+// 最低位为next_level_index
 #define PXSHIFT(level)  (PGSHIFT+(9*(level)))
+
+// 右移PGSHIFT(12bits) + (level*9 )bits
+// 此时低9位位定位下一level的index
+// 再 & PXMASK(0x1ff)屏蔽高位
 #define PX(level, va) ((((uint64) (va)) >> PXSHIFT(level)) & PXMASK)
 
 // one beyond the highest possible virtual address.

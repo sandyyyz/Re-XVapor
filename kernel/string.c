@@ -27,6 +27,7 @@ memcmp(const void *v1, const void *v2, uint n)
   return 0;
 }
 
+// memcpy
 void*
 memmove(void *dst, const void *src, uint n)
 {

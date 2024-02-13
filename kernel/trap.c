@@ -29,6 +29,7 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+// trampoline已经换栈和页表
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -38,6 +39,7 @@ usertrap(void)
 {
   int which_dev = 0;
 
+// check SPP bit in sstatus
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
 
@@ -125,6 +127,7 @@ usertrapret(void)
   // jump to userret in trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
+  // 定位到userret (trampoline.s)
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
   ((void (*)(uint64))trampoline_userret)(satp);
 }
