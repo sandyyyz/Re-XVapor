@@ -1,3 +1,4 @@
+#include "spinlock.h"
 // Saved registers for kernel context switches.
 struct context {
   // return address
@@ -105,4 +106,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // used for sys_times
+  _clock_t ktime;               // kernel time 
+  _clock_t utime;              //  user time
 };

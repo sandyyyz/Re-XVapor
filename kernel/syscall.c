@@ -7,6 +7,8 @@
 #include "syscall.h"
 #include "defs.h"
 
+struct timespec;
+
 // ip-pa  （因为内核页表直接映射？）
 // addr-va
 // Fetch the uint64 at addr from the current process.
@@ -107,7 +109,14 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
-
+extern uint64 sys_times(void);
+extern uint64 sys_gettimeofday(void);
+extern uint64 sys_uname(void);
+extern uint64 sys_sched_yield(void);
+extern uint64 sys_nanosleep(void);
+extern uint64 sys_clone(void);
+extern uint64 sys_getppid(void);
+extern uint64 sys_wait4(void);
 // 函数指针数组
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -133,6 +142,16 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_nanosleep] sys_nanosleep,
+[SYS_clone]   sys_clone,
+[SYS_wait4]   sys_wait4,
+
+//other syscalls
+[SYS_times]   sys_times,
+[SYS_gettimeofday] sys_gettimeofday,
+[SYS_uname]   sys_uname,
+[SYS_sched_yield] sys_sched_yield,
+[SYS_getppid] sys_getppid,
 };
 
 void
@@ -141,11 +160,12 @@ syscall(void)
   int num;
   struct proc *p = myproc();
 
-  num = p->trapframe->a7;
+  num = p->trapframe->a7; // call number
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     p->trapframe->a0 = syscalls[num]();
+    // printf("%d %s: syscall %d\n", p->pid, p->name, num);
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);

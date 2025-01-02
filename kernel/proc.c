@@ -57,6 +57,8 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      p->ktime = 0;
+      p->utime = 0;
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
   }
@@ -173,6 +175,8 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->utime = 0;
+  p->ktime = 0;
   p->state = UNUSED;
 }
 
@@ -443,6 +447,53 @@ wait(uint64 addr)
   }
 }
 
+int wait4(pid_t pid, uint64 pstatus, int options) {
+  struct proc *pp;
+  int havekids;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(pp = proc; pp < &proc[NPROC]; pp++){
+      if(pp->parent == p && pid == pp->pid){
+        // make sure the child isn't still in exit() or swtch().
+        acquire(&pp->lock);
+
+        havekids = 1;
+        if(pp->state == ZOMBIE){
+          // Found target child process.
+          if(pstatus != 0 && copyout(p->pagetable, pstatus, (char *)&pp->xstate,
+                                  sizeof(pp->xstate)) < 0) {
+            release(&pp->lock);
+            release(&wait_lock);
+            return -1;
+          }
+          freeproc(pp);
+          release(&pp->lock);
+          release(&wait_lock);
+          return pid;
+        }
+        release(&pp->lock);
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || killed(p)){
+      release(&wait_lock);
+      return -1;
+    }
+    
+    // Wait for a child to exit.
+    // TODO: how to wait for a specific child process to exit??
+    // TODO: bug here: any child process will wake up this parent process
+    sleep(p, &wait_lock);  //DOC: wait-sleep
+  }
+  
+
+}
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:

@@ -1,3 +1,6 @@
+#ifndef __TYPES_H
+#define __TYPES_H
+
 typedef unsigned int   uint;
 typedef unsigned short ushort;
 typedef unsigned char  uchar;
@@ -8,3 +11,12 @@ typedef unsigned int  uint32;
 typedef unsigned long uint64;
 
 typedef uint64 pde_t;
+typedef int pid_t;
+
+/// used for sys_times
+/* TODO: incompatiable with stdlib.h, change name temporary*/
+typedef uint64 _clock_t;
+typedef uint64 _time_t;
+// #include <stdlib.h>
+
+#endif

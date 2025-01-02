@@ -30,7 +30,8 @@ OBJS = \
   $K/sysfile.o \
   $K/kernelvec.o \
   $K/plic.o \
-  $K/virtio_disk.o
+  $K/virtio_disk.o \
+  $K/sysother.o
 
 OBJS_KCSAN = \
   $K/start.o \
@@ -171,6 +172,52 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 # http://www.gnu.org/software/make/manual/html_node/Chained-Rules.html
 .PRECIOUS: %.o
 
+# UTEST =\
+	$U/clone\
+	$U/close\
+	$U/dup\
+	$U/dup2\
+	$U/execve\
+	$U/exit\
+	$U/fork\
+	$U/fstat\
+	$U/getcwd\
+	$U/getdents\
+	$U/getpid\
+	$U/getppid\
+	$U/gettimeofday\
+	$U/mkdir_\
+	$U/mmap\
+	$U/munmap\
+	$U/mount\
+	$U/open\
+	$U/openat\
+	$U/pipe\
+	$U/read\
+	$U/test_mount\
+	$U/sleep\
+	$U/test_echo\
+	$U/text.txt\
+	$U/times\
+	$U/umount\
+	$U/uname\
+	$U/unlink\
+	$U/wait\
+	$U/waitpid\
+	$U/write\
+	$U/yield\
+	$U/run_all.sh
+
+# UTEST=$U/times
+# UTEST=$U/getpid
+# UTEST+=$U/getppid
+# UTEST=$U/exit
+# UTEST+=$U/gettimeofday
+# UTEST+=$U/times
+# UTEST+=$U/uname
+# UTEST+=$U/yield
+# UTEST+=$U/test_sleep
+
 UPROGS=\
 	$U/_cat\
 	$U/_echo\
@@ -192,7 +239,7 @@ UPROGS=\
 	$U/_pingpong \
 	$U/_primes \
 	$U/_find \
-	$U/_xargs
+	$U/_xargs \
 
 
 
@@ -264,8 +311,8 @@ ifeq ($(LAB),util)
 endif
 
 
-fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
-	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
+fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS) $(UTEST)
+	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS) $(UTEST)
 
 -include kernel/*.d user/*.d
 

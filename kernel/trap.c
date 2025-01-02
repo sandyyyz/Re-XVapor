@@ -38,7 +38,6 @@ void
 usertrap(void)
 {
   int which_dev = 0;
-
 // check SPP bit in sstatus
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
@@ -79,8 +78,11 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    p->utime++;
     yield();
+  }
+
 
   usertrapret();
 }
@@ -141,6 +143,7 @@ kerneltrap()
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
+  struct proc *p = myproc();
   
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
@@ -154,8 +157,11 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING) {
+    p->ktime++;  
     yield();
+  }
+
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -208,6 +214,7 @@ devintr()
     // software interrupt from a machine-mode timer interrupt,
     // forwarded by timervec in kernelvec.S.
 
+    // only the fisrt cpu to deal with the clockintr
     if(cpuid() == 0){
       clockintr();
     }
