@@ -36,3 +36,12 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
+
+entry("times");
+entry("gettimeofday");
+entry("uname");
+entry("sched_yield");
+entry("nanosleep");
+entry("clone");
+entry("getppid");
+entry("wait4");

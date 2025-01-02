@@ -1,5 +1,7 @@
 struct stat;
-
+struct tms;
+struct utsname;
+struct timespec;
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));
@@ -22,7 +24,16 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int nanosleep(struct timespec *req, struct timespec *rem);
 
+// proc related
+int wait4(pid_t pid, int *status, int options);
+
+// other syscall
+_clock_t times(struct tms *mytime);
+int uname(struct utsname *uts);
+int sched_yield(void);
+int gettimeofday(struct timespec *ts, void *tz);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
