@@ -1,0 +1,107 @@
+# 重走来时路
+
+## sys_times
+
+https://www.man7.org/linux/man-pages/man0/sys_times.h.0p.html  
+
+https://pubs.opengroup.org/onlinepubs/7908799/xsh/systimes.h.html  
+
+### struct tms:  
+![tms](image.png)
+
+1. add ktime and utime in *struct proc*
+2. initializes fields while *initializing* the proc, clears when *freeproc* 
+3. increase when timer interuppt trigger,in **kerneltrap** and **usertrap** resperctively
+
+## sys_gettimeofday
+
+### struct timespec:
+![timespec](image-1.png)
+
+
+## sys_nano_sleep
+
+### discription:
+https://man7.org/linux/man-pages/man2/nanosleep.2.html  
+![nanosleep](image-2.png)
+
+### TICKS_PER_SECOND:
+
+![timer_initial](image-3.png)
+*TICKS_PER_SECON (timer interrupt's times per second)* == 10 when interval is set to be 1000000  
+
+cpu0 handle the clockintr() every time the time interrupt raises(falls in trap):  
+```
+void
+clockintr()
+{
+  acquire(&tickslock);
+  ticks++;
+  wakeup(&ticks);
+  release(&tickslock);
+}
+```
+so can sleep in ``chan == traget_ticks``
+
+
+## sys_clone
+![clone_synopsis](image-32.png)
+![sys_clone](image-31.png)
+
+## sys_wait4, sys_clone, sys_exit
+
+closely related  
+
+### sys_wait4
+
+![wait4](image-33.png)
+
+don't need rusage  
+* flags:  
+![flags](image-34.png)
+
+
+
+# 系统调用的说明以及调用方式
+
+系统调用方式遵循 RISC-V ABI，即调用号存放在 a7 寄存器中，6 个参数分别储存在 a0-a5 寄存器中，返回值保存在 a0 中。
+
+主要参考了 Linux 5.10 syscalls，详细请参见：[man7 系统调用文档](https://man7.org/linux/man-pages/man2/syscalls.2.html)
+
+## 文件系统相关
+- [ ] SYS_getcwd  
+- [ ] SYS_pipe2  
+- [ ] SYS_dup  
+- [ ] SYS_dup3  
+- [ ] SYS_chdir  
+- [ ] SYS_openat  
+- [ ] SYS_close  
+- [ ] SYS_getdents64  
+- [ ] SYS_read  
+- [ ] SYS_write  
+- [ ] SYS_linkat  
+- [ ] SYS_unlinkat  
+- [ ] SYS_mkdirat  
+- [ ] SYS_umount2  
+- [ ] SYS_mount  
+- [ ] SYS_fstat  
+
+## 进程管理相关
+- [ ] SYS_clone  
+- [ ] SYS_execve  
+- [ ] SYS_wait4  
+- [x] SYS_exit  
+- [x] SYS_getppid  
+- [x] SYS_getpid  
+
+## 内存管理相关
+- [ ] SYS_brk  
+- [ ] SYS_munmap  
+- [ ] SYS_mmap  
+
+## 其他
+- [x] SYS_times  
+- [x] SYS_uname  
+- [x] SYS_sched_yield    /// need to implement ``clone`` and ``wait`` first
+- [x] SYS_gettimeofday
+- [x] SYS_nanosleep  
