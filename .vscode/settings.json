@@ -1,5 +1,16 @@
 {
     "files.associations": {
-        "riscv.h": "c"
+        "riscv.h": "c",
+        "time.h": "c",
+        "timer.h": "c",
+        "types.h": "c",
+        "param.h": "c",
+        "memlayout.h": "c",
+        "io_context": "c",
+        "defs.h": "c",
+        "proc.h": "c",
+        "spinlock.h": "c",
+        "condition_variable": "c",
+        "mutex": "c"
     }
 }
