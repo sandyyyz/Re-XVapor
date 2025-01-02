@@ -1,4 +1,6 @@
 #include "spinlock.h"
+#include "list.h"
+#include "param.h"
 // Saved registers for kernel context switches.
 struct context {
   // return address
@@ -110,4 +112,5 @@ struct proc {
   // used for sys_times
   _clock_t ktime;               // kernel time 
   _clock_t utime;              //  user time
+  list_head_t state_list;
 };

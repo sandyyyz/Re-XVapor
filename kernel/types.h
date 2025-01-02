@@ -19,4 +19,7 @@ typedef uint64 _clock_t;
 typedef uint64 _time_t;
 // #include <stdlib.h>
 
+typedef uint64 pte_t;
+typedef uint64 *pagetable_t; // 512 PTEs
+
 #endif
