@@ -31,7 +31,12 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
-  $K/sysother.o
+  $K/sysother.o \
+  $K/queue.o \
+  $K/semaphore.o \
+  $K/cond.o \
+  $K/thread.o \
+  $K/sched.o \
 
 OBJS_KCSAN = \
   $K/start.o \

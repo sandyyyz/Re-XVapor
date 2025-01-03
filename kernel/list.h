@@ -105,6 +105,7 @@ static inline void list_del(struct list_head *entry) {
 }
 
 // delete it and re init
+// remove a node from a list and reinitialize it
 static inline void list_del_reinit(struct list_head *entry) {
     list_del(entry);
     INIT_LIST_HEAD(entry);

@@ -12,6 +12,8 @@ typedef unsigned long uint64;
 
 typedef uint64 pde_t;
 typedef int pid_t;
+typedef int tid_t;
+typedef int tgid_t;
 
 /// used for sys_times
 /* TODO: incompatiable with stdlib.h, change name temporary*/
