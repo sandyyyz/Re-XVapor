@@ -1,5 +1,6 @@
 # 重走来时路
 
+该系统的实现一部分参考了Linux，部分参考了往届优秀作品Lostwakeup和10183boot,特此感谢。
 ## sys_times
 
 https://www.man7.org/linux/man-pages/man0/sys_times.h.0p.html  
