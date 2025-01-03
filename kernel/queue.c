@@ -1,6 +1,6 @@
 #include "queue.h"
-#include "tcb.h"
 #include "proc.h"
+#include "thread.h"
 
 // init
 void queue_init(queue_t *q, char *name, enum queue_type type) {
@@ -89,7 +89,11 @@ void queue_remove_atomic(queue_t *q, void *node) {
     release(&q->lock);
 }
 
-// pop the queue
+
+/// @brief pop the queue
+/// @param q queue
+/// @param remove if == 1, remove the first element 
+/// @return can return null
 void *queue_pop(queue_t *q, int remove) {
     if (queue_isempty(q))
         return NULL;
@@ -100,8 +104,11 @@ void *queue_pop(queue_t *q, int remove) {
     return node;
 }
 
-// provide the first one of the queue (atomic)
-void *queue_provide_atomic(queue_t *q, int remove) {
+/// @brief pop the queue atomic
+/// @param q queue
+/// @param remove if == 1, remove the first element
+/// @return can return null
+void *queue_pop_atomic(queue_t *q, int remove) {
     acquire(&q->lock);
     void *t = queue_pop(q, remove);
     release(&q->lock);

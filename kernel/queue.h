@@ -53,6 +53,6 @@ void queue_remove_atomic(queue_t *q, void *node);
 void *queue_pop(queue_t *q, int remove);
 
 // provide the first one of the queue (atomic)
-void *queue_provide_atomic(queue_t *q, int remove);
+void *queue_pop_atomic(queue_t *q, int remove);
 
 #endif  // __QUEUE_H
