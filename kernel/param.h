@@ -12,6 +12,8 @@
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 
+#define NTHREADS_PER_PROC 2
+#define NTHREADS (NPROC * NTHREADS_PER_PROC)
 
 #define CLK_FREQ 10000000
 #define TICKS_PER_SECOND 10  

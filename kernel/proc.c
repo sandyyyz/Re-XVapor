@@ -639,7 +639,7 @@ wakeup(void *chan)
       }
       release(&p->lock);
     }
-  }
+  } 
 }
 
 // Kill the process with the given pid.

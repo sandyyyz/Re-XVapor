@@ -1,0 +1,137 @@
+#include "types.h"
+#include "queue.h"
+#include "proc.h"
+#include "thread.h"
+#include "sched.h"
+#include "debug.h"
+#include "riscv.h"
+
+queue_t unused_p_q, used_p_q, zombie_p_q;
+queue_t *g_pcb_queues[PROC_STATEMAX] = {
+    [UNUSED] & unused_p_q,
+    [USED] & used_p_q,
+    [ZOMBIE] & zombie_p_q};
+
+extern queue_t *g_tcb_queues[TCB_MAX_STATE];
+extern struct proc proc[NPROC];
+extern struct tcb thread[NTHREADS];
+
+void PCB_Q_ALL_INIT() {
+    queue_init(&unused_p_q, "PCB_UNUSED", PCB_STATE_QUEUE);
+    queue_init(&used_p_q, "PCB_USED", PCB_STATE_QUEUE);
+    queue_init(&zombie_p_q, "PCB_ZOMBIE", PCB_STATE_QUEUE);
+}
+
+
+// must holding p->lock
+void pcb_q_change_state(struct proc *p, enum procstate state_new) {
+
+    queue_t *pcb_q_new = g_pcb_queues[state_new];
+
+    // acquire(&p->lock);
+    // maybe inconsistent here??
+    queue_t *pcb_q_old = g_pcb_queues[p->state];
+
+    queue_remove_atomic(pcb_q_old, (void *)p);
+    queue_push_back_atomic(pcb_q_new, (void *)p);
+    p->state = state_new;
+
+    // release(&p->lock);
+    return;
+}
+
+// must holding t->lock
+void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
+    queue_t *tcb_q_new = g_tcb_queues[state_new];
+
+    acquire(&t->lock);
+    queue_t *tcb_q_old = g_tcb_queues[t->state];
+
+    if (t->state != TCB_RUNNING) {
+        queue_remove_atomic(tcb_q_old, (void *)t);
+    } else {
+        queue_remove((void *)t, TCB_STATE_QUEUE);
+    }
+    queue_push_back_atomic(tcb_q_new, (void *)t);
+
+
+    t->state = state_new;
+    return;
+}
+
+void thread_yield(void) {
+    struct tcb *t = mythread();
+    acquire(&t->lock);
+
+    tcb_q_change_state(t, TCB_RUNNABLE);
+
+    thread_sched();
+
+    release(&t->lock);
+}
+
+// holding lock
+void thread_wakeup(struct tcb *t) {
+    ASSERT(t->wait_chan_entry != NULL);
+    queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    ASSERT(t->state == TCB_SLEEPING);
+    t->wait_chan_entry = NULL;
+    tcb_q_change_state(t, TCB_RUNNABLE);
+}
+
+// it is essential !!!
+void thread_wakeup_atomic(void *t) {
+    struct tcb *thread = (struct tcb *)t;
+
+    acquire(&thread->lock);
+
+    ASSERT(thread->wait_chan_entry != NULL);
+    queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
+    ASSERT(thread->state == TCB_SLEEPING);
+    thread->wait_chan_entry = NULL;
+    tcb_q_change_state(t, TCB_RUNNABLE);
+
+    release(&thread->lock);
+}
+
+void thread_sched(void) {
+    int intena;
+    struct tcb *t = mythread();
+
+    if(!holding(&t->lock))
+    panic("sched t->lock");
+    if(mycpu()->noff != 1)
+    panic("sched t locks");
+    if(t->state == TCB_RUNNING)
+    panic("sched t running");
+    if(intr_get())
+    panic("sched t interruptible");
+
+
+    intena = mycpu()->intena;
+    swtch(&t->context, &mycpu()->context);
+    mycpu()->intena = intena;
+
+}
+
+void thread_scheduler(void) {
+    struct tcb *t;
+    struct  cpu *c = mycpu();
+
+    c->thread = 0;
+    for (;;) {
+        // Avoid deadlock by ensuring that devices can interrupt.
+        intr_on();
+
+        t = (struct tcb *)queue_pop_atomic(g_pcb_queues[RUNNABLE], 1); // remove it
+        if (t == NULL)
+            continue;
+
+        acquire(&t->lock);
+        t->state = TCB_RUNNING;
+        c->thread = t;
+        swtch(&c->context, &t->context);
+        c->thread = 0;
+        release(&t->lock);
+    }
+}

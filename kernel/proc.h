@@ -1,6 +1,13 @@
+#ifndef __PROC_H
+#define __PROC_H
+
 #include "spinlock.h"
 #include "list.h"
 #include "param.h"
+#include "semaphore.h" 
+
+struct tcb;
+
 // Saved registers for kernel context switches.
 struct context {
   // return address
@@ -28,6 +35,8 @@ struct cpu {
   struct context context;     // swtch() here to enter scheduler().
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
+
+  struct tcb *thread;
 };
 
 extern struct cpu cpus[NCPU];
@@ -83,7 +92,7 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE, PROC_STATEMAX };
 
 // Per-process state
 struct proc {
@@ -96,8 +105,6 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
 
-  // wait_lock must be held when using this:
-  struct proc *parent;         // Parent process
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
@@ -112,5 +119,22 @@ struct proc {
   // used for sys_times
   _clock_t ktime;               // kernel time 
   _clock_t utime;              //  user time
+  
   list_head_t state_list;
+
+  // proc children and siblings
+  // wait_lock must be held when using this:
+  struct proc *parent;         // Parent process
+
+  struct proc *first_child;      // its first child
+  struct list_head sibling_list; // its sibling  
+// thread group
+  struct thread_group *tg;
+  // for clone
+  pid_t ctid;
+  // thread lock
+  struct semaphore tlock;
+
 };
+
+#endif
