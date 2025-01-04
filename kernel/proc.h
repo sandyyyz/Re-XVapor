@@ -5,6 +5,7 @@
 #include "list.h"
 #include "param.h"
 #include "semaphore.h" 
+#include "mm.h"
 
 struct tcb;
 
@@ -110,6 +111,7 @@ struct proc {
   uint64 kstack;               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
+
   struct trapframe *trapframe; // data page for trampoline.S
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
@@ -134,6 +136,8 @@ struct proc {
   pid_t ctid;
   // thread lock
   struct semaphore tlock;
+
+  struct mm_struct* mm;
 
 };
 

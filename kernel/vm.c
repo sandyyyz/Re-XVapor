@@ -5,6 +5,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -480,4 +481,21 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+
+
+/// @brief allocate PGSIEZE memory for trapframe and map it to thread TRAMPFRAME space
+/// @return trapframe pointer
+/// @param pagetable user pagetable
+/// @param thread_idx thread index
+struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx) {
+    paddr_t pa = (paddr_t)kzalloc(PGSIZE);
+
+    if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, 0) < 0) {
+        kfree((void *)pa);
+        return NULL;
+    }
+
+    return (struct trapframe *)pa;
 }
