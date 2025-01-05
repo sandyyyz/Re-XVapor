@@ -24,4 +24,9 @@ typedef uint64 _time_t;
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
 
+// signal
+typedef uint64 sig_t;
+
+// mm
+typedef uint64 paddr_t;
 #endif

@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "fs.h"
 #include "proc.h"
+#include "kalloc.h"
 
 /*
  * the kernel's page table.
@@ -490,9 +491,9 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 /// @param pagetable user pagetable
 /// @param thread_idx thread index
 struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx) {
-    paddr_t pa = (paddr_t)kzalloc(PGSIZE);
+    paddr_t pa = (paddr_t)kzalloc();
 
-    if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, 0) < 0) {
+    if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W) < 0) {
         kfree((void *)pa);
         return NULL;
     }

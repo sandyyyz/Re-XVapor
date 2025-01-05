@@ -5,6 +5,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "thread.h"
+#include "riscv.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -227,5 +229,121 @@ devintr()
   } else {
     return 0;
   }
+}
+
+// trampoline已经换栈和页表
+//
+// handle an interrupt, exception, or system call from user space.
+// called from trampoline.S
+//
+void thread_usertrap(void)
+{
+  int which_dev = 0;
+// check SPP bit in sstatus
+  if((r_sstatus() & SSTATUS_SPP) != 0)
+    panic("usertrap: not from user mode");
+
+  // send interrupts and exceptions to kerneltrap(),
+  // since we're now in the kernel.
+  w_stvec((uint64)kernelvec);
+
+  struct proc *p = myproc();
+  struct tcb* t = mythread();
+
+  // save user program counter.
+  // p->trapframe->epc = r_sepc();
+  t->trapframe->epc = r_sepc();
+
+  if(r_scause() == 8){
+    // system call
+
+    if(killed(p))
+      exit(-1);
+
+    // sepc points to the ecall instruction,
+    // but we want to return to the next instruction.
+    p->trapframe->epc += 4;
+
+    // an interrupt will change sepc, scause, and sstatus,
+    // so enable only now that we're done with those registers.
+    intr_on();
+
+    syscall();
+  } else if((which_dev = devintr()) != 0){
+    // ok
+  } else {
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+  }
+
+  if(killed(p))
+    exit(-1);
+
+  // give up the CPU if this is a timer interrupt.
+  if(which_dev == 2) {
+    p->utime++;
+    yield();
+  }
+}
+/// @brief thread return to user space, the diffrences between usertrap() and 
+/// thread_usertrap() is that thread_usertrap() will store register in trapframe in advance, and store tid in ssratch
+void thread_usertrapret() {
+    struct proc *p = myproc();
+    struct tcb *t = mythread();
+    // we're about to switch the destination of traps from
+    // kerneltrap() to usertrap(), so turn off interrupts until
+    // we're back in user space, where usertrap() is correct.
+    intr_off();
+    // p->stub_time = rdtime();
+
+    // p->last_out = rdtime();
+    // p->stime += rdtime() - p->last_in;
+
+    // send syscalls, interrupts, and exceptions to uservec in trampoline.S
+    uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
+    w_stvec(trampoline_uservec);
+
+    // set up trapframe values that uservec will need when
+    // the process next traps into the kernel.
+
+    t->trapframe->kernel_satp = r_satp();         // kernel page table
+    t->trapframe->kernel_sp = t->kstack + KSTACK_PAGE * PGSIZE; // process's kernel stack
+    t->trapframe->kernel_trap = (uint64)thread_usertrap;
+    t->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
+
+    // trapframe_print(t->trapframe);// debug
+
+    // if (print_tf_flag) {
+    //     printf("%d\n", p->pid);
+    //     trapframe_print(t->trapframe);
+    //     print_tf_flag = 0;
+    // }
+
+    // set up the registers that trampoline.S's sret will use
+    // to get to user space.
+
+    // set S Previous Privilege mode to User.
+    unsigned long x = r_sstatus();
+    x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
+    x |= SSTATUS_SPIE; // enable interrupts in user mode
+    w_sstatus(x);
+    
+    // tf_flrestore(t->trapframe);
+
+    // set S Exception Program Counter to the saved user pc.
+    w_sepc(t->trapframe->epc);
+
+    // tell trampoline.S the user page table to switch to.
+    uint64 satp = MAKE_SATP(p->mm.pagetable);
+
+    // write thread idx into sscratch
+    w_sscratch(t->tidx);
+
+    // jump to userret in trampoline.S at the top of memory, which
+    // switches to the user page table, restores user registers,
+    // and switches to user mode with sret.
+    uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
+    ((void (*)(uint64))trampoline_userret)(satp);
 }
 
