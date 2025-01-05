@@ -5,6 +5,17 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sched.h"
+#include "trap.h"
+#include "debug.h"
+
+extern queue_t unused_p_q, used_p_q, zombie_p_q;
+extern queue_t *g_pcb_queues[PROC_STATEMAX];
+extern char trampoline[], uservec[], userret[];
+
+atomic_t nextpid;
+
+static int inline allocpid(){ return atomic_inc_return(&nextpid);}
 
 // cpu table
 struct cpu cpus[NCPU];
@@ -15,8 +26,9 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
-int nextpid = 1;
-struct spinlock pid_lock;
+
+
+// struct spinlock pid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
@@ -28,6 +40,60 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+// initialize the proc table.
+void
+procinit(void)
+{
+  struct proc *p;
+  atomic_set(&nextpid, 1);
+  // initlock(&pid_lock, "nextpid");
+  initlock(&wait_lock, "wait_lock");
+
+  PCB_Q_ALL_INIT();
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+      initlock(&p->lock, "proc");
+      p->ktime = 0;
+      p->utime = 0;
+      p->state = UNUSED;
+      p->kstack = KSTACK((int) (p - proc));
+      queue_push_back_atomic(&unused_p_q, p);
+  }
+
+
+  Info("========= Information of proc table and tcb table ==========\n");
+  Info("number of proc : %d\n", NPROC);
+  Info("proc table init [ok]\n");
+  
+  return;
+}
+
+/// @brief delete all child process from its list
+/// @param parent parent process
+/// @param child child process
+void delete_child(struct proc *parent, struct proc *child) {
+    if (nosibling(child)) {
+        parent->first_child = NULL;
+    } else {
+        struct proc *firstchild = firstchild(parent);
+        if (child == firstchild) {
+            parent->first_child = nextsibling(firstchild);
+        }
+        list_del_reinit(&child->sibling_list);
+    }
+}
+
+/// @brief add child process to parent's list
+/// @param parent parent process 
+/// @param child child process
+void append_child(struct proc *parent, struct proc *child) {
+    if (nochildren(parent)) {
+        parent->first_child = child;
+    } else {
+        list_add_tail(&child->sibling_list, &(firstchild(parent)->sibling_list));
+    }
+}
 
 // 总共64个进程
 // Allocate a page for each process's kernel stack.
@@ -47,22 +113,6 @@ proc_mapstacks(pagetable_t kpgtbl)
   }
 }
 
-// initialize the proc table.
-void
-procinit(void)
-{
-  struct proc *p;
-  
-  initlock(&pid_lock, "nextpid");
-  initlock(&wait_lock, "wait_lock");
-  for(p = proc; p < &proc[NPROC]; p++) {
-      initlock(&p->lock, "proc");
-      p->ktime = 0;
-      p->utime = 0;
-      p->state = UNUSED;
-      p->kstack = KSTACK((int) (p - proc));
-  }
-}
 
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
@@ -95,19 +145,7 @@ myproc(void)
   return p;
 }
 
-// increase from 1
-int
-allocpid()
-{
-  int pid;
-  
-  acquire(&pid_lock);
-  pid = nextpid;
-  nextpid = nextpid + 1;
-  release(&pid_lock);
 
-  return pid;
-}
 
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
@@ -118,19 +156,37 @@ allocproc(void)
 {
   struct proc *p;
 
-  for(p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if(p->state == UNUSED) {
-      goto found;
-    } else {
-      release(&p->lock);
-    }
-  }
-  return 0;
+  // for(p = proc; p < &proc[NPROC]; p++) {
+  //   acquire(&p->lock);
+  //   if(p->state == UNUSED) {
+  //     goto found;
+  //   } else {
+  //     release(&p->lock);
+  //   }
+  // }
+  // return 0;
 
-found:
+  if((p = (struct proc*) queue_pop_atomic(&unused_p_q, 1)) == NULL)
+    return NULL;
+  
+  acquire(&p->lock);
+
+// found:
   p->pid = allocpid();
-  p->state = USED;
+
+  // process family tree
+  p->first_child = NULL;
+  INIT_LIST_HEAD(&p->sibling_list);
+
+  // thread group
+  tginit(&p->tg);
+
+  // timer
+  p->utime = 0;
+  p->ktime = 0;
+
+  // state
+  pcb_q_change_state(p, USED);
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -153,7 +209,53 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // mm_struct
+  initlock(&p->mm.lock, "mm_lock");
+  p->mm.pagetable = p->pagetable;
+  INIT_LIST_HEAD(&p->mm.vma_list);
+
   return p;
+}
+
+void thread_forkret(void)
+{
+  static int thread_first = 1;
+
+  // Still holding p->lock from scheduler.
+  release(&mythread()->lock);
+
+  if (thread_first) {
+    // File system initialization must be run in the context of a
+    // regular process (e.g., because it calls sleep), and thus cannot
+    // be run from main().
+    thread_first = 0;
+    fsinit(ROOTDEV);
+  }
+
+  thread_usertrapret();
+}
+
+
+/// @brief create a process with a group leader thread
+/// @return return the process pointer if success, NULL if failed
+struct proc *create_proc() {
+    struct tcb *t = NULL;
+    struct proc *p = NULL;
+
+    if ((p = allocproc()) == 0) {
+        return 0;
+    }
+
+    if ((t = alloc_thread(thread_forkret)) == 0) {
+        freeproc(p);
+        return 0;
+    }
+
+    proc_join_thread(p, t, NULL);
+
+    release(&t->lock);
+
+    return p;
 }
 
 // free a proc structure and the data hanging from it,
@@ -162,6 +264,7 @@ found:
 static void
 freeproc(struct proc *p)
 {
+
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;

@@ -6,29 +6,11 @@
 #include "param.h"
 #include "semaphore.h" 
 #include "mm.h"
+#include "thread.h"
 
+struct thread_group;
 struct tcb;
 
-// Saved registers for kernel context switches.
-struct context {
-  // return address
-  uint64 ra;
-  uint64 sp;
-
-  // callee-saved
-  uint64 s0;
-  uint64 s1;
-  uint64 s2;
-  uint64 s3;
-  uint64 s4;
-  uint64 s5;
-  uint64 s6;
-  uint64 s7;
-  uint64 s8;
-  uint64 s9;
-  uint64 s10;
-  uint64 s11;
-};
 
 // Per-CPU state.
 struct cpu {
@@ -58,7 +40,7 @@ struct trapframe {
   /*   0 */ uint64 kernel_satp;   // kernel page table
   /*   8 */ uint64 kernel_sp;     // top of process's kernel stack
   /*  16 */ uint64 kernel_trap;   // usertrap()
-  /*  24 */ uint64 epc;           // saved user program counter
+  /*  24 */ uint64 epc;           // saved user  program counter
   /*  32 */ uint64 kernel_hartid; // saved kernel tp
   /*  40 */ uint64 ra;
   /*  48 */ uint64 sp;
@@ -131,14 +113,21 @@ struct proc {
   struct proc *first_child;      // its first child
   struct list_head sibling_list; // its sibling  
 // thread group
-  struct thread_group *tg;
+  struct thread_group tg;
   // for clone
   pid_t ctid;
   // thread lock
   struct semaphore tlock;
 
-  struct mm_struct* mm;
+  struct mm_struct mm;
 
 };
+
+
+// ======================= process family tree =====================
+#define nochildren(p) (p->first_child == NULL)
+#define nosibling(p) (list_empty(&p->sibling_list))
+#define firstchild(p) (p->first_child)
+#define nextsibling(p) (list_first_entry(&(p->sibling_list), struct proc, sibling_list))
 
 #endif

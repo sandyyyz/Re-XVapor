@@ -66,4 +66,27 @@
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
 
+
+// // User memory layout.
+// //   text
+// //   original data and bss
+// //   expandable heap
+// //   ...
+// //   USTACK_GURAD_PAGE
+// //   USTACK
+// //   ...
+// //   TRAPFRAME (each thread has it's own trapframe)
+// //   SIGRETURN
+// //   TRAMPOLINE (the same page as in the kernel)
+
+/// bug here!! when add SIGRETURN above the TRAPFRAME, why?
+/// maybe because of the KSTACK macro???
+ 
+// //shared by all thread
+// #define SIGRETURN (TRAMPOLINE - PGSIZE)
+// #define TRAPFRAME (SIGRETURN - PGSIZE)
+
+// thread-exclusive
+#define THREAD_TRAPFRAME(id) (TRAPFRAME - (id)*PGSIZE)
+
 #define KSTACK_PAGE 4       

@@ -34,3 +34,7 @@ process作为最小的调度和资源分配单位 change to -->
 
 ### process state machine (referencing lostwakeup)
 ![procstate_machine](image-39.png)
+
+- 线程之间完全并行，也就是可以同时在多个CPU核上并行执行，而不是局限于在进程内部。由此应该需要一个全局的调度队列，而不是进程内部的调度队列。
+- 为了实现线程间的完全并行，每个线程需要有自己的trapframe，而trampoline应当还是共享的
+- 由于进程不作为调度单位，所以context应该放在每一个线程中

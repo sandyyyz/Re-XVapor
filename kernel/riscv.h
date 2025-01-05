@@ -1,3 +1,6 @@
+#ifndef __RISCV_H
+#define __RISCV_H
+
 #ifndef __ASSEMBLER__
 
 // which hart (core) is this?
@@ -328,6 +331,20 @@ sfence_vma()
   asm volatile("sfence.vma zero, zero");
 }
 
+static inline uint64
+r_sscratch() {
+    uint64 x;
+    asm volatile("csrr %0, sscratch"
+                 : "=r"(x));
+    return x;
+}
+
+static inline void
+w_sscratch(uint64 x) {
+    asm volatile("csrw sscratch, %0"
+                 :
+                 : "r"(x));
+}
 
 
 #endif // __ASSEMBLER__
@@ -372,3 +389,5 @@ sfence_vma()
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+
+#endif

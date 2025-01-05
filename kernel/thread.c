@@ -104,7 +104,7 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
 
     proc_join_thread(p, t, name);
 
-    TCB_Q_changeState(t, TCB_RUNNABLE);
+    tcb_q_change_state(t, TCB_RUNNABLE);
     release(&t->lock);
 
 }
@@ -112,12 +112,12 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
 // free a thread
 void free_thread(struct tcb *t) {
     // free & unmap tramframe
-    acquire(&t->p->mm->lock);
+    acquire(&t->p->mm.lock);
     if (t->trapframe)
-        uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 1);
+        uvmunmap(t->p->mm.pagetable, THREAD_TRAPFRAME(t->tidx), 1, 1);
     else
-        uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0);
-    release(&t->p->mm->lock);
+        uvmunmap(t->p->mm.pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0);
+    release(&t->p->mm.lock);
 
     // // bug!
     // if (t->wait_chan_entry != NULL) {
@@ -163,7 +163,7 @@ void free_thread(struct tcb *t) {
 /// @param name thread's name
 /// @return return 0 if success, -1 if map thread trapframe failed
 int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
-    struct thread_group *tg = p->tg;
+    struct thread_group *tg = &(p->tg);
 
     atomic_inc_return(&tg->thread_cnt);
     
@@ -171,23 +171,23 @@ int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     if (tg->group_leader == NULL) {
         tg->group_leader = t;
     }
-    list_add_tail(&t->threads, &p->tg->threads);
+    list_add_tail(&t->threads, &p->tg.threads);
     tg->tgid = p->pid;
     t->tidx = tg->thread_idx++;
     t->p = p;
     release(&tg->lock);
 
-    acquire(&t->p->mm->lock);
+    acquire(&t->p->mm.lock);
     // Log("thread idx is %d, within group %d", t->tidx, p->pid);
-    if ((t->trapframe = uvm_thread_trapframe(p->mm->pagetable, t->tidx)) == 0) {   
-        release(&t->p->mm->lock);
+    if ((t->trapframe = uvm_thread_trapframe(p->mm.pagetable, t->tidx)) == 0) {   
+        release(&t->p->mm.lock);
         return -1;
     }
-    release(&t->p->mm->lock);
+    release(&t->p->mm.lock);
 
     // vmprint(p->mm->pagetable, 0, 0, MAXVA - 512 * PGSIZE, 0);
     if (name == NULL) {
-        char name_tmp[20];
+        // char name_tmp[20];
         // snprintf(name_tmp, 20, "%s-%d", p->name, t->tidx);
         strncpy(t->name, "testname", 20);
     } else {

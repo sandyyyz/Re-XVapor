@@ -77,6 +77,9 @@ void *kalloc(void) {
   return (void *)r;
 }
 
+/// @brief allocate one page of physical memory and fill with 0
+/// @param  
+/// @return physical address
 void *kzalloc(void) {
   struct run *r;
 
