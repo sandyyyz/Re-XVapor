@@ -44,6 +44,11 @@ clockintr()
 ```
 so can sleep in ``chan == traget_ticks``
 
+如果要将xv6原有的`` sleep -- wakeup `` 方式改为使用 `` 条件变量 -- 等待队列``的方式，那么该如何实现精确计时呢？
+
+在thread中增加一个timeout?
+
+-- 暂时遍历整个等待队列？。。。好像不是很优雅
 
 ## sys_clone
 ![clone_synopsis](image-32.png)

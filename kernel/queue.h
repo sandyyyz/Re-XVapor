@@ -14,7 +14,7 @@ enum queue_type { TCB_STATE_QUEUE,
                   INODE_FREE_QUEUE };
 
 struct queue {
-    struct spinlock lock;
+    struct spinlock lock; // lock to protect the queue
     struct list_head list;
     char name[30]; // the name of queue
     enum queue_type type;
@@ -54,5 +54,17 @@ void *queue_pop(queue_t *q, int remove);
 
 // provide the first one of the queue (atomic)
 void *queue_pop_atomic(queue_t *q, int remove);
+
+/**
+ * @brief traverse the queue safely
+ * @param pos: the type* of the target structure to traverse
+ * @param tmp: another type* of the structure for temporary storage
+ * @param q: the queue* to traverse
+ * @param member: the name of the list_head within the struct
+ * @details not elegant right now, just used before using the condition variable for sleep-wakeup...
+ */
+#define queue_for_each_entry_safe(pos, tmp, q, member) \
+    list_for_each_entry_safe(pos, tmp, &(q->list), member)
+
 
 #endif  // __QUEUE_H

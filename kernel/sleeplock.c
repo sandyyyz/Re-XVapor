@@ -26,7 +26,7 @@ acquiresleep(struct sleeplock *lk)
   // 多线程对sleeplock不会因为spinlock而阻塞
   while (lk->locked) {
     // sleep 等待获取锁lk
-    sleep(lk, &lk->lk);
+    thread_sleep(lk, &lk->lk);
   }
   // sleeplock 被spinlock保护
   lk->locked = 1;
@@ -40,7 +40,7 @@ releasesleep(struct sleeplock *lk)
   acquire(&lk->lk);
   lk->locked = 0;
   lk->pid = 0;
-  wakeup(lk);
+  thread_wakeup_chan(lk);
   release(&lk->lk);
 }
 

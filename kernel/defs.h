@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct tcb;
 
 // bio.c
 void            binit(void);
@@ -96,17 +97,26 @@ struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
 struct proc*    myproc();
 void            procinit(void);
-void            scheduler(void) __attribute__((noreturn));
-void            sched(void);
-void            sleep(void*, struct spinlock*);
+// void            scheduler(void) __attribute__((noreturn));
+// void            sched(void);
+void            thread_scheduler(void) __attribute__((noreturn));
+void            thread_sched(void);
+int thread_killed(struct tcb *t);
+
+// void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(uint64);
-void            wakeup(void*);
-void            yield(void);
+// void            wakeup(void*);
+// void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int wait4(pid_t pid, uint64 pstatus, int options);
+
+void thread_sleep(void*, struct spinlock*);
+void thread_wakeup_chan(void *chan);
+void thread_wakeup_chan_atomic(void *chan);
+void thread_yield(void);
 
 // swtch.S
 // push a1, push a0

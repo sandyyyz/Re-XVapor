@@ -18,9 +18,9 @@ sys_nanosleep(void)
     argaddr(0, &addr0);
     argaddr(1, &addr1);
     struct timespec req, rem;
-    if (copyin(p->pagetable, (char *)&req, addr0, sizeof(struct timespec)) < 0)
+    if (copyin(p->mm.pagetable, (char *)&req, addr0, sizeof(struct timespec)) < 0)
         return -1;
-    if (copyin(p->pagetable, (char *)&rem, addr1, sizeof(struct timespec)) < 0)
+    if (copyin(p->mm.pagetable, (char *)&rem, addr1, sizeof(struct timespec)) < 0)
         return -1;
 
     rticks = req.tv_sec * TICKS_PER_SECOND + req.tv_nsec * TICKS_PER_SECOND / 1000000000;
@@ -33,11 +33,11 @@ sys_nanosleep(void)
         {
             rem.tv_sec = (ticks - ticks0) / TICKS_PER_SECOND;
             rem.tv_nsec = ((ticks - ticks0) % TICKS_PER_SECOND) * 1000000000 / TICKS_PER_SECOND;
-            copyout(p->pagetable, addr1, (char *)&rem, sizeof(rem));
+            copyout(p->mm.pagetable, addr1, (char *)&rem, sizeof(rem));
             release(&tickslock);
             return -1;
         }
-        sleep(&ticks, &tickslock);
+        thread_sleep(&ticks, &tickslock);
     }
     release(&tickslock);
     return 0;
@@ -114,15 +114,18 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
+  struct proc *p = myproc();
+  struct tcb *t = mythread();
+
   argint(0, &n);
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < 10 * n){
-    if(killed(myproc())){
+    if(killed(p) || thread_killed(t)){
       release(&tickslock);
       return -1;
     }
-    sleep(&ticks, &tickslock);
+    thread_sleep(&ticks, &tickslock);
   }
   release(&tickslock);
   return 0;

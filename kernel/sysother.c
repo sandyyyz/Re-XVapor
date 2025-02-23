@@ -30,7 +30,7 @@ uint64 sys_times(void){
         }
         release(&p->lock);
     }
-    if (copyout(curr_p->pagetable, utms, (char *)&ptms, sizeof(ptms)) < 0)
+    if (copyout(curr_p->mm.pagetable, utms, (char *)&ptms, sizeof(ptms)) < 0)
         return -1;
     return ptms.tms_utime + ptms.tms_stime;
 }
@@ -48,7 +48,7 @@ sys_uname(void)
     strncpy(uts.machine, "QEMU", 4);
     strncpy(uts.domainname, "none", 4);
 
-    if (copyout(myproc()->pagetable, addr, (char *)&uts, sizeof(uts)) < 0)
+    if (copyout(myproc()->mm.pagetable, addr, (char *)&uts, sizeof(uts)) < 0)
         return -1;
     return 0;
 }
@@ -56,7 +56,7 @@ sys_uname(void)
 uint64
 sys_sched_yield(void)
 {
-    yield();
+    thread_yield();
     return 0;
 }
 
@@ -71,7 +71,7 @@ sys_gettimeofday(void)
     ts.tv_sec = t / CLK_FREQ;
     ts.tv_usec = (t % CLK_FREQ) * 1000000 / CLK_FREQ;
     printf("%d  %d\n",ts.tv_sec,ts.tv_usec);
-    if (copyout(myproc()->pagetable, addr, (char *)&ts, sizeof(struct timeval)) < 0)
+    if (copyout(myproc()->mm.pagetable, addr, (char *)&ts, sizeof(struct timeval)) < 0)
         return -1;
     return 0;
 }

@@ -178,7 +178,7 @@ free_desc(int i)
   disk.desc[i].flags = 0;
   disk.desc[i].next = 0;
   disk.free[i] = 1;
-  wakeup(&disk.free[0]);
+  thread_wakeup_chan(&disk.free[0]);
 }
 
 // free a chain of descriptors.
@@ -230,7 +230,7 @@ virtio_disk_rw(struct buf *b, int write)
     if(alloc3_desc(idx) == 0) {
       break;
     }
-    sleep(&disk.free[0], &disk.vdisk_lock);
+    thread_sleep(&disk.free[0], &disk.vdisk_lock);
   }
 
   // format the three descriptors.
@@ -283,7 +283,7 @@ virtio_disk_rw(struct buf *b, int write)
 
   // Wait for virtio_disk_intr() to say request has finished.
   while(b->disk == 1) {
-    sleep(b, &disk.vdisk_lock);
+    thread_sleep(b, &disk.vdisk_lock);
   }
 
   disk.info[idx[0]].b = 0;
@@ -319,7 +319,7 @@ virtio_disk_intr()
 
     struct buf *b = disk.info[id].b;
     b->disk = 0;   // disk is done with buf
-    wakeup(b);
+    thread_wakeup_chan(b);
 
     disk.used_idx += 1;
   }

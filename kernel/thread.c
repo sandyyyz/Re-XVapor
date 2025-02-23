@@ -59,7 +59,10 @@ tcb_t* mythread(void) {
     return thread;
 }
 
-// allocate a new kernel thread
+
+/// @brief allocate a new thread with new context, but the trapframe is not set yet
+/// @param callback callback of thread
+/// @return return the new thread
 struct tcb *alloc_thread(thread_callback callback) {
     struct tcb *t;
 
@@ -250,96 +253,94 @@ void tginit(struct thread_group *tg) {
     INIT_LIST_HEAD(&tg->threads);
 }
 
-// void sighandinit(struct tcb *t) {
-//     if ((t->sig = (struct sighand *)kzalloc(sizeof(struct sighand))) == 0) {
-//         panic("no space for sighand\n");
-//     }
-//     initlock(&t->sig->siglock, "signal handler lock");
-//     atomic_set(&(t->sig->ref), 1);
-//     // memset the signal handler???
-// }
+// 传入chan来标记sleep原因？
+// 即wait channel
+// Atomically release lock and sleep on chan.
+// Reacquires lock when awakened.
+void
+thread_sleep(void *chan, struct spinlock *lk)
+{
+//   struct proc *p = myproc();
+  struct tcb *t  = mythread();
+  // Must acquire p->lock in order to
+  // change p->state and then call sched.
+  // Once we hold p->lock, we can be
+  // guaranteed that we won't miss any wakeup
+  // (wakeup locks p->lock),
+  // so it's okay to release lk.
 
-// // send signal to thread (wakeup tcb sleeping)
-// void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
-//     signal_send(info, t_cur);
+  // acquire(&p->lock);  //DOC: sleeplock1
+  acquire(&t->lock);
+  release(lk);
 
-//     if (t_cur->state == TCB_SLEEPING) {
-//         thread_wakeup(t_cur);
-//     }
-//     // wakeup thread sleeping of proc p
-//     // if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
-//     //     if (t_cur->state == TCB_SLEEPING) {
-//     //         Queue_remove_atomic(&cond_ticks.waiting_queue, (void *)t_cur); // bug
-//     //         TCB_Q_changeState(t_cur, TCB_RUNNABLE);
-//     //     }
-//     // }
-// #ifdef __DEBUG_PROC__
-//     printfCYAN("tkill : kill thread %d, signo = %d\n", t_cur->tid, info->si_signo); // debug
-// #endif
-//     switch(info->si_signo) {
-//         case SIGKILL:  
-//         case SIGSTOP:
-//             t_cur->killed = 1;
-//             break;
-//         default:
-//             break;
-//     }
-    
-//     return;
-// }
+  // Go to sleep.
+  t->chan = chan;
 
-// // find the tcb* given tid using hash map
-// struct tcb *find_get_tid(tid_t tid) {
-//     struct hash_node *node = hash_lookup(&tid_map, (void *)&tid, NULL, 1, 0); // release it, not holding it
-//     return node != NULL ? (struct tcb *)(node->value) : NULL;
-// }
+  // p->state = SLEEPING;
+  tcb_q_change_state(t, TCB_SLEEPING);
 
-// // find tcb given pid and tidx
-// struct tcb *find_get_tidx(int pid, int tidx) {
-//     // find proc given pid
-//     struct proc *p;
-//     if ((p = find_get_pid(pid)) == NULL)
-//         return NULL;
+  // sched();
+  thread_sched();
 
-//     // find thread given tidx
-//     struct tcb *t_cur = NULL;
-//     struct tcb *t_tmp = NULL;
-//     acquire(&p->tg->lock);
-//     list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
-//         acquire(&t_cur->lock);
-//         // tidx from 0, but tid == 0 stands for invalid thread
-//         if (t_cur->tidx + 1 == tidx) {
-//             release(&p->tg->lock);
-//             return t_cur;
-//         }
-//         release(&t_cur->lock);
-//     }
-//     release(&p->tg->lock);
+  // Tidy up.
+  // p->chan = 0;
+  t->chan = 0;
+  
+  // Reacquire original lock.
+  release(&t->lock);
+  acquire(lk);
+}
 
-//     return NULL;
-// }
+/**
+ * @brief // Wake up all threads sleeping on chan. Must be called without any p->lock.
+ * 
+ * @param chan sleeping channel
+ */
+void
+thread_wakeup_chan(void *chan)
+{
+//   struct proc *p;
 
-// void do_tkill(struct tcb *t, sig_t signo) {
-//     siginfo_t info;
-//     signal_info_init(signo, &info, 0);
-//     acquire(&t->lock);
-//     thread_send_signal(t, &info);
-//     release(&t->lock);
-// #ifdef __DEBUG_SIGNAL__
-//     printfCYAN("tkill , tid : %d, signo : %d\n", t->tid, signo);
-// #endif
-// }
+    struct tcb *t, *tt;
+    struct tcb *cur_threads = mythread();
+    queue_for_each_entry_safe(t, tt, g_tcb_queues[TCB_SLEEPING], wait_list) {
+        if(t != cur_threads) {
+            acquire(&t->lock);
+            if(t->chan == chan) {
+                tcb_q_change_state(t, TCB_RUNNABLE);
+            }
+            release(&t->lock);
+        }
+    }
 
-// int do_sleep_ns(struct tcb *t, struct timespec ts) {
-// //     uint64 interval_ns = TIMESEPC2NS(ts);
 
-// //     acquire(&cond_ticks.waiting_queue.lock);
-// //     t->time_out = interval_ns;
-// // // printf("from do_sleep_ns: hart = %d\n",cpuid());
-// // // printf("t-time_out = %d\n",interval_ns);
-// //     int wait_ret = cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
-// //     release(&cond_ticks.waiting_queue.lock);
-// //     return wait_ret;
-//     return 0;
-// }
+}
+/// @brief wake up a given thread atomic, meaning that we needn't hold thread's lock in advance,
+/// @brief we acquire the lock first, and release it at the end
+/// 
+/// @param t given thread
+void thread_wakeup_specific_atomic(struct tcb *t) {
+
+    acquire(&t->lock);
+
+    ASSERT(t->wait_chan_entry != NULL);
+    queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    ASSERT(t->state == TCB_SLEEPING);
+    t->wait_chan_entry = NULL;
+    tcb_q_change_state(t, TCB_RUNNABLE);
+
+    release(&t->lock);
+}
+
+
+/// @brief wake up a given thread, call and return with thread's lock held 
+/// @param t given thread
+void thread_wakeup_specific(struct tcb *t) {
+    ASSERT(t->wait_chan_entry != NULL);
+    queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    ASSERT(t->state == TCB_SLEEPING);
+    t->wait_chan_entry = NULL;
+    tcb_q_change_state(t, TCB_RUNNABLE);
+}
+
 

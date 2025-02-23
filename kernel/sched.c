@@ -23,7 +23,11 @@ void PCB_Q_ALL_INIT() {
 }
 
 
-// must holding p->lock
+
+/// @brief change the process's state
+/// @param p given process
+/// @param  state_new the new state
+/// @attention must hold the p->lock. return with the process's lock held
 void pcb_q_change_state(struct proc *p, enum procstate state_new) {
 
     queue_t *pcb_q_new = g_pcb_queues[state_new];
@@ -40,11 +44,15 @@ void pcb_q_change_state(struct proc *p, enum procstate state_new) {
     return;
 }
 
-// must holding t->lock
+/// @brief change the given tcb's state 
+/// @details Special distinction is made for the tcb_runnning queue
+/// @param t tcb
+/// @param  state_new the new state
+/// @attention must hold the t->lock. return with the thread's lock held
 void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
     queue_t *tcb_q_new = g_tcb_queues[state_new];
 
-    acquire(&t->lock);
+    // acquire(&t->lock);
     queue_t *tcb_q_old = g_tcb_queues[t->state];
 
     if (t->state != TCB_RUNNING) {
@@ -70,29 +78,6 @@ void thread_yield(void) {
     release(&t->lock);
 }
 
-// holding lock
-void thread_wakeup(struct tcb *t) {
-    ASSERT(t->wait_chan_entry != NULL);
-    queue_remove_atomic(t->wait_chan_entry, (void *)t);
-    ASSERT(t->state == TCB_SLEEPING);
-    t->wait_chan_entry = NULL;
-    tcb_q_change_state(t, TCB_RUNNABLE);
-}
-
-// it is essential !!!
-void thread_wakeup_atomic(void *t) {
-    struct tcb *thread = (struct tcb *)t;
-
-    acquire(&thread->lock);
-
-    ASSERT(thread->wait_chan_entry != NULL);
-    queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
-    ASSERT(thread->state == TCB_SLEEPING);
-    thread->wait_chan_entry = NULL;
-    tcb_q_change_state(t, TCB_RUNNABLE);
-
-    release(&thread->lock);
-}
 
 void thread_sched(void) {
     int intena;
@@ -123,12 +108,13 @@ void thread_scheduler(void) {
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
 
-        t = (struct tcb *)queue_pop_atomic(g_pcb_queues[RUNNABLE], 1); // remove it
+        t = (struct tcb *)queue_pop_atomic(g_tcb_queues[TCB_RUNNABLE], 1); // remove it
         if (t == NULL)
             continue;
 
         acquire(&t->lock);
-        t->state = TCB_RUNNING;
+        // t->state = TCB_RUNNING;
+        tcb_q_change_state(t, TCB_RUNNING);
         c->thread = t;
         swtch(&c->context, &t->context);
         c->thread = 0;

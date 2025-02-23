@@ -61,10 +61,10 @@ pipeclose(struct pipe *pi, int writable)
   acquire(&pi->lock);
   if(writable){
     pi->writeopen = 0;
-    wakeup(&pi->nread);
+    thread_wakeup_chan(&pi->nread);
   } else {
     pi->readopen = 0;
-    wakeup(&pi->nwrite);
+    thread_wakeup_chan(&pi->nwrite);
   }
   if(pi->readopen == 0 && pi->writeopen == 0){
     release(&pi->lock);
@@ -86,17 +86,17 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
       return -1;
     }
     if(pi->nwrite == pi->nread + PIPESIZE){ //DOC: pipewrite-full
-      wakeup(&pi->nread);
-      sleep(&pi->nwrite, &pi->lock);
+      thread_wakeup_chan(&pi->nread);
+      thread_sleep(&pi->nwrite, &pi->lock);
     } else {
       char ch;
-      if(copyin(pr->pagetable, &ch, addr + i, 1) == -1)
+      if(copyin(pr->mm.pagetable, &ch, addr + i, 1) == -1)
         break;
       pi->data[pi->nwrite++ % PIPESIZE] = ch;
       i++;
     }
   }
-  wakeup(&pi->nread);
+  thread_wakeup_chan(&pi->nread);
   release(&pi->lock);
 
   return i;
@@ -115,16 +115,16 @@ piperead(struct pipe *pi, uint64 addr, int n)
       release(&pi->lock);
       return -1;
     }
-    sleep(&pi->nread, &pi->lock); //DOC: piperead-sleep
+    thread_sleep(&pi->nread, &pi->lock); //DOC: piperead-sleep
   }
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(pi->nread == pi->nwrite)
       break;
     ch = pi->data[pi->nread++ % PIPESIZE];
-    if(copyout(pr->pagetable, addr + i, &ch, 1) == -1)
+    if(copyout(pr->mm.pagetable, addr + i, &ch, 1) == -1)
       break;
   }
-  wakeup(&pi->nwrite);  //DOC: piperead-wakeup
+  thread_wakeup_chan(&pi->nwrite);  //DOC: piperead-wakeup
   release(&pi->lock);
   return i;
 }

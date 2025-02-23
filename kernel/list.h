@@ -202,7 +202,7 @@ static inline void list_join_given_first(struct list_head *first_new, struct lis
     }
 }
 
-// 遍历链表
+// 遍历链表q
 /**
  * list_first_entry - get the first element from a list
  * @ptr:	the list head to take the element from.
@@ -284,7 +284,7 @@ static inline void list_join_given_first(struct list_head *first_new, struct lis
          &pos->member != (head);                            \
          pos = list_prev_entry(pos, member))
 
-// 正向安全遍历链表（遍历的同时删除节点）
+// 正向安全遍历链表,预存pos下一个节点，保证遍历删除当前节点时也可以正常遍历
 /**
  * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
  * @pos:	the type * to use as a loop cursor.

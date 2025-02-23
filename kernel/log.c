@@ -127,10 +127,10 @@ void begin_op(void) {
   acquire(&log.lock);
   while (1) {
     if (log.committing) {
-      sleep(&log, &log.lock);
+      thread_sleep(&log, &log.lock);
     } else if (log.lh.n + (log.outstanding + 1) * MAXOPBLOCKS > LOGSIZE) {
       // this op might exhaust log space; wait for commit.
-      sleep(&log, &log.lock);
+      thread_sleep(&log, &log.lock);
     } else {
       log.outstanding += 1;
       release(&log.lock);
@@ -155,7 +155,7 @@ void end_op(void) {
     // begin_op() may be waiting for log space,
     // and decrementing log.outstanding has decreased
     // the amount of reserved space.
-    wakeup(&log);
+    thread_wakeup_chan(&log);
   }
   release(&log.lock);
 
@@ -165,7 +165,7 @@ void end_op(void) {
     commit();
     acquire(&log.lock);
     log.committing = 0;
-    wakeup(&log);
+    thread_wakeup_chan(&log);
     release(&log.lock);
   }
 }

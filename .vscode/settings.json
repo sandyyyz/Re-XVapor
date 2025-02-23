@@ -34,6 +34,7 @@
         "thread": "c",
         "thread.h": "c",
         "sched.h": "c",
-        "cstdio": "c"
+        "cstdio": "c",
+        "debug.h": "c"
     }
 }

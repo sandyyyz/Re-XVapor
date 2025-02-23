@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
+#include "thread.h"
 
 struct timespec;
 
@@ -18,7 +19,7 @@ fetchaddr(uint64 addr, uint64 *ip)
   struct proc *p = myproc();
   if(addr >= p->sz || addr+sizeof(uint64) > p->sz) // both tests needed, in case of overflow
     return -1;
-  if(copyin(p->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
+  if(copyin(p->mm.pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
     return -1;
   return 0;
 }
@@ -32,7 +33,7 @@ int
 fetchstr(uint64 addr, char *buf, int max)
 {
   struct proc *p = myproc();
-  if(copyinstr(p->pagetable, buf, addr, max) < 0)
+  if(copyinstr(p->mm.pagetable, buf, addr, max) < 0)
     return -1;
   return strlen(buf);
 }
@@ -41,20 +42,21 @@ fetchstr(uint64 addr, char *buf, int max)
 static uint64
 argraw(int n)
 {
-  struct proc *p = myproc();
+  // struct proc *p = myproc();
+  struct tcb *t = mythread();
   switch (n) {
   case 0:
-    return p->trapframe->a0;
+    return t->trapframe->a0;
   case 1:
-    return p->trapframe->a1;
+    return t->trapframe->a1;
   case 2:
-    return p->trapframe->a2;
+    return t->trapframe->a2;
   case 3:
-    return p->trapframe->a3;
+    return t->trapframe->a3;
   case 4:
-    return p->trapframe->a4;
+    return t->trapframe->a4;
   case 5:
-    return p->trapframe->a5;
+    return t->trapframe->a5;
   }
   panic("argraw");
   return -1;
@@ -158,17 +160,18 @@ void
 syscall(void)
 {
   int num;
-  struct proc *p = myproc();
+  // struct proc *p = myproc();
+  struct tcb *t = mythread();
 
-  num = p->trapframe->a7; // call number
+  num = t->trapframe->a7; // call number
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
-    p->trapframe->a0 = syscalls[num]();
+    t->trapframe->a0 = syscalls[num]();
     // printf("%d %s: syscall %d\n", p->pid, p->name, num);
   } else {
     printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
-    p->trapframe->a0 = -1;
+            t->tid, t->name, num);
+    t->trapframe->a0 = -1;
   }
 }

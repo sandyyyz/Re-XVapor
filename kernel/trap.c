@@ -49,19 +49,23 @@ usertrap(void)
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
+  // change to thread 
+  struct tcb *t = mythread();
   
   // save user program counter.
-  p->trapframe->epc = r_sepc();
+  // p->trapframe->epc = r_sepc();
+  t->trapframe->epc = r_sepc();
   
   if(r_scause() == 8){
     // system call
 
-    if(killed(p))
+    if(killed(p) || thread_killed(t))
       exit(-1);
 
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
+    // p->trapframe->epc += 4;
+    t->trapframe->epc += 4;
 
     // an interrupt will change sepc, scause, and sstatus,
     // so enable only now that we're done with those registers.
@@ -73,16 +77,20 @@ usertrap(void)
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+
+    list_for_each_entry(t, &p->tg.threads, threads) {
+      thread_setkilled(t);
+    }
     setkilled(p);
   }
 
-  if(killed(p))
+  if(killed(p) || thread_killed(t))
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2) {
     p->utime++;
-    yield();
+    thread_yield();
   }
 
 
@@ -96,6 +104,7 @@ void
 usertrapret(void)
 {
   struct proc *p = myproc();
+  struct tcb *t = mythread();
 
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
@@ -108,10 +117,15 @@ usertrapret(void)
 
   // set up trapframe values that uservec will need when
   // the process next traps into the kernel.
-  p->trapframe->kernel_satp = r_satp();         // kernel page table
-  p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
-  p->trapframe->kernel_trap = (uint64)usertrap;
-  p->trapframe->kernel_hartid = r_tp();         // hartid for cpuid()
+  // p->trapframe->kernel_satp = r_satp();         // kernel page table
+  // p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
+  // p->trapframe->kernel_trap = (uint64)usertrap;
+  // p->trapframe->kernel_hartid = r_tp();         // hartid for cpuid()
+
+  t->trapframe->kernel_satp = r_satp();         // kernel page table
+  t->trapframe->kernel_sp = t->kstack + KSTACK_PAGE * PGSIZE; // thread's kernel stack
+  t->trapframe->kernel_trap = (uint64)usertrap;
+  t->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
   // set up the registers that trampoline.S's sret will use
   // to get to user space.
@@ -123,10 +137,12 @@ usertrapret(void)
   w_sstatus(x);
 
   // set S Exception Program Counter to the saved user pc.
-  w_sepc(p->trapframe->epc);
+  // w_sepc(p->trapframe->epc);
+  w_sepc(t->trapframe->epc);
 
   // tell trampoline.S the user page table to switch to.
-  uint64 satp = MAKE_SATP(p->pagetable);
+  // because the threads shared the same pagetable
+  uint64 satp = MAKE_SATP(p->mm.pagetable);
 
   // jump to userret in trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
@@ -159,9 +175,9 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING) {
+  if(which_dev == 2 && mythread() != 0 && mythread()->state == TCB_RUNNING) {
     p->ktime++;  
-    yield();
+    thread_yield();
   }
 
 
@@ -176,7 +192,7 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
-  wakeup(&ticks);
+  thread_wakeup_chan(&ticks);
   release(&tickslock);
 }
 
@@ -257,12 +273,12 @@ void thread_usertrap(void)
   if(r_scause() == 8){
     // system call
 
-    if(killed(p))
+    if(killed(p) || thread_killed(t))
       exit(-1);
 
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
+    t->trapframe->epc += 4;
 
     // an interrupt will change sepc, scause, and sstatus,
     // so enable only now that we're done with those registers.
@@ -274,16 +290,20 @@ void thread_usertrap(void)
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+
+    list_for_each_entry(t, &p->tg.threads, threads) {
+      thread_setkilled(t);
+    }
     setkilled(p);
   }
 
-  if(killed(p))
+  if(killed(p) || thread_killed(t))
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2) {
     p->utime++;
-    yield();
+    thread_yield();
   }
 }
 /// @brief thread return to user space, the diffrences between usertrap() and 
