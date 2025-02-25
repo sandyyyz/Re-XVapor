@@ -71,7 +71,7 @@ struct tcb *alloc_thread(thread_callback callback) {
     if (t == NULL)
         goto no_unused;
 
-    acquire(&t->lock);
+    acquire(&t->lock);  
 
     // spinlock and threads list head
     INIT_LIST_HEAD(&t->threads);

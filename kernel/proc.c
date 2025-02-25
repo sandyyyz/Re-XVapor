@@ -88,9 +88,10 @@ void delete_child(struct proc *parent, struct proc *child) {
     }
 }
 
-/// @brief add child process to parent's list
+/// @brief add child process to parent's child list
 /// @param parent parent process 
 /// @param child child process
+/// @attention remember to hold the parent's lock
 void append_child(struct proc *parent, struct proc *child) {
     if (nochildren(parent)) {
         parent->first_child = child;
@@ -479,6 +480,10 @@ fork(void)
   np->parent = p;
   release(&wait_lock);
 
+  acquire(&p->lock);
+  append_child(p, np);
+  release(&p->lock);
+  
   acquire(&np->lock);
   // np->state = RUNNABLE;
   // change the leader thread's state
