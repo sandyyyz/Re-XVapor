@@ -60,6 +60,31 @@ tcb_t* mythread(void) {
 }
 
 
+void thread_forkret(void)
+{
+#ifdef __DEBUG_FORKRET
+    // printf_blue("into forkret!\n");
+    Log("into forkret!\n");
+
+#endif
+
+  static int thread_first = 1;
+
+  // Still holding p->lock from scheduler.
+  release(&mythread()->lock);
+
+  if (thread_first) {
+    // File system initialization must be run in the context of a
+    // regular process (e.g., because it calls sleep), and thus cannot
+    // be run from main().
+    thread_first = 0;
+    fsinit(ROOTDEV);
+  }
+
+
+  usertrapret();
+}
+
 /// @brief allocate a new thread with new context, but the trapframe is not set yet
 /// @param callback callback of thread
 /// @return return the new thread
@@ -87,6 +112,10 @@ struct tcb *alloc_thread(thread_callback callback) {
     // chage state of TCB
     tcb_q_change_state(t, TCB_USED);
 
+
+#ifdef __DEBUG_ALLOCATE_THREAD
+    Log("allocate thread %d\n", t->tid);
+#endif
 no_unused:
     return t;
 }
@@ -107,6 +136,9 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
 
     proc_join_thread(p, t, name);
 
+#ifdef __DEBUG_CREATE_THREAD
+    Log("create thread %d\n", t->tid);
+#endif
     tcb_q_change_state(t, TCB_RUNNABLE);
     release(&t->lock);
 
@@ -186,6 +218,7 @@ int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
         release(&t->p->mm.lock);
         return -1;
     }
+
     release(&t->p->mm.lock);
 
     // vmprint(p->mm->pagetable, 0, 0, MAXVA - 512 * PGSIZE, 0);
@@ -303,16 +336,25 @@ thread_wakeup_chan(void *chan)
 
     struct tcb *t, *tt;
     struct tcb *cur_threads = mythread();
-    queue_for_each_entry_safe(t, tt, g_tcb_queues[TCB_SLEEPING], wait_list) {
+    queue_for_each_entry_safe(t, tt, g_tcb_queues[TCB_SLEEPING], state_list) {
+#ifdef __DEBUG_WAKEUP_CHAN
+        // if(!t) Log("wakeup tid: %d, with state %d", t->tid, t->state);
+#endif
         if(t != cur_threads) {
+#ifdef __DEBUG_WAKEUP_CHAN
+            Log("thread_wakeup_chan get thread %d with state = %d", t->tid, t->state);
+#endif
             acquire(&t->lock);
             if(t->chan == chan) {
                 tcb_q_change_state(t, TCB_RUNNABLE);
+#ifdef __DEBUG_WAKEUP_CHAN
+                Log("thread_wakeup_chan %s at chan %p", t->name, chan);
+#endif
             }
+
             release(&t->lock);
         }
     }
-
 
 }
 /// @brief wake up a given thread atomic, meaning that we needn't hold thread's lock in advance,
@@ -344,3 +386,16 @@ void thread_wakeup_specific(struct tcb *t) {
 }
 
 
+void print_trapframe(struct trapframe *tf) {
+    printf("trapframe at %p\n", tf);
+    printf("  kernel_satp %p\n", tf->kernel_satp);
+    printf("  kernel_sp %p\n", tf->kernel_sp);
+    printf("  kernel_trap %p\n", tf->kernel_trap);
+    printf("  kernel_hartid %p\n", tf->kernel_hartid);
+    printf("  epc %p\n", tf->epc);
+    printf("  ra %p\n", tf->ra);
+    printf("  sp %p\n", tf->sp);
+    printf("  gp %p\n", tf->gp);
+    printf("  tp %p\n", tf->tp);
+    printf("  t0 %p\n", tf->t0);
+}

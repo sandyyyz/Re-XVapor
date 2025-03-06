@@ -31,7 +31,7 @@ typedef struct {
 #define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 // #define atomic_set(v, i)
 
-// 自增
+// 自增并返回旧值
 static inline int atomic_inc_return(atomic_t *v) {
     return __sync_fetch_and_add(&v->counter, 1);
 }

@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -7,12 +8,13 @@
 #include "defs.h"
 #include "thread.h"
 #include "riscv.h"
+#include "vm.h"
 
 struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
-
+extern char debug_uservec[];
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
@@ -93,7 +95,10 @@ usertrap(void)
     thread_yield();
   }
 
-
+  // each of the syscall, interrupt, exceptions from userspace will return from here
+  // because we have set the t->tramframe->kernel_trap = (uint64)usertrap
+  // and set the stvec to uservec before returned to userspace last time
+  // next time's trap: uservec->usertrap->usertrapret->userret 
   usertrapret();
 }
 
@@ -113,8 +118,13 @@ usertrapret(void)
 
   // send syscalls, interrupts, and exceptions to uservec in trampoline.S
   uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
-  w_stvec(trampoline_uservec);
+  uint64 trampoline_debug_uservec = TRAMPOLINE + (debug_uservec - trampoline);
 
+  if(t->tid != 1) {
+    w_stvec(trampoline_uservec);
+  } else {
+    w_stvec(trampoline_debug_uservec);
+  }
   // set up trapframe values that uservec will need when
   // the process next traps into the kernel.
   // p->trapframe->kernel_satp = r_satp();         // kernel page table
@@ -144,11 +154,31 @@ usertrapret(void)
   // because the threads shared the same pagetable
   uint64 satp = MAKE_SATP(p->mm.pagetable);
 
+  // write tidx to sscratch for uservec in the future 
+  w_sscratch(t->tidx);
+
   // jump to userret in trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
   // 定位到userret (trampoline.s)
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
+  #ifdef __DEBUG_UTRAPRET
+  // static int startd = 0;
+  extern int g_first_exec;
+int inline dodebug() { return g_first_exec;}
+  if(dodebug())
+  { 
+    // startd += 1;
+    // Log("TRAMPOLINE = %p, (userret-trampoline) = %p", TRAMPOLINE, userret - trampoline);
+    // Log("usertrapret: trampoline_userret = %p\n", trampoline_userret);
+    // Log("trapframe->ra = %p, epc = %p, tid = %d", t->trapframe->ra, t->trapframe->epc, t->tid);
+    // printf_blue("  startd = %d \n", startd);
+    print_trapframe(t->trapframe);
+    vmprint(p->mm.pagetable);
+    // walk_va(p->mm.pagetable, (uint64)(t->trapframe));
+    walk_va(p->mm.pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
+  }
+  #endif
   ((void (*)(uint64))trampoline_userret)(satp);
 }
 
@@ -161,22 +191,30 @@ kerneltrap()
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
-  struct proc *p = myproc();
   
+#ifdef __DEBUG_TRAP
+  printf("kerneltrap: sepc=%p stval=%p scause=%p\n", sepc, r_stval(), scause);
+#endif
+
+  // struct proc *p = myproc();
+
+
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 
   if((which_dev = devintr()) == 0){
+    printf("unknow devintr()\n");
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
     panic("kerneltrap");
   }
 
   // give up the CPU if this is a timer interrupt.
+  // and if there is a thread running on cpu
   if(which_dev == 2 && mythread() != 0 && mythread()->state == TCB_RUNNING) {
-    p->ktime++;  
+    myproc()->ktime++;  
     thread_yield();
   }
 
@@ -246,6 +284,8 @@ devintr()
     return 0;
   }
 }
+
+/*  thread trap function (just modify original procedure is ok)
 
 // trampoline已经换栈和页表
 //
@@ -367,3 +407,4 @@ void thread_usertrapret() {
     ((void (*)(uint64))trampoline_userret)(satp);
 }
 
+*/

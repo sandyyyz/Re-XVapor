@@ -44,11 +44,11 @@ void pcb_q_change_state(struct proc *p, enum procstate state_new) {
     return;
 }
 
-/// @brief change the given tcb's state 
+/// @brief change the given tcb's state except for turning to tcb_runnnig!!
 /// @details Special distinction is made for the tcb_runnning queue
 /// @param t tcb
 /// @param  state_new the new state
-/// @attention must hold the t->lock. return with the thread's lock held
+/// @attention must hold the t->lock. return with the thread's lock held. cannot use for turning to tcb_runnnig!!
 void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
     queue_t *tcb_q_new = g_tcb_queues[state_new];
 
@@ -66,6 +66,16 @@ void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
     t->state = state_new;
     return;
 }
+
+/**
+ * @brief change the tcb's state to tcb_running 
+ * @attention must hold the t->lock, return with the thread's lock held. make sure the t has been removed from it's old state_queue
+ * @param t given tcb
+ */
+void inline tcb_change2_running(struct tcb *t) {
+    t->state = TCB_RUNNING;
+}
+
 
 void thread_yield(void) {
     struct tcb *t = mythread();
@@ -111,13 +121,29 @@ void thread_scheduler(void) {
         t = (struct tcb *)queue_pop_atomic(g_tcb_queues[TCB_RUNNABLE], 1); // remove it
         if (t == NULL)
             continue;
+        else 
+#ifdef __DEBUG_SCHED
+            printf("thread %d is running\n", t->tid);
 
+        printf("thread %d try to get the lock\n",t->tid);
+#endif
         acquire(&t->lock);
+
+#ifdef __DEBUG_SCHED
+        printf("thread %d get the lock\n",t->tid);
+#endif
         // t->state = TCB_RUNNING;
-        tcb_q_change_state(t, TCB_RUNNING);
+        // tcb_q_change_state(t, TCB_RUNNING); // buggy
+        tcb_change2_running(t);
         c->thread = t;
         swtch(&c->context, &t->context);
         c->thread = 0;
+#ifdef __DEBUG_SCHED
+        printf("thread %d try to release the lock\n",t->tid);
+#endif        
         release(&t->lock);
+#ifdef __DEBUG_SCHED
+        printf("thread %d release the lock\n",t->tid);
+#endif
     }
 }

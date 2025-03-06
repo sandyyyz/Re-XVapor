@@ -45,48 +45,26 @@
 // for use by the kernel and user pages
 // from physical address 0x80000000 to PHYSTOP.
 #define KERNBASE 0x80000000L
-#define PHYSTOP (KERNBASE + 128*1024*1024)
+#define PHYSTOP (KERNBASE + 128 * 1024 * 1024)
+
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.
 #define TRAMPOLINE (MAXVA - PGSIZE)
 
+
+
+
+// the kernel stack grows down from KSTACKTOP.
+#define KSTACK_PAGE 1
+
+// now every single thread has its own kernel stack
 // map kernel stacks beneath the trampoline,
-// each surrounded by invalid guard pages.
-#define KSTACK(p) (TRAMPOLINE - ((p)+1)* 2*PGSIZE)
+// each surrounded by invalid guard pages.'
+// KSTACK means KSTACK_BASE actrually 
+#define KSTACK(t) (TRAMPOLINE - ((t)+1)* (KSTACK_PAGE + 1) *PGSIZE)
 
-// User memory layout.
-// Address zero first:
-//   text
-//   original data and bss
-//   fixed-size stack
-//   expandable heap
-//   ...
-//   TRAPFRAME (p->trapframe, used by the trampoline)
-//   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
-
-
-// // User memory layout.
-// //   text
-// //   original data and bss
-// //   expandable heap
-// //   ...
-// //   USTACK_GURAD_PAGE
-// //   USTACK
-// //   ...
-// //   TRAPFRAME (each thread has it's own trapframe)
-// //   SIGRETURN
-// //   TRAMPOLINE (the same page as in the kernel)
-
-/// bug here!! when add SIGRETURN above the TRAPFRAME, why?
-/// maybe because of the KSTACK macro???
- 
-// //shared by all thread
-// #define SIGRETURN (TRAMPOLINE - PGSIZE)
-// #define TRAPFRAME (SIGRETURN - PGSIZE)
-
 // thread-exclusive
-#define THREAD_TRAPFRAME(id) (TRAPFRAME - (id)*PGSIZE)
+#define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx)*PGSIZE)
 
-#define KSTACK_PAGE 4       

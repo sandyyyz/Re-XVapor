@@ -7,6 +7,8 @@
 #include "defs.h"
 #include "elf.h"
 #include "thread.h"
+#include "debug.h"
+#include "vm.h"
 
 static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
 
@@ -19,10 +21,23 @@ int flags2perm(int flags)
       perm |= PTE_W;
     return perm;
 }
-
-int
-exec(char *path, char **argv)
+/**
+ * @brief execute a program
+ * 
+ * @param path the program path
+ * @param argv arguments
+ * @return argc of the main(argc, argv), -1 if failed
+ * @details create a new pagetable and load the program into memory
+ * @details create a new stack for the program
+ * @details set trapframe->sp to ustack,and epc to 
+ * @attention TODO: how to manage other threads' memory in pgtable? just kill them all right now , and the current thread turn to be the group leader
+ */
+int exec(char *path, char **argv)
 {
+#ifdef __DEBUG_EXEC
+  Log("do exec");
+#endif
+
   char *s, *last;
   int i, off;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
@@ -52,6 +67,8 @@ exec(char *path, char **argv)
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
 
+  
+  
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
@@ -65,9 +82,11 @@ exec(char *path, char **argv)
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
     uint64 sz1;
+    // allocate and map memory for the segment into process' pagetable
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
+    // now load segment into mapped memory in pgtble
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
   }
@@ -75,6 +94,7 @@ exec(char *path, char **argv)
   end_op();
   ip = 0;
 
+  // fix size, and allocate ustack and stack guard page
   p = myproc();
   uint64 oldsz = p->sz;
 

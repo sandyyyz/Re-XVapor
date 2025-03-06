@@ -25,6 +25,6 @@ main(int argc, char *argv[])
   }
   close(PipeFd[0]);				// 关闭文件描述符
   close(PipeFd[1]);
-  exi t(0);
+  exit(0);
 }
 

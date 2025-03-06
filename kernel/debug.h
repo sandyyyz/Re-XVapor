@@ -23,27 +23,27 @@
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
 /* ANSI-color code printf */
-#define printfRed(format, ...)          \
+#define printf_red(format, ...)          \
     printf("\33[1;31m" format "\33[0m", \
            ##__VA_ARGS__)
 
-#define printfGreen(format, ...)        \
+#define printf_green(format, ...)        \
     printf("\33[1;32m" format "\33[0m", \
            ##__VA_ARGS__)
 
-#define printfBlue(format, ...)         \
+#define printf_blue(format, ...)         \
     printf("\33[1;34m" format "\33[0m", \
            ##__VA_ARGS__)
 
-#define printfCYAN(format, ...)         \
+#define printf_cyan(format, ...)         \
     printf("\33[1;36m" format "\33[0m", \
            ##__VA_ARGS__)
 
-#define printfYELLOW(format, ...)       \
+#define printf_yellow(format, ...)       \
     printf("\33[1;33m" format "\33[0m", \
            ##__VA_ARGS__)
 
-#define printfBWhite(format, ...)       \
+#define printf_bwhite(format, ...)       \
     printf("\33[1;37m" format "\33[0m", \
            ##__VA_ARGS__)
 

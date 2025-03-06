@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "param.h"
 #include "types.h"
 #include "memlayout.h"
@@ -47,7 +48,7 @@ kvmmake(void)
   kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 
   // allocate and map a kernel stack for each process.
-  proc_mapstacks(kpgtbl);
+  thread_mapstacks(kpgtbl);
   
   return kpgtbl;
 }
@@ -113,6 +114,28 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
   // 返回了最后一层PTE的地址
   return &pagetable[PX(0, va)];
 }
+
+/// @brief check if va is mapped in pagetable
+/// @param pagetable given pagetable 
+/// @param va  given va
+void walk_va(pagetable_t pagetable, uint64 va) {
+  pte_t *pte;
+  pte = walk(pagetable, va, 0);
+  printf("check va: %p\n", va);
+  if(pte == 0)
+    printf("walk returns 0\n");
+  else if((*pte & PTE_V) == 0)
+    printf("pte not valid\n");
+  // else if((*pte & PTE_U) == 0)
+  //   printf("pte not user\n");
+  else
+    {
+      printf("pte %p\n", *pte);
+      printf("pa %p\n", PTE2PA(*pte));
+    }
+}
+
+
 
 // 封装的针对有效用户页的walk
 // 但是返回物理地址，而不是叶pte
@@ -493,10 +516,39 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx) {
     paddr_t pa = (paddr_t)kzalloc();
 
-    if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W) < 0) {
+    if (mappages(pagetable, THREAD_TRAPFRAME(thread_idx), PGSIZE, pa, PTE_R | PTE_W) < 0) {
         kfree((void *)pa);
         return NULL;
     }
+    
+#ifdef __DEBUG_UVM_THREAD_TRAPFRAME
+    Log("uvm_thread_trapframe: thread_idx %d, pa %p, va %p" ,thread_idx, pa, THREAD_TRAPFRAME(thread_idx));
+    walk_va(pagetable, THREAD_TRAPFRAME(thread_idx));
 
+#endif
     return (struct trapframe *)pa;
+}
+
+void
+_vmprint(pte_t *pte, int level)
+{
+  if (level == 3) {
+    return;
+  }
+
+  for (int i = 0; i < 512; i++) {
+    if (pte[i]) {
+      for (int j = 0; j <= level; j++)
+        printf(" ..");
+      printf("%d: pte %p pa %p\n", i, pte[i], PTE2PA(pte[i]));
+      _vmprint((pte_t *)PTE2PA(pte[i]), level + 1);
+    }
+  }
+}
+
+void
+vmprint(pagetable_t pgtbl)
+{
+  printf("page table %p\n", pgtbl);
+  _vmprint(pgtbl, 0);
 }

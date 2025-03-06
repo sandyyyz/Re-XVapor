@@ -100,20 +100,18 @@ void append_child(struct proc *parent, struct proc *child) {
     }
 }
 
-// 总共64个进程
-// Allocate a page for each process's kernel stack.
+// Allocate a page for each thread's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
-void
-proc_mapstacks(pagetable_t kpgtbl)
+void thread_mapstacks(pagetable_t kpgtbl)
 {
-  struct proc *p;
+  struct tcb *t;
   
-  for(p = proc; p < &proc[NPROC]; p++) {
+  for(t = tcb_pool;  t < &tcb_pool[NTHREADS]; t++) {
     char *pa = kalloc();
     if(pa == 0)
       panic("kalloc");
-    uint64 va = KSTACK((int) (p - proc));
+    uint64 va = KSTACK((int) (t - tcb_pool));
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
 }
@@ -143,8 +141,10 @@ mycpu(void)
 struct proc*
 myproc(void)
 {
+
   push_off();
   struct cpu *c = mycpu();
+  // if(!(c->thread)) panic("cpu's thread = null!!\n");
   struct proc *p = c->thread->p;
   pop_off();
   return p;
@@ -158,6 +158,7 @@ myproc(void)
 // If there are no free procs, or a memory allocation fails, return 0.
 /// @brief allocate a proccess , without a thread join to it
 /// @brief the state has changed to used
+/// @attention the pgtbl of the proc only contain TRAMPOLINE right now 
 static struct proc*
 allocproc(void)
 {
@@ -249,23 +250,6 @@ struct proc *create_proc() {
     return p;
 }
 
-void thread_forkret(void)
-{
-  static int thread_first = 1;
-
-  // Still holding p->lock from scheduler.
-  release(&mythread()->lock);
-
-  if (thread_first) {
-    // File system initialization must be run in the context of a
-    // regular process (e.g., because it calls sleep), and thus cannot
-    // be run from main().
-    thread_first = 0;
-    fsinit(ROOTDEV);
-  }
-
-  thread_usertrapret();
-}
 
 
 
@@ -330,7 +314,7 @@ proc_pagetable(struct proc *p)
   //             (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
   //   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   //   uvmfree(pagetable, 0);
-  //   return 0;
+  //   return 0; 
   // }
 
   return pagetable;
@@ -389,7 +373,7 @@ userinit(void)
 
   t->trapframe->epc = 0;      // user program counter
   t->trapframe->sp = PGSIZE;  // user stack pointer
-
+  Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
 
@@ -397,7 +381,10 @@ userinit(void)
 
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
-  
+
+#ifdef __DEBUG_PROC
+
+#endif //__DEBUG_PROC 
   release(&p->lock);
 }
 

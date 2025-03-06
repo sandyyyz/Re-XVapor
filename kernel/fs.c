@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
+#include "debug.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with
@@ -38,10 +39,23 @@ static void readsb(int dev, struct superblock *sb) {
 
 // Init fs
 void fsinit(int dev) {
+#ifdef __DEBUG_FSINIT
+  Log("fsinit(dev=%d)\n", dev);  
+#endif
   readsb(dev, &sb);
+#ifdef __DEBUG_FSINIT
+  Log("readsb end\n");
+#endif
   if (sb.magic != FSMAGIC)
     panic("invalid file system");
   initlog(dev, &sb);
+#ifdef __DEBUG_FSINIT
+  Log("initlog end\n");
+#endif
+
+#ifdef __DEBUG_FSINIT
+  Log("fsinit finished!\n");
+#endif
 }
 
 // Zero a block.

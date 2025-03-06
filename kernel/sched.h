@@ -16,7 +16,7 @@ void thread_yield(void);
 
 void thread_sched(void);
 void thread_scheduler(void) __attribute__((noreturn));
-
+void tcb_change2_running(struct tcb *t);
 // switch to context of scheduler
 void swtch(struct context *, struct context *);
 

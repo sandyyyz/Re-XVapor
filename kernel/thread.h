@@ -162,5 +162,7 @@ int thread_killed(struct tcb *t);
 void thread_wakeup_chan(void *chan);
 void thread_wakeup_specific_atomic(struct tcb *t);
 void thread_wakeup_specific(struct tcb *t);
+void thread_forkret();
+void print_trapframe(struct trapframe *tf);
 
 #endif

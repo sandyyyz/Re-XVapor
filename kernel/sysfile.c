@@ -15,7 +15,12 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "debug.h"
+#include "vm.h"
+#include "memlayout.h"
 
+// for debug
+int g_first_exec = 0;
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -434,10 +439,22 @@ sys_chdir(void)
 uint64
 sys_exec(void)
 {
+
+  // come in like:
+  // # exec(path, argv)
+  // where path is stored in a0, argv in a1 
+#ifdef __DEBUG_SYS_EXEC
+  Log("do sys_exec");
+  print_trapframe(mythread()->trapframe);
+  vmprint(mythread()->p->mm.pagetable);
+
+  walk_va(mythread()->p->mm.pagetable, (uint64)THREAD_TRAPFRAME(mythread()->tidx));
+#endif
   char path[MAXPATH], *argv[MAXARG];
   int i;
   uint64 uargv, uarg;
 
+  // copy path and argv from user space to kernel space
   argaddr(1, &uargv);
   if(argstr(0, path, MAXPATH) < 0) {
     return -1;
@@ -461,10 +478,16 @@ sys_exec(void)
       goto bad;
   }
 
+  // now path and argv holds the user's args
   int ret = exec(path, argv);
 
+  // free the temporary memory then return
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
+#ifdef __DEBUG_SYS_EXEC
+  Log("sys_exec done"); 
+  g_first_exec = 1;
+#endif
 
   return ret;
 

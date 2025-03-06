@@ -26,6 +26,113 @@ uservec:
         # user page table.
         #
 
+        # store intermediate registers on the stack
+        addi sp, sp, -32
+        sd a0, 0(sp)
+        sd a1, 8(sp)
+        sd a2, 16(sp)
+
+        # compute the address of the trapframe
+        li a0, TRAPFRAME
+        li a1, 4*1024
+        csrr a2, sscratch
+        mul a2, a2, a1
+        sub a0, a0, a2
+
+        # the address of THREAD_TRAPFRAME is load in a0 now         
+        # save the user registers in TRAPFRAME except for a0, a1, a2, and sp
+
+        sd ra, 40(a0)
+
+        sd gp, 56(a0)
+        sd tp, 64(a0)
+        sd t0, 72(a0)
+        sd t1, 80(a0)
+        sd t2, 88(a0)
+        sd s0, 96(a0)
+        sd s1, 104(a0)
+
+        sd a3, 136(a0)
+        sd a4, 144(a0)
+        sd a5, 152(a0)
+        sd a6, 160(a0)
+        sd a7, 168(a0)
+        sd s2, 176(a0)
+        sd s3, 184(a0)
+        sd s4, 192(a0)
+        sd s5, 200(a0)
+        sd s6, 208(a0)
+        sd s7, 216(a0)
+        sd s8, 224(a0)
+        sd s9, 232(a0)
+        sd s10, 240(a0)
+        sd s11, 248(a0)
+        sd t3, 256(a0)
+        sd t4, 264(a0)
+        sd t5, 272(a0)
+        sd t6, 280(a0)
+
+        # restore the intermediate registers and the sp
+
+        # a0
+        ld t0, 0(sp)
+        sd t0, 112(a0)
+
+        # a1
+        ld t0, 8(sp)
+        sd t0, 120(a0)
+
+        # a2
+        ld t0, 16(sp)
+        sd t0, 128(a0)
+
+        # sp
+        addi sp, sp, 32
+        sd sp, 48(a0)
+
+
+        # initialize kernel stack pointer, from p->trapframe->kernel_sp
+        ld sp, 8(a0)
+
+        # make tp hold the current hartid, from p->trapframe->kernel_hartid
+        ld tp, 32(a0)
+
+        # load the address of usertrap(), from p->trapframe->kernel_trap
+        ld t0, 16(a0)
+
+
+        # fetch the kernel page table address, from p->trapframe->kernel_satp.
+        ld t1, 0(a0)
+
+        # wait for any previous memory operations to complete, so that
+        # they use the user page table.
+        sfence.vma zero, zero
+
+        # install the kernel page table.
+        csrw satp, t1
+
+        # flush now-stale user entries from the TLB.
+        sfence.vma zero, zero
+
+        # jump to usertrap(), which does not return
+        jr t0
+
+.global debug_uservec
+debug_uservec:    
+	#
+        # trap.c sets stvec to point here, so
+        # traps from user space start here,
+        # in supervisor mode, but with a
+        # user page table.
+        #
+        
+        # # for debugging
+        # addi sp, sp, -32
+        # sd a0, 0(sp)
+        # sd a1, 8(sp)
+        # sd a2, 16(sp)
+        # addi sp, sp, 32
+        
         # save user a0 in sscratch so
         # a0 can be used to get at TRAPFRAME.
         csrw sscratch, a0
@@ -35,6 +142,7 @@ uservec:
         # (TRAPFRAME) in every process's user page table.
         li a0, TRAPFRAME
         
+
         # save the user registers in TRAPFRAME
         sd ra, 40(a0)
         sd sp, 48(a0)
@@ -105,16 +213,32 @@ userret:
         # a0: user page table, for satp.
 
         # switch to the user page table.
+        
         sfence.vma zero, zero
         // pagetable_addr in a0
         csrw satp, a0
         sfence.vma zero, zero
 
         li a0, TRAPFRAME
+        li a1, 4 * 1024
+        csrr a2, sscratch
+        mul a2, a2, a1
+        sub a0, a0, a2
+        
+
+        # a0 now holds the address of the trapframe, so restore it at last 
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)
         ld sp, 48(a0)
+
+        # # for debugging
+        # addi sp, sp, -32
+        # sd a0, 0(sp)
+        # sd a1, 8(sp)
+        # sd a2, 16(sp)
+        
+
         ld gp, 56(a0)
         ld tp, 64(a0)
         ld t0, 72(a0)

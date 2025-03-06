@@ -64,7 +64,8 @@ void *queue_pop_atomic(queue_t *q, int remove);
  * @details not elegant right now, just used before using the condition variable for sleep-wakeup...
  */
 #define queue_for_each_entry_safe(pos, tmp, q, member) \
-    list_for_each_entry_safe(pos, tmp, &(q->list), member)
+    list_for_each_entry_safe(pos, tmp, &(q->list), member)// buggy
+    
 
 
 #endif  // __QUEUE_H
