@@ -96,3 +96,53 @@ Helps wait avoid lost wakeups
 ![parent_sleep](image-45.png)
 3. 子进程在wakeup父进程之前，必须先获取父进程锁
 ![child_wakeup](image-46.png)
+
+
+## xv6 原有的地址分配
+![xv6_memlayout](image-48.png)
+![xv6_memlayout2](image-49.png)
+
+## 多线程
+
+在XV6原有的设计中，由于不同进程间的页表不同，而且进程作为一个基本的调度单位：
+- 每个进程拥有自己的trapframe
+- 每个页表中存在一个相同虚拟地址TRAPFRAME到各自物理trapframe的映射
+- trampoline.S中，每个进程可以通过TRAPFRAME宏定义找到他们的trapframe
+
+由于可能有多个线程共享一个页表，所以使用同一个虚拟地址TRAPFRAME的设计就不再合理。同时，现在需要考虑如何让不同的线程找到自己的THREAD_TRAPFRAME,也就是需要建立一个**tidx(注意，是线程在thread_group中的索引，而非tid，因为tid是一个单调递增的计数值)**到THREAD_TRAPFRAME的映射关系:
+
+```c
+// thread-exclusive
+#define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx)*PGSIZE)
+
+```
+-- 于是，此时一个进程中的每个线程有一个trapframe, 从
+每个线程有自己的kernel stack：
+
+```c
+
+// now every single thread has its own kernel stack
+// map kernel stacks beneath the trampoline,
+// each surrounded by invalid guard pages.'
+// KSTACK means KSTACK_BASE actrually 
+#define KSTACK(t) (TRAMPOLINE - ((t)+1)* (KSTACK_PAGE + 1) *PGSIZE)
+
+```
+
+现在的问题在于，在`trampoline.S`中，每一个线程该如何找到自己的`THREAD_TRAPFRAME`?
+
+- 原有的`uservec()`额外利用了一个`sscratch`寄存器来暂时使用`a0`
+- 现在我们在进入`uservec()`时，要求`sscratch`寄存器中存放线程的`tid`，作为其相对`TRAPFRAME`的偏移
+- 同时使用栈暂时保存中间需要使用的寄存器，最后再恢复中间寄存器，以及栈指针。
+- `userret()`中同样使用`sscratch`存放偏移量。此时不需要保存内核的中间寄存器
+
+## 第一个线程
+
+`userinit() -> scheduler()(changes the context, which leads to thread_forkret()) -> thread_forkret() -> usertrapret() -> init.S() ->sys_exec()`  
+
+- 在`scheduler()`中有一段时间cpu上是没有一个运行的进/线程抽象的！！
+- swtch.S: 将当前CPU寄存器存入c->context(arg1)，ld regs from arg2
+
+## thread 回收内存
+
+`set t->killed` -> `usertrapret()`中检查 -> 线程`exit`

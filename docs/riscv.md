@@ -23,7 +23,7 @@ machine status register
 
 ### some used bits:
 ![sstatus-used](image-6.png)
-
+![sstatus-des](image-78.png)
 ## sip && sie
 supervisor interrupt register  
 controling supervisor interrupt pending and enable respectively
@@ -149,6 +149,18 @@ integer register rd
 
 ## csrw
 control and status register write
+
+## ecall 
+really important
+
+![ecall](image-50.png)
+
+## sret
+
+xRET sets the pc to the value stored in the xepc register
+
+![sret](image-65.png)
+
 # 其他
 WARL: write any, read legal  
 WLRL: write legal, read legal  

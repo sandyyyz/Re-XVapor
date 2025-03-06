@@ -1,4 +1,4 @@
-# 重走来时路
+# rexvapor
 
 该系统的实现一部分参考了Linux，部分参考了往届优秀作品Lostwakeup和10183boot,特此感谢。
 ## sys_times
@@ -67,6 +67,7 @@ don't need rusage
 ![flags](image-34.png)
 
 
+## sys_exec
 
 # 系统调用的说明以及调用方式
 

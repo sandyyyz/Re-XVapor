@@ -92,7 +92,26 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
+CFLAGS = -Wall -Werror -O2 -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
+
+
+# for debug
+
+# CFLAGS += -D__DEBUG_SCHED
+# CFLAGS += -D__DEBUG_TRAP
+# CFLAGS += -D__DEBUG_FORKRET
+# CFLAGS += -D__DEBUG_FSINIT
+# CFLAGS += -D__DEBUG_DISK_RW
+# CFLAGS += -D__DEBUG_FREE_DESC
+# CFLAGS += -D__DEBUG_DISK_INTR
+# CFLAGS += -D__DEBUG_WAKEUP_CHAN
+# CFLAGS += -D__DEBUG_CREATE_THREAD
+# CFLAGS += -D__DEBUG_ALLOCATE_THREAD
+CFLAGS += -D__DEBUG_UTRAPRET
+CFLAGS += -D__DEBUG_UVM_THREAD_TRAPFRAME
+CFLAGS += -D__DEBUG_SYS_EXEC
+
+# CFLAGS += -D__DEBUG_EXEC
 
 ifdef LAB
 LABUPPER = $(shell echo $(LAB) | tr a-z A-Z)
@@ -337,7 +356,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 ifeq ($(LAB),fs)
 CPUS := 1
