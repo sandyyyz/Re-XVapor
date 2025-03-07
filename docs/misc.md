@@ -13,6 +13,17 @@
 
 2. wait等待一个子进程退出时，应等待子进程的所有线程退出
 
+todo list:
+
+- 条件变量
+- 信号量系统
+- 退出进程
+- exec函数杀死其余线程
+- exec()线程trapframe映射
+- trap.c 检查thread_killed， last thread负责退出整个进程
+- exit的语义？。。。
+- proc_pagetable 现在不会分配并映射trapframe
+- 如何管理线程的用户地址空间？。。
 ## 如何使用gdb? && 如何在vscode中使用gdb调试内核？
 
 一些有用的链接：

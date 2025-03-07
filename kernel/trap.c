@@ -102,9 +102,12 @@ usertrap(void)
   usertrapret();
 }
 
+extern int g_first_exec;
+int inline dodebug() { return 0;}
 //
 // return to user space
 //
+
 void
 usertrapret(void)
 {
@@ -164,8 +167,6 @@ usertrapret(void)
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
   #ifdef __DEBUG_UTRAPRET
   // static int startd = 0;
-  extern int g_first_exec;
-int inline dodebug() { return g_first_exec;}
   if(dodebug())
   { 
     // startd += 1;

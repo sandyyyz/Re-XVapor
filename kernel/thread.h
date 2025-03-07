@@ -107,6 +107,7 @@ struct thread_group {
     struct list_head threads;
     // group leader : main thread
     struct tcb *group_leader;
+
 };
 
 // thread control block
@@ -129,7 +130,7 @@ struct tcb {
     struct list_head state_list;
 
     // kernel stack, trapframe and context
-    uint64 kstack;               // kernel stack
+    uint64 kstack;               // kernel stack , needn't to be freed, fixed allocation
     uint64 ustack;               // user stack
 
     struct trapframe *trapframe; // data page for trampoline.S
@@ -146,13 +147,16 @@ struct tcb {
     struct list_head wait_list; 
 
     void  *chan; // if not zero sleeping on chan,temporary used before using the condistion variable 
+
+    // exit state
+    int xstate;
 };
 typedef struct tcb tcb_t;
 
 int proc_join_thread(struct proc *p, struct tcb *t, char *name);
 void thread_setkilled(struct tcb *t);
 void tginit(struct thread_group *tg);
-void free_thread(struct tcb *t);
+void free_thread(struct tcb *t); 
 void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback callback);
 struct tcb *alloc_thread(thread_callback callback);
 tcb_t* mythread(void);
@@ -164,5 +168,8 @@ void thread_wakeup_specific_atomic(struct tcb *t);
 void thread_wakeup_specific(struct tcb *t);
 void thread_forkret();
 void print_trapframe(struct trapframe *tf);
+void thread_exit(int status);
+void transfer_trapframe(struct tcb* t, pagetable_t newpgtble, int unmmap_old);
+int free_allother_threads_group(struct tcb *t);
 
 #endif

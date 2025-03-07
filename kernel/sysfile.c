@@ -314,7 +314,10 @@ sys_open(void)
   struct file *f;
   struct inode *ip;
   int n;
-
+#ifdef __DEBUG_SYS_OPEN
+  Log("do sys_open");
+  // while(1);
+#endif
   argint(1, &omode);
   if((n = argstr(0, path, MAXPATH)) < 0)
     return -1;
@@ -486,7 +489,7 @@ sys_exec(void)
     kfree(argv[i]);
 #ifdef __DEBUG_SYS_EXEC
   Log("sys_exec done"); 
-  g_first_exec = 1;
+  g_first_exec += 1;
 #endif
 
   return ret;

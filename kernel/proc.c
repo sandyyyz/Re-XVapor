@@ -9,6 +9,7 @@
 #include "trap.h"
 #include "debug.h"
 #include "thread.h"
+#include "list.h"
 
 void thread_forkret(void);
 
@@ -35,7 +36,7 @@ struct proc *initproc;
 // struct spinlock pid_lock;
 
 extern void forkret(void);
-static void freeproc(struct proc *p);
+void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
@@ -253,22 +254,41 @@ struct proc *create_proc() {
 
 
 
-// free a proc structure and the data hanging from it,
-// including user pages.
-// p->lock must be held.
-// make sure child processes are already freed outside
-// TODO: how should i deal with the therads in the process?
-static void
-freeproc(struct proc *p)
+/**
+ * @brief free the given process and all it's threads
+ * 
+ * @param p process
+ * @attention must hold the p->lock.make sure all children process have exit before call this function
+ */
+void freeproc(struct proc *p)
 {
 
 // no trapframe anymore in a process
   // if(p->trapframe)
   //   kfree((void*)p->trapframe);
   // p->trapframe = 0;
+
+  struct proc *cur_proc = myproc();
+  // struct tcb  *cur_thread = mythread();
+  struct tcb *t, *tt;
+
+  acquire(&cur_proc->tg.lock);
+  list_for_each_entry_safe(t, tt, &(p->tg.threads), threads) {
+    // TODO: is it right?
+    if(t)
+    list_del_reinit(&t->threads);
+
+    if(!atomic_dec_return(&cur_proc->tg.thread_cnt)) {
+      panic("thread count error\n");
+    }
+    free_thread(t);
+  }
+  release(&cur_proc->tg.lock);
+
   if(p->mm.pagetable)
     proc_freepagetable(p->mm.pagetable, p->sz);
   // the list??
+  p->tg.group_leader = NULL;
   p->mm.pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -504,7 +524,6 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-
   if(p == initproc)
     panic("init exiting");
 
@@ -539,6 +558,7 @@ exit(int status)
 
   // Jump into the scheduler, never to return.
   // sched();
+  thread_sched();
   panic("zombie exit");
 }
 

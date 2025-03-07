@@ -12,3 +12,7 @@
 - heap
 - anon or file (for mmap)
 - interp (for dynamic link)
+
+现在的问题就是如何管理各个线程的独有内存空间？
+
+参照https://www.cnblogs.com/LoyenWang/p/12037658.html

@@ -131,7 +131,14 @@ int exec(char *path, char **argv)
     goto bad;
   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
     goto bad;
-
+  
+  // now free other threads
+  free_allother_threads_group(t);
+  // and transfer trapframe
+  transfer_trapframe(t, pagetable,0);
+#ifdef __DEBUG_EXEC
+  walk_va(pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
+#endif
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
@@ -149,6 +156,10 @@ int exec(char *path, char **argv)
   p->sz = sz;
   t->trapframe->epc = elf.entry;  // initial program counter = main
   t->trapframe->sp = sp; // initial stack pointer
+#ifdef __DEBUG_EXEC
+  Log("check elf.entry = %p", elf.entry);
+  walk_va(pagetable, elf.entry);
+#endif
   proc_freepagetable(oldpagetable, oldsz);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
@@ -161,6 +172,7 @@ int exec(char *path, char **argv)
     end_op();
   }
   return -1;
+
 }
 
 // Load a program segment into pagetable at virtual address va.

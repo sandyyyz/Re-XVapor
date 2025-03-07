@@ -8,6 +8,7 @@
 #include "sched.h"
 #include "debug.h"
 #include "vm.h"
+#include "proc.h"
 
 queue_t unused_t_queue, used_t_queue, runnable_t_queue, sleeping_t_queue;
 
@@ -144,7 +145,12 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
 
 }
 
-// free a thread
+/**
+ * @brief free a thread
+ * 
+ * @param t thread
+ * @attention must hold the t->lock, and remenber to remove this thread of the thread group outside
+ */
 void free_thread(struct tcb *t) {
     // free & unmap tramframe
     acquire(&t->p->mm.lock);
@@ -154,39 +160,16 @@ void free_thread(struct tcb *t) {
         uvmunmap(t->p->mm.pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0);
     release(&t->p->mm.lock);
 
-    // // bug!
-    // if (t->wait_chan_entry != NULL) {
-    //     // Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
-    //     ASSERT(thread->state == TCB_SLEEPING);
-    //     thread->wait_chan_entry = NULL;
-    // }
-    // // bug!
-    // if (t->sig) {
-    //     // !!! for shared
-    //     int ref = atomic_dec_return(&t->sig->ref) - 1;
-    //     if (ref == 0) {
-    //         kfree((void *)t->sig);
-    //     }
-    //     t->sig = NULL;
-    // }
 
-    // delete <tid, t>
-    // hash_delete(&tid_map, (void *)&t->tid, 0, 1); // not holding lock, release lock
 
-    // cnt_tid_dec;
-
-    t->tid = 0;
+    t->tid = 0; 
     t->tidx = 0;
     t->trapframe = 0;
     t->name[0] = 0;
-    // t->exit_status = 0;
     t->p = 0;
-    // t->sig_pending_cnt = 0;
-    // t->sig_ing = 0;
     memset(&t->context, 0, sizeof(t->context));
 
-    // signal_queue_flush(&t->pending); // !!!
-    t->killed = 0;                   // !!! bug qwq
+    t->killed = 0;  
 
     tcb_q_change_state(t, TCB_UNUSED);
 }
@@ -199,7 +182,7 @@ void free_thread(struct tcb *t) {
 /// @return return 0 if success, -1 if map thread trapframe failed
 int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     struct thread_group *tg = &(p->tg);
-
+    t->tg = tg;
     atomic_inc_return(&tg->thread_cnt);
     
     acquire(&tg->lock);
@@ -234,27 +217,6 @@ int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     return 0;
 }
 
-// // send signal to all threads of proc p
-// void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
-//     struct tcb *t_cur = NULL;
-//     struct tcb *t_tmp = NULL;
-//     siginfo_t info;
-//     acquire(&p->tg->lock);
-//     list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
-
-//         signal_info_init(signo, &info, opt);
-
-//         acquire(&t_cur->lock);
-//         thread_send_signal(t_cur, &info);
-//         release(&t_cur->lock);
-//     }
-//     release(&p->tg->lock);
-//     if (signo == SIGKILL || signo == SIGSTOP) {
-//         proc_setkilled(p);
-//     }
-// }
-
-
 /// @brief set thread's killed = 1
 /// @param t thread
 void thread_setkilled(struct tcb *t) {
@@ -276,6 +238,50 @@ int thread_killed(struct tcb *t) {
     return k;
 }
 
+void thread_exit(int status) {
+    struct tcb *t = mythread();
+    struct proc *p = t->p;
+    struct thread_group *tg = &(p->tg);
+
+    acquire(&t->lock);
+    acquire(&p->tg.lock);
+
+    if( t->state == TCB_SLEEPING) thread_wakeup_specific(t);
+
+    if(atomic_dec_return(&tg->thread_cnt) == 1) {
+        // if this is the last thread in the group
+        // free the process 
+
+        list_del_reinit(&t->threads);
+        release(&p->tg.lock);
+        release(&t->lock);
+
+        acquire(&p->lock);
+        // freeproc(p);
+        exit(status);
+
+        t->xstate = status;
+        return;
+    }
+
+    list_del_reinit(&t->threads);
+    if(p->tg.group_leader == t) {
+        p->tg.group_leader = list_first_entry(&p->tg.threads, struct tcb, threads);
+    }
+    release(&p->tg.lock);
+
+    free_thread(t);
+
+    tcb_q_change_state(t, TCB_UNUSED);
+
+    release(&t->lock);
+    
+    thread_sched();
+    
+    return;
+
+
+}
 /// @brief initialize thread group
 /// @param tg thread group
 void tginit(struct thread_group *tg) {
@@ -398,4 +404,52 @@ void print_trapframe(struct trapframe *tf) {
     printf("  gp %p\n", tf->gp);
     printf("  tp %p\n", tf->tp);
     printf("  t0 %p\n", tf->t0);
+}
+
+/// @brief transfer thread's trapframe to a newpgtble
+/// @param t thread
+/// @param newpgtble target pgtble
+/// @param unmmap_old unmmap trapframe in the old pgtable if == 1
+void transfer_trapframe(struct tcb* t, pagetable_t newpgtble, int unmmap_old) {
+    pagetable_t oldpgtble = t->p->mm.pagetable;
+    struct trapframe *tf = t->trapframe;
+    uint64 tfva = THREAD_TRAPFRAME(t->tidx);
+
+    if(unmmap_old){
+    acquire(&t->p->mm.lock);
+    uvmunmap(oldpgtble, tfva, 1, 0); 
+    release(&t->p->mm.lock);
+    }
+
+    if(mappages(newpgtble, tfva, PGSIZE, (uint64)tf, PTE_R | PTE_W) < 0) {
+        panic("transfer trapframe failed\n");
+    }
+}
+
+
+/**
+ * @brief free all other threads in the same group, except the given thread
+ * 
+ * @param t thread
+ * @return return 0 if success
+ */
+int free_allother_threads_group(struct tcb *t) {
+    struct tcb *tt, *ntt;
+    struct thread_group *tg = t->tg;
+
+    acquire(&tg->lock);
+    list_for_each_entry_safe(tt, ntt,&(tg->threads), threads) {
+        acquire(&tt->lock);
+        if(tt != t) {
+            free_thread(tt);
+            if(t->tg->group_leader == tt) {
+                t->tg->group_leader = mythread();
+            }
+            list_del_reinit(&tt->threads);
+        }
+        release(&tt->lock);
+    }
+    release(&tg->lock);
+
+    return 0;
 }

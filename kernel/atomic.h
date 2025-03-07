@@ -36,7 +36,7 @@ static inline int atomic_inc_return(atomic_t *v) {
     return __sync_fetch_and_add(&v->counter, 1);
 }
 
-// 自减
+// 自减并且返回旧值
 static inline int atomic_dec_return(atomic_t *v) {
     return __sync_fetch_and_sub(&v->counter, 1);
 }

@@ -35,7 +35,11 @@
         "thread.h": "c",
         "sched.h": "c",
         "cstdio": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "atomic": "cpp",
+        "*.tcc": "cpp",
+        "fstream": "cpp",
+        "sstream": "cpp"
     },
 
     "multiCommand.commands": [

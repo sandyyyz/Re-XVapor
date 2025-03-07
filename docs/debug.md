@@ -108,5 +108,45 @@ do_exec无法成功返回用户态
 ![thread.5.1](image-84.png)
 ![thread.5.2](image-86.png)
 ![thread.5.3](image-87.png)
-trapframe未映射
+trapframe未映射,重新分配即可
 ![thread.5.4](image-88.png)
+
+```
+[LOG][kernel/sysfile.c,447,sys_exec] do sys_exec
+trapframe at 0x0000000087f31000
+  kernel_satp 0x8000000000087fff
+  kernel_sp 0x0000003fffffe000
+  kernel_trap 0x00000000800022de
+  kernel_hartid 0x0000000000000000
+  epc 0x0000000000000018
+  ra 0x0000000000000000
+  sp 0x0000000000001000
+  gp 0x0000000000000000
+  tp 0x0000000000000000
+  t0 0x0000000000000000
+page table 0x0000000087f34000
+ ..0: pte 0x0000000021fcbc01 pa 0x0000000087f2f000
+ .. ..0: pte 0x0000000021fcb801 pa 0x0000000087f2e000
+ .. .. ..0: pte 0x0000000021fcc05f pa 0x0000000087f30000
+ ..255: pte 0x0000000021fccc01 pa 0x0000000087f33000
+ .. ..511: pte 0x0000000021fcc801 pa 0x0000000087f32000
+ .. .. ..510: pte 0x0000000021fcc4c7 pa 0x0000000087f31000
+ .. .. ..511: pte 0x000000002000244b pa 0x0000000080009000
+check va: 0x0000003fffffe000
+pte 0x0000000021fcc4c7
+pa 0x0000000087f31000
+unknow devintr()
+scause 0x000000000000000d
+sepc=0x000000008000828e stval=0x0000000000000000
+panic: kerneltrap
+QEMU: Terminated
+```
+### thread.6
+
+`exec()`尝试返回用户态时无限重入`usertrapret()`
+
+![thread.6.1](image-89.png)
+![thread.6.2](image-90.png)
+![thread.6.3](image-91.png)
+![thread.6.4](image-92.png)
+![thread.6.5](image-93.png)

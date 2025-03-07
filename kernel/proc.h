@@ -83,4 +83,6 @@ struct proc {
 #define firstchild(p) (p->first_child)
 #define nextsibling(p) (list_first_entry(&(p->sibling_list), struct proc, sibling_list))
 
+void freeproc(struct proc *p);
+
 #endif

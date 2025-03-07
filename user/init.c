@@ -8,6 +8,7 @@
 #include "kernel/file.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
+#include "kernel/debug.h"
 
 char *argv[] = { "sh", 0 };
 
@@ -22,6 +23,8 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
+
+
 
   for(;;){
     printf("init: starting sh\n");
