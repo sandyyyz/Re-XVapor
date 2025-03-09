@@ -42,9 +42,20 @@ void
 usertrap(void)
 {
   int which_dev = 0;
+#ifdef __DEBUG_UTRAP
+  // walk_va(myproc()->mm.pagetable, THREAD_TRAPFRAME(mythread()->tidx));
+  // walk_va(myproc()->mm.pagetable, TRAMPOLINE);
+  // walk_va(myproc()->mm.pagetable, mythread()->trapframe->sp);
+  printf_green("thread %d usertrap!\n", mythread()->tid);
+#endif
 // check SPP bit in sstatus
-  if((r_sstatus() & SSTATUS_SPP) != 0)
+  if((r_sstatus() & SSTATUS_SPP) != 0) {
+    printf("\nprocess %d, thread %d\n", myproc()->pid, mythread()->tid);
+    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("sstatus : 0x%x\n",r_sstatus());
+    printf("scause: 0x%x\n", r_scause());
     panic("usertrap: not from user mode");
+  }
 
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
@@ -103,7 +114,8 @@ usertrap(void)
 }
 
 extern int g_first_exec;
-int inline dodebug() { return 0;}
+int inline dodebug() { return 1;}
+
 //
 // return to user space
 //
@@ -111,9 +123,13 @@ int inline dodebug() { return 0;}
 void
 usertrapret(void)
 {
+
+
   struct proc *p = myproc();
   struct tcb *t = mythread();
-
+#ifdef __DEBUG_UTRAPRET
+  printf_green("thread %d ready to userret\n", t->tid);
+#endif
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
@@ -121,13 +137,13 @@ usertrapret(void)
 
   // send syscalls, interrupts, and exceptions to uservec in trampoline.S
   uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
-  uint64 trampoline_debug_uservec = TRAMPOLINE + (debug_uservec - trampoline);
+  // uint64 trampoline_debug_uservec = TRAMPOLINE + (debug_uservec - trampoline);
 
-  if(t->tid != 1) {
+  // if(t->tid != 1) {
     w_stvec(trampoline_uservec);
-  } else {
-    w_stvec(trampoline_debug_uservec);
-  }
+  // } else {
+  //   w_stvec(trampoline_debug_uservec);
+  // }
   // set up trapframe values that uservec will need when
   // the process next traps into the kernel.
   // p->trapframe->kernel_satp = r_satp();         // kernel page table
@@ -177,9 +193,11 @@ usertrapret(void)
     print_trapframe(t->trapframe);
     vmprint(p->mm.pagetable);
     // walk_va(p->mm.pagetable, (uint64)(t->trapframe));
-    walk_va(p->mm.pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
+    // walk_va(p->mm.pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
+    walk_va(p->mm.pagetable, t->trapframe->sp);
   }
   #endif
+
   ((void (*)(uint64))trampoline_userret)(satp);
 }
 

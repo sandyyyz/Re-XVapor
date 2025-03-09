@@ -39,7 +39,8 @@
         "atomic": "cpp",
         "*.tcc": "cpp",
         "fstream": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "initializer_list": "c"
     },
 
     "multiCommand.commands": [

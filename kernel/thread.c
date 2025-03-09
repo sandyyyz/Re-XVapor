@@ -65,7 +65,7 @@ void thread_forkret(void)
 {
 #ifdef __DEBUG_FORKRET
     // printf_blue("into forkret!\n");
-    Log("into forkret!\n");
+    Log("thread %d come in forkret!\n", mythread()->tid); 
 
 #endif
 
@@ -88,7 +88,7 @@ void thread_forkret(void)
 
 /// @brief allocate a new thread with new context, but the trapframe is not set yet
 /// @param callback callback of thread
-/// @return return the new thread
+/// @return return the new thread with the lock held
 struct tcb *alloc_thread(thread_callback callback) {
     struct tcb *t;
 
@@ -179,7 +179,9 @@ void free_thread(struct tcb *t) {
 /// @param p process
 /// @param t thread
 /// @param name thread's name
-/// @return return 0 if success, -1 if map thread trapframe failed
+/// @return return 0 if success, -1 if map thread trapframe failed. return with thread's lock held
+/// @attention call with the thread lock held
+/// @details now allocate and map a trapframe for the thread
 int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     struct thread_group *tg = &(p->tg);
     t->tg = tg;

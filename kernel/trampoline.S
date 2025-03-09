@@ -32,6 +32,13 @@ uservec:
         sd a1, 8(sp)
         sd a2, 16(sp)
 
+        # # store intermediate registers on stack (16 bytes align)
+        # addi sp, sp, -48
+        # sd a0, 0(sp)
+        # sd a1, 16(sp)
+        # sd a2, 32(sp)
+
+
         # compute the address of the trapframe
         li a0, TRAPFRAME
         li a1, 4*1024
@@ -90,6 +97,18 @@ uservec:
         addi sp, sp, 32
         sd sp, 48(a0)
 
+        # # 16 bytes align version
+        # ld t0, 0(sp)
+        # sd t0, 112(a0)
+
+        # ld t0, 16(sp)
+        # sd t0, 120(a0)
+
+        # ld t0, 32(sp)
+        # sd t0, 128(a0)
+
+        # addi sp, sp, 48
+        # sd sp, 48(a0)
 
         # initialize kernel stack pointer, from p->trapframe->kernel_sp
         ld sp, 8(a0)

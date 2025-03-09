@@ -392,7 +392,7 @@ userinit(void)
   // prepare for the very first "return" from kernel to user.
 
   t->trapframe->epc = 0;      // user program counter
-  t->trapframe->sp = PGSIZE;  // user stack pointer
+  t->trapframe->sp = PGSIZE / 2;  // user stack pointer
   Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
@@ -480,7 +480,8 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-
+  
+  release(&np->tg.group_leader->lock);
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -496,7 +497,9 @@ fork(void)
   // change the leader thread's state
   tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
   release(&np->lock);
-
+#ifdef __DEBUG_FORK
+  Info("fork: parent %d, child %d, child->leader_thread id: %d\n", p->pid, np->pid, np->tg.group_leader->tid);
+#endif //__DEBUG_FORK
   return pid;
 }
 

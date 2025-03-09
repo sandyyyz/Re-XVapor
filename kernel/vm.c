@@ -185,6 +185,12 @@ kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 int
 mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
+
+#ifdef __DEBUG_MAPPAGES
+  if(va == 0)
+    printf_green("mappages: va %p, size %p, pa %p, perm %p\n", va, size, pa, perm | PTE_V);
+#endif
+
   uint64 a, last;
   pte_t *pte; // uint64
 
@@ -272,6 +278,12 @@ uvmfirst(pagetable_t pagetable, uchar *src, uint sz)
   mem = kalloc();
   memset(mem, 0, PGSIZE);
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
+
+  // char *testmem;
+  // testmem = kalloc();
+  // memset(testmem, 0, PGSIZE);
+  // mappages(pagetable, PGSIZE, PGSIZE, (uint64)testmem, PTE_W|PTE_R|PTE_X|PTE_U);
+
   memmove(mem, src, sz);
 }
 

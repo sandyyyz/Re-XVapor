@@ -92,7 +92,9 @@ void thread_yield(void) {
 void thread_sched(void) {
     int intena;
     struct tcb *t = mythread();
-
+#ifdef __DEBUG_THREAD_SCHED
+    Log("thread %d is in thread_sched", t->tid);
+#endif
     if(!holding(&t->lock))
     panic("sched t->lock");
     if(mycpu()->noff != 1)
@@ -123,20 +125,26 @@ void thread_scheduler(void) {
             continue;
         else 
 #ifdef __DEBUG_SCHED
-            printf("thread %d is running\n", t->tid);
+            printf("thread %d is ready to run\n", t->tid);
 
-        printf("thread %d try to get the lock\n",t->tid);
+        printf("try to get thread%d's lock\n",t->tid);
 #endif
         acquire(&t->lock);
 
 #ifdef __DEBUG_SCHED
-        printf("thread %d get the lock\n",t->tid);
+        printf("get the lock of thread %d\n",t->tid);
 #endif
         // t->state = TCB_RUNNING;
         // tcb_q_change_state(t, TCB_RUNNING); // buggy
         tcb_change2_running(t);
         c->thread = t;
+#ifdef __DEBUG_SCHED
+        printf("ready to switch to thread %d\n",t->tid);
+#endif 
         swtch(&c->context, &t->context);
+#ifdef __DEBUG_SCHED
+        printf("thread %d is back\n",t->tid);
+#endif
         c->thread = 0;
 #ifdef __DEBUG_SCHED
         printf("thread %d try to release the lock\n",t->tid);

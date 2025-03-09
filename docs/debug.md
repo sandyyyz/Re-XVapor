@@ -150,3 +150,47 @@ QEMU: Terminated
 ![thread.6.3](image-91.png)
 ![thread.6.4](image-92.png)
 ![thread.6.5](image-93.png)
+
+暂不确定哪里出现了问题，似乎是调试条件打错了导致一直输出调试信息。但是为何一直重入，应该是某个syscall出问题了。
+
+### thread.7
+
+`fork`之后panic
+
+panic:
+
+``` c
+    if(mycpu()->noff != 1)
+    panic("sched t locks");
+```
+`fork()` 中未将group leader thread lock 释放
+
+### thread.8
+
+```
+init fork finished!
+[LOG][kernel/sched.c,96,thread_sched] thread 1 is in thread_sched
+panic: usertrap: not from user mode
+QEMU: Terminated
+
+```
+
+`usertrapret()` 
+- $sepc == 0x3d8  ret
+- $ra == 0x64
+- first pgfault in uservec: $sp = 0x3eb0
+- can store: $sp = 0x2fe0
+
+```
+thread 2 is ready to run
+try to get thread2's lock
+get the lock of thread 2
+ready to switch to thread 2
+thread 2 ready to userret
+thread 2 usertrap!
+
+process 2, thread 2
+sstatus : 0x100
+scause: 0xf
+panic: usertrap: not from user mode
+```
