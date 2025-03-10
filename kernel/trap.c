@@ -114,7 +114,7 @@ usertrap(void)
 }
 
 extern int g_first_exec;
-int inline dodebug() { return 1;}
+int inline dodebug() { return 0;}
 
 //
 // return to user space
@@ -174,7 +174,7 @@ usertrapret(void)
   uint64 satp = MAKE_SATP(p->mm.pagetable);
 
   // write tidx to sscratch for uservec in the future 
-  w_sscratch(t->tidx);
+  // w_sscratch(t->tidx);
 
   // jump to userret in trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
@@ -198,7 +198,7 @@ usertrapret(void)
   }
   #endif
 
-  ((void (*)(uint64))trampoline_userret)(satp);
+  ((void (*)(uint64, uint64))trampoline_userret)(satp, THREAD_TRAPFRAME(t->tidx));
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,

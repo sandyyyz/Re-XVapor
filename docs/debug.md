@@ -194,3 +194,7 @@ sstatus : 0x100
 scause: 0xf
 panic: usertrap: not from user mode
 ```
+
+这个bug和thread.4一样，都是无法写栈导致的问题。问题在于我已经检查了物理内存分配且被映射于用户页表中，权限也没问题。  
+
+现在的解决方案： 暂时不用栈来做计算，而是调用`usertrapret()`时将当前线程的trampframe虚拟地址传入函数，最终写入sscratch寄存器，`uservec()`时直接从sscratch中取即可

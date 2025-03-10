@@ -279,6 +279,8 @@ uvmfirst(pagetable_t pagetable, uchar *src, uint sz)
   memset(mem, 0, PGSIZE);
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
 
+
+  // just for testing
   // char *testmem;
   // testmem = kalloc();
   // memset(testmem, 0, PGSIZE);

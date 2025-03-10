@@ -392,7 +392,7 @@ userinit(void)
   // prepare for the very first "return" from kernel to user.
 
   t->trapframe->epc = 0;      // user program counter
-  t->trapframe->sp = PGSIZE / 2;  // user stack pointer
+  t->trapframe->sp = PGSIZE;  // user stack pointer
   Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
