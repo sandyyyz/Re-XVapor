@@ -269,6 +269,10 @@ void freeproc(struct proc *p)
   // p->trapframe = 0;
 
   struct proc *cur_proc = myproc();
+#ifdef __DEBUG_FREEPROC
+  Log("thread %d freeproc %d", mythread()->tid, cur_proc->pid);
+#endif
+
   // struct tcb  *cur_thread = mythread();
   struct tcb *t, *tt;
 
@@ -285,8 +289,10 @@ void freeproc(struct proc *p)
   }
   release(&cur_proc->tg.lock);
 
+  // have unmmaped threads' trapframe in free_thread
+  // so needn't free them again
   if(p->mm.pagetable)
-    proc_freepagetable(p->mm.pagetable, p->sz);
+    proc_freepagetable(p->mm.pagetable, p->sz, 0);
   // the list??
   p->tg.group_leader = NULL;
   p->mm.pagetable = 0;
@@ -302,7 +308,9 @@ void freeproc(struct proc *p)
   // p->state = UNUSED;
   // change to UNUSED state
   pcb_q_change_state(p, UNUSED);
-
+#ifdef __DEBUG_FREEPROC
+  Log("thread %d freeproc %d end", mythread()->tid, cur_proc->pid);
+#endif
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -343,16 +351,17 @@ proc_pagetable(struct proc *p)
 // Free a process's page table, and free the
 // physical memory it refers to.
 void
-proc_freepagetable(pagetable_t pagetable, uint64 sz)
+proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf)
 {
   int thread_cnt = atomic_read(&myproc()->tg.thread_cnt);
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   // uvmunmap(pagetable, TRAPFRAME, 1, 0);
 
   // and unmap the thread's trapframe
-  for (int i = 0; i < thread_cnt; i++) {
-    uvmunmap(pagetable, THREAD_TRAPFRAME(i), 1, 0);
-  }
+  if(unmmap_ttf)
+    for (int i = 0; i < thread_cnt; i++) {
+      uvmunmap(pagetable, THREAD_TRAPFRAME(i), 1, 0);
+    }
   uvmfree(pagetable, sz);
 }
 

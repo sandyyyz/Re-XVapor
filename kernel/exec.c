@@ -160,13 +160,13 @@ int exec(char *path, char **argv)
   Log("check elf.entry = %p", elf.entry);
   walk_va(pagetable, elf.entry);
 #endif
-  proc_freepagetable(oldpagetable, oldsz);
+  proc_freepagetable(oldpagetable, oldsz, 1);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
   if(pagetable)
-    proc_freepagetable(pagetable, sz);
+    proc_freepagetable(pagetable, sz, 1);
   if(ip){
     iunlockput(ip);
     end_op();
