@@ -80,7 +80,7 @@ void inline tcb_change2_running(struct tcb *t) {
 void thread_yield(void) {
     struct tcb *t = mythread();
     acquire(&t->lock);
-
+    
     tcb_q_change_state(t, TCB_RUNNABLE);
 
     thread_sched();

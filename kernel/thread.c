@@ -250,17 +250,7 @@ void thread_exit(int status) {
     Log("thread %d exit\n", t->tid);
 #endif
 
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d try to acquire t->lock\n", t->tid);
-#endif
-    acquire(&t->lock);
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d has acquired t->lock\n", t->tid);
-#endif
-    acquire(&p->tg.lock);
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d has acquired p->tg.lock\n", t->tid);
-#endif
+
     if( t->state == TCB_SLEEPING) thread_wakeup_specific(t);
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
@@ -273,7 +263,7 @@ void thread_exit(int status) {
 // #endif
         // freeproc(p);
         
-        t->xstate = status;
+        // t->xstate = status;
         proc_exit(status);
 
         release(&p->lock);
@@ -282,12 +272,33 @@ void thread_exit(int status) {
 #endif
     }
 
+    acquire(&p->tg.lock);
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d has acquired p->tg.lock\n", t->tid);
+#endif
     list_del_reinit(&t->threads);
     if(p->tg.group_leader == t) {
         p->tg.group_leader = list_first_entry(&p->tg.threads, struct tcb, threads);
     }
+
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d try to release p->tg.lock\n", t->tid);
+#endif
+
     release(&p->tg.lock);
 
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d released p->tg.lock\n", t->tid);
+#endif
+
+
+#ifdef __DEBUG_THREAD_EXIT
+Log("thread %d try to acquire t->lock\n", t->tid);
+#endif
+    acquire(&t->lock);
+#ifdef __DEBUG_THREAD_EXIT
+Log("thread %d has acquired t->lock\n", t->tid);
+#endif
     free_thread(t);
 
 
@@ -374,7 +385,7 @@ thread_wakeup_chan(void *chan)
             if(t->chan == chan) {
                 tcb_q_change_state(t, TCB_RUNNABLE);
 #ifdef __DEBUG_WAKEUP_CHAN
-                Log("thread_wakeup_chan %s at chan %p", t->name, chan);
+                Log("thread_wakeup_chan %d at chan %p", t->tid, chan);
 #endif
             }
 

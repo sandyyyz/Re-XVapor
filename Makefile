@@ -97,7 +97,7 @@ CFLAGS = -Wall -Werror -O2 -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=un
 
 # for debug
 
-CFLAGS += -D__DEBUG_SCHED
+# CFLAGS += -D__DEBUG_SCHED
 # CFLAGS += -D__DEBUG_TRAP
 # CFLAGS += -D__DEBUG_FORKRET
 # CFLAGS += -D__DEBUG_FSINIT
@@ -119,9 +119,9 @@ CFLAGS += -D__DEBUG_FORK
 # CFLAGS += -D__DEBUG_UTRAP
 # CFLAGS += -D__DEBUG_MAPPAGES
 CFLAGS += -D__DEBUG_THREAD_EXIT
-CFLAGS += -D__DEBUG_LS
-CFLAGS += -D__DEBUG_FREEPROC
-
+# CFLAGS += -D__DEBUG_LS
+# CFLAGS += -D__DEBUG_FREEPROC
+# CFLAGS += -D__DEBUG_ACQUIRE
 ifdef LAB
 LABUPPER = $(shell echo $(LAB) | tr a-z A-Z)
 XCFLAGS += -DSOL_$(LABUPPER) -DLAB_$(LABUPPER)

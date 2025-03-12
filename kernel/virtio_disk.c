@@ -16,6 +16,7 @@
 #include "buf.h"
 #include "virtio.h"
 #include "debug.h"
+#include "thread.h"
 
 // the address of virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO0 + (r)))
@@ -227,9 +228,13 @@ virtio_disk_rw(struct buf *b, int write)
   Log("into disk_rw!");
 #endif
   uint64 sector = b->blockno * (BSIZE / 512);
-
+#ifdef __DEBUG_DISK_RW
+  Log("thread %d try to acquire disk.vdisk_lock", mythread()->tid);
+#endif
   acquire(&disk.vdisk_lock);
-
+#ifdef __DEBUG_DISK_RW
+  Log("thread %d has acquired disk.vdisk_lock", mythread()->tid);
+#endif
   // the spec's Section 5.2 says that legacy block operations use
   // three descriptors: one for type/reserved/sector, one for the
   // data, one for a 1-byte status result.
@@ -326,9 +331,11 @@ virtio_disk_rw(struct buf *b, int write)
   free_chain(idx[0]);
 #ifdef __DEBUG_DISK_RW 
   Log("free_chain end");
+  Log("thread %d try to release disk.vdisk_lock", mythread()->tid);
 #endif
   release(&disk.vdisk_lock);
 #ifdef __DEBUG_DISK_RW
+  Log("thread %d has released disk.vdisk_lock", mythread()->tid);
   Log("disk_rw end");
 #endif
 

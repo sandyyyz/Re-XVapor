@@ -529,11 +529,15 @@ reparent(struct proc *p)
   }
 }
 
-// Exit the current process.  Does not return.
-// An exited process remains in the zombie state
-// until its parent calls wait().
-void
-proc_exit(int status)
+/**
+ * @brief Exit the current process.  Does not return.
+ * @brief An exited process remains in the zombie state
+ * @brief until its parent calls wait().
+ * 
+ * @param status exit status 
+ * @attention never call this function with thread's lock held!!!!!
+ */
+void proc_exit(int status)
 {
   struct proc *p = myproc();
   // struct tcb *t = mythread();

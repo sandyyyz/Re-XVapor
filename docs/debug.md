@@ -198,3 +198,17 @@ panic: usertrap: not from user mode
 这个bug和thread.4一样，都是无法写栈导致的问题。问题在于我已经检查了物理内存分配且被映射于用户页表中，权限也没问题。  
 
 现在的解决方案： 暂时不用栈来做计算，而是调用`usertrapret()`时将当前线程的trampframe虚拟地址传入函数，最终写入sscratch寄存器，`uservec()`时直接从sscratch中取即可
+
+### thread.9
+
+[LOG][kernel/virtio_disk.c,228,virtio_disk_rw] into disk_rw!
+[LOG][kernel/virtio_disk.c,232,virtio_disk_rw] thread 19 try to acquire disk.vdisk_lock
+[LOG][kernel/virtio_disk.c,236,virtio_disk_rw] thread 19 has acquired disk.vdisk_lock
+[LOG][kernel/virtio_disk.c,247,virtio_disk_rw] alloc_desc break
+[LOG][kernel/virtio_disk.c,296,virtio_disk_rw] reach sync1
+[LOG][kernel/virtio_disk.c,300,virtio_disk_rw] pass sync1
+[LOG][kernel/virtio_disk.c,311,virtio_disk_rw] pass sync2
+[LOG][kernel/virtio_disk.c,319,virtio_disk_rw] thread sleep 0x0000000080014230
+panic: acquire
+
+带着线程锁进入了`thread_sleep()`
