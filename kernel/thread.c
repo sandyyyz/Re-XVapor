@@ -260,10 +260,11 @@ void thread_exit(int status) {
 
         acquire(&p->lock);
         // freeproc(p);
-        exit(status);
-
+        
         t->xstate = status;
-        return;
+        proc_exit(status);
+
+        release(&p->lock);
     }
 
     list_del_reinit(&t->threads);
@@ -275,11 +276,10 @@ void thread_exit(int status) {
     free_thread(t);
 
     tcb_q_change_state(t, TCB_UNUSED);
-
-    release(&t->lock);
     
     thread_sched();
     
+
     return;
 
 

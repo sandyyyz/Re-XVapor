@@ -55,7 +55,7 @@ sys_exit(void)
 {
   int n;
   argint(0, &n);
-  exit(n);
+  thread_exit(n);
   return 0;  // not reached
 }
 

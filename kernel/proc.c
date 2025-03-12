@@ -393,7 +393,7 @@ userinit(void)
 
   t->trapframe->epc = 0;      // user program counter
   t->trapframe->sp = PGSIZE;  // user stack pointer
-  Log("userinit trapframe: %p", t->trapframe);
+  // Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
 
@@ -524,9 +524,10 @@ reparent(struct proc *p)
 // An exited process remains in the zombie state
 // until its parent calls wait().
 void
-exit(int status)
+proc_exit(int status)
 {
   struct proc *p = myproc();
+  // struct tcb *t = mythread();
   if(p == initproc)
     panic("init exiting");
 
@@ -561,8 +562,8 @@ exit(int status)
 
   // Jump into the scheduler, never to return.
   // sched();
-  thread_sched();
-  panic("zombie exit");
+  // thread_sched();
+  // panic("zombie exit");
 }
 
 // Wait for a child process to exit and return its pid.

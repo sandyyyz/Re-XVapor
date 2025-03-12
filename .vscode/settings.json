@@ -40,7 +40,8 @@
         "*.tcc": "cpp",
         "fstream": "cpp",
         "sstream": "cpp",
-        "initializer_list": "c"
+        "initializer_list": "c",
+        "cstdlib": "c"
     },
 
     "multiCommand.commands": [
