@@ -150,6 +150,7 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
  * 
  * @param t thread
  * @attention must hold the t->lock, and remenber to remove this thread of the thread group outside
+ * @details return with the lock held
  */
 void free_thread(struct tcb *t) {
     // free & unmap tramframe
@@ -245,26 +246,40 @@ void thread_exit(int status) {
     struct proc *p = t->p;
     struct thread_group *tg = &(p->tg);
 
-    acquire(&t->lock);
-    acquire(&p->tg.lock);
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d exit\n", t->tid);
+#endif
 
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d try to acquire t->lock\n", t->tid);
+#endif
+    acquire(&t->lock);
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d has acquired t->lock\n", t->tid);
+#endif
+    acquire(&p->tg.lock);
+#ifdef __DEBUG_THREAD_EXIT
+    Log("thread %d has acquired p->tg.lock\n", t->tid);
+#endif
     if( t->state == TCB_SLEEPING) thread_wakeup_specific(t);
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
         // if this is the last thread in the group
         // free the process 
 
-        list_del_reinit(&t->threads);
-        release(&p->tg.lock);
-        release(&t->lock);
-
-        acquire(&p->lock);
+        // acquire(&p->lock);
+// #ifdef __DEBUG_THREAD_EXIT
+//         Log("thread %d has acquired p->lock\n", t->tid);
+// #endif
         // freeproc(p);
         
         t->xstate = status;
         proc_exit(status);
 
         release(&p->lock);
+#ifdef __DEBUG_THREAD_EXIT
+        Log("thread %d has release p->lock\n", t->tid);
+#endif
     }
 
     list_del_reinit(&t->threads);
@@ -275,7 +290,10 @@ void thread_exit(int status) {
 
     free_thread(t);
 
+
     tcb_q_change_state(t, TCB_UNUSED);
+
+    // release(&t->lock);
     
     thread_sched();
     

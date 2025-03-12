@@ -151,7 +151,7 @@ void thread_scheduler(void) {
 #endif        
         release(&t->lock);
 #ifdef __DEBUG_SCHED
-        printf("thread %d release the lock\n",t->tid);
+        printf("thread %d released the lock\n",t->tid);
 #endif
     }
 }

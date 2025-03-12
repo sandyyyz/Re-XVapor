@@ -97,7 +97,7 @@ CFLAGS = -Wall -Werror -O2 -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=un
 
 # for debug
 
-# CFLAGS += -D__DEBUG_SCHED
+CFLAGS += -D__DEBUG_SCHED
 # CFLAGS += -D__DEBUG_TRAP
 # CFLAGS += -D__DEBUG_FORKRET
 # CFLAGS += -D__DEBUG_FSINIT
@@ -114,11 +114,12 @@ CFLAGS = -Wall -Werror -O2 -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=un
 # CFLAGS += -D__DEBUG_INIT
 # CFLAGS += -D__DEBUG_EXEC
 # CFLAGS += -D__DEBUG_INIT
-CFLAGS += -D__DEBUG_THREAD_SCHED
-# CFLAGS += -D__DEBUG_FORK
-CFLAGS += -D__DEBUG_UTRAP
+# CFLAGS += -D__DEBUG_THREAD_SCHED
+CFLAGS += -D__DEBUG_FORK
+# CFLAGS += -D__DEBUG_UTRAP
 # CFLAGS += -D__DEBUG_MAPPAGES
-
+CFLAGS += -D__DEBUG_THREAD_EXIT
+CFLAGS += -D__DEBUG_LS
 ifdef LAB
 LABUPPER = $(shell echo $(LAB) | tr a-z A-Z)
 XCFLAGS += -DSOL_$(LABUPPER) -DLAB_$(LABUPPER)
@@ -350,7 +351,7 @@ clean:
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
-	mkfs/mkfs .gdbinit \
+	mkfs/mkfs \
         $U/usys.S \
 	$(UPROGS) \
 	ph barrier

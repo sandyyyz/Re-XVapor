@@ -77,5 +77,10 @@ int main(int argc, char *argv[]) {
   }
   for (i = 1; i < argc; i++)
     ls(argv[i]);
+
+#ifdef __DEBUG_LS
+  printf("ls finished\n");
+  printf("ready to exit\n");
+#endif
   exit(0);
 }
