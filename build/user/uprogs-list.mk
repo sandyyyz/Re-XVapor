@@ -1,0 +1,2 @@
+UPROGS :=  ../build/user/init/init.prog  ../build/user/shell/sh.prog  ../build/user/src/cat.prog  ../build/user/src/echo.prog  ../build/user/src/find.prog  ../build/user/src/grep.prog  ../build/user/src/grind.prog  ../build/user/src/kill.prog  ../build/user/src/ln.prog  ../build/user/src/ls.prog  ../build/user/src/mkdir.prog  ../build/user/src/rm.prog  ../build/user/src/sleep.prog  ../build/user/src/stressfs.prog  ../build/user/src/wc.prog  ../build/user/src/xargs.prog  ../build/user/src/zombie.prog
+UPROGS_TEST := 

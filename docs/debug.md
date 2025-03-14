@@ -212,3 +212,52 @@ panic: usertrap: not from user mode
 panic: acquire
 
 带着线程锁进入了`thread_sleep()`
+解决方法: `thread_exit()`中不应带着线程锁进入`proc_exit()`.调整获取锁顺序
+
+
+### thread.10
+test copyin: [INFO] fork: parent 3, child 5, child->leader_thread id: 5
+[LOG][kernel/thread.c,250,thread_exit] thread 5 exit
+
+[LOG][kernel/thread.c,271,thread_exit] thread 5 has release p->lock
+
+[LOG][kernel/thread.c,277,thread_exit] thread 5 has acquired p->tg.lock
+
+[LOG][kernel/thread.c,285,thread_exit] thread 5 try to release p->tg.lock
+
+[LOG][kernel/thread.c,291,thread_exit] thread 5 released p->tg.lock
+
+panic: freewalk: leaf
+
+[INFO] thread 3's trapframe in freewalk: 0x0000000087f33000
+[INFO] panic pte 0x0000000020ab58c7
+panic: freewalk: leaf
+
+test copyinstr3:
+page table 0x0000000087f20000
+ ..0: pte 0x00000000209b5001 pa 0x00000000826d4000
+ .. ..0: pte 0x0000000020934c01 pa 0x00000000824d3000
+ ..255: pte 0x0000000021fcb401 pa 0x0000000087f2d000
+ .. ..511: pte 0x0000000021fcd001 pa 0x0000000087f34000
+ .. .. ..510: pte 0x00000000200b08c7 pa 0x00000000802c2000
+[INFO] thread 3's trapframe in freewalk: 0x0000000087f33000
+[INFO] panic pte 0x00000000200b08c7
+panic: freewalk: leaf
+
+test copyin:
+page table 0x0000000087f20000
+ ..0: pte 0x00000000200b0801 pa 0x00000000802c2000
+ .. ..0: pte 0x0000000020130c01 pa 0x00000000804c3000
+ ..255: pte 0x0000000021fcb401 pa 0x0000000087f2d000
+ .. ..511: pte 0x0000000021fcd001 pa 0x0000000087f34000
+ .. .. ..510: pte 0x0000000021fc14c7 pa 0x0000000087f05000
+[INFO] thread 3's trapframe in freewalk: 0x0000000087f33000
+[INFO] panic pte 0x0000000021fc14c7, pa 0x0000000087f05000
+panic: freewalk: leaf
+??? 偶发错误？
+
+
+### thread.11
+test killstatus: [INFO] fork: parent 3, child 30, child->leader_thread id: 30
+[INFO] fork: parent 30, child 31, child->leader_thread id: 31
+panic: acquire

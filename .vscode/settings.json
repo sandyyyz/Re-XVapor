@@ -41,7 +41,14 @@
         "fstream": "cpp",
         "sstream": "cpp",
         "initializer_list": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "sleeplock.h": "c",
+        "fcntl.h": "c",
+        "assert.h": "c",
+        "fs.h": "c",
+        "stat.h": "c",
+        "file.h": "c",
+        "user.h": "c"
     },
 
     "multiCommand.commands": [

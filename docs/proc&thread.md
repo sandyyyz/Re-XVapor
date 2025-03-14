@@ -67,7 +67,7 @@ process state:
 
 proc_exit()退出整个进程(将进程设为zombie状态，等待父进程回收资源)
 而thread_exit()只退出单个线程
-当最后一个线程调用thread_exit()时,会调用exit()将进程设为zombie，并关闭所有文件。并且free当前线程.最后跳转到thread_sched()
+当最后一个线程调用thread_exit()时,会调用proc_exit()将进程设为zombie，并关闭所有文件。并且free当前线程.最后跳转到thread_sched()
 
 ![exit](image-41.png)
 
