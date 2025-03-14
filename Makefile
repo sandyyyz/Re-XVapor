@@ -40,7 +40,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 
 
 
-include $(UPROGS_LIST)
+# include $(UPROGS_LIST)
 
 export TOOLPREFIX
 export CC
@@ -76,12 +76,10 @@ mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h
 	gcc $(XCFLAGS) -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 
 
-$(UPROGS_LIST):
-	$(MAKE) -C $(USER_DIR) all 
 
 
-fs.img: mkfs/mkfs README  $(UEXTRA) $(UPROGS) $(UPROGS_TEST) $(UPROGS_LIST) | $(UPROGS_LIST)
-
+fs.img: mkfs/mkfs README  $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
+	$(MAKE) -C $(USER_DIR) uprogs-list.mk
 	@echo "UPROGS := $(UPROGS)"
 	@mkdir -p build/fs
 	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
