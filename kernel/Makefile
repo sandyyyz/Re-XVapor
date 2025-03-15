@@ -10,6 +10,9 @@ ASM_SRC := $(shell find $(KERNEL_DIR) -type f -name "*.S")
 
 OBJS := $(patsubst $(KERNEL_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 OBJS += $(patsubst $(KERNEL_DIR)/%.S, $(BUILD_DIR)/%.o, $(ASM_SRC))
+ENTRY_OBJ := $(BUILD_DIR)/asm/entry.o
+OBJS := $(filter-out $(ENTRY_OBJ), $(OBJS))
+OBJS := $(ENTRY_OBJ) $(OBJS) 
 
 .PHONY: all clean
 

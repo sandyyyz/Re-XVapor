@@ -79,13 +79,16 @@ mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h
 
 
 fs.img: mkfs/mkfs README  $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
-	$(MAKE) -C $(USER_DIR) uprogs-list.mk
-	@echo "UPROGS := $(UPROGS)"
+	$(MAKE) -C $(USER_DIR) all
 	@mkdir -p build/fs
 	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
 
 -include kernel/*.d user/*.d
 
+-include $(BUILD_DIR)/user/uprogs-list.mk
+
+# mk_uplist: $(UPROGS) $(UPROGS_TEST)
+# 	$(MAKE) -C $(USER_DIR) uprogs-list.mk
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
@@ -111,7 +114,7 @@ qemu: kernel fs.img
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: $(KERNEL_DIR)/kernel .gdbinit fs.img
+qemu-gdb: $(BUILD_DIR)/$(KERNEL_DIR)/kernel .gdbinit $(BUILD_DIR)/fs/fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 

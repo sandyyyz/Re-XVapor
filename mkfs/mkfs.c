@@ -128,17 +128,28 @@ main(int argc, char *argv[])
   iappend(rootino, &de, sizeof(de));
 
   for(i = 2; i < argc; i++){
-    // get rid of "user/"
+    // get rid of "build/user/"
     char *shortname;
-    if(strncmp(argv[i], "user/", 5) == 0)
-      shortname = argv[i] + 5;
+    if(strncmp(argv[i], "build/user/", 11) == 0)
+      shortname = argv[i] + 11;
     else
       shortname = argv[i];
+    if(strncmp(shortname, "fs/", 3) == 0)
+      shortname += 3;
+    else if(strncmp(shortname, "init/", 5) == 0)
+      shortname += 5;
+    else if(strncmp(shortname, "shell/", 6) == 0)
+      shortname += 6;
+    else if(strncmp(shortname, "src/", 4) == 0)
+      shortname += 4;
     
     assert(index(shortname, '/') == 0);
+    
 
-    if((fd = open(argv[i], 0)) < 0)
+    if((fd = open(argv[i], 0)) < 0) {
       die(argv[i]);
+    }
+
 
     // Skip leading _ in name when writing to file system.
     // The binaries are named _rm, _cat, etc. to keep the
@@ -146,6 +157,14 @@ main(int argc, char *argv[])
     // in place of system binaries like rm and cat.
     if(shortname[0] == '_')
       shortname += 1;
+    
+    // remove .prog suffix
+    size_t len = strlen(shortname);
+    if (len > 5 && strcmp(shortname + len - 5, ".prog") == 0) {
+        shortname[len - 5] = '\0'; 
+    }
+
+    printf("shortname %s\n", shortname);
 
     inum = ialloc(T_FILE);
 

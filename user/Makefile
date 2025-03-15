@@ -30,7 +30,6 @@ uprogs-list.mk: $(UPROGS) $(UPROGS_TEST)
 
 MKDIR: $(SUBDIR_PATHS) 
 	mkdir -p $(BUILD_DIR)/$(ULIB_DIR)
-	# mkdir -p $(UPROGS_BUILD_DIR)
 
 
 $(SUBDIR_PATHS):
