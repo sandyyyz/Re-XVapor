@@ -549,7 +549,7 @@ reparent(struct proc *p)
  * @brief until its parent calls wait().
  * 
  * @param status exit status 
- * @attention never call this function with thread's lock held!!!!!
+ * @attention never call this function with thread's lock held!!!!!, also with no other lock held!!!! (noff must == 0)
  * @details this function is called after every thread in the process has exited
  */
 void proc_exit(int status)
@@ -568,9 +568,21 @@ void proc_exit(int status)
     }
   }
 
+#ifdef __DEBUG_PEXIT
+  Info("noff before begin_op %d\n", mycpu()->noff);
+#endif
   begin_op();
+#ifdef __DEBUG_PEXIT
+  Info("noff after begin_op %d\n", mycpu()->noff);
+#endif
   iput(p->cwd);
+#ifdef __DEBUG_PEXIT
+  Info("noff after iput %d\n", mycpu()->noff);
+#endif
   end_op();
+#ifdef __DEBUG_PEXIT
+  Info("noff after end_op %d\n", mycpu()->noff);
+#endif
   p->cwd = 0;
 
   acquire(&wait_lock);
@@ -585,6 +597,8 @@ void proc_exit(int status)
 
   p->xstate = status;
   // p->state = ZOMBIE;
+  acquire(&p->lth_exitlock);
+  
   pcb_q_change_state(p, ZOMBIE);
   release(&wait_lock);
 

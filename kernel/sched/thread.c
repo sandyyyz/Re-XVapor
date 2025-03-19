@@ -260,7 +260,7 @@ void thread_exit(int status) {
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
         // protect the last thread exit
-        acquire(&p->lth_exitlock);
+
         // if this is the last thread in the group
         // free the process 
 

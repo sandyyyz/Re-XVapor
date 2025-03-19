@@ -367,3 +367,13 @@ test exitiput: [INFO] fork: parent 407, child 422, child->leader_thread id: 422
 [LOG][sched/thread.c,254,thread_exit] thread 423 exit
 
 panic: sched t locks
+
+thread.c:513 end_op()
+
+[INFO] noff when come in thread_exit: 0
+[INFO] noff before begin_op 1
+[INFO] noff after begin_op 1
+[INFO] noff after iput 1
+[INFO] noff 2
+
+恰恰是因为加了thread.12中的保护锁，当进入proc_exit时noff!=0...
