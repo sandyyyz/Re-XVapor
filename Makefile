@@ -3,7 +3,7 @@ USER_DIR=user
 MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
-
+UTEST_DIR = $(user)/test
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
@@ -12,6 +12,8 @@ CFLAGS += -Iinclude
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
 QEMU = qemu-system-riscv64
+
+UPROGS =
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -37,9 +39,6 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-
-
-
 # include $(UPROGS_LIST)
 
 export TOOLPREFIX
@@ -49,9 +48,7 @@ export LD
 export OBJCOPY
 export OBJDUMP
 export CFLAGS
-
-
-
+# export UPROGS
 
 .PHONY: all user kernel qemu qemu-gdb clean
 
@@ -75,9 +72,9 @@ clean:
 mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h 
 	gcc $(XCFLAGS) -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 
-
-
-
+# $(USER_BUILD_DIR)/uprogs-list.mk:
+# 	$(MAKE) -C $(USER_DIR) uprogs-list.mk
+UPROGS_TEST = 
 fs.img: mkfs/mkfs README  $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
 	$(MAKE) -C $(USER_DIR) all
 	@mkdir -p build/fs

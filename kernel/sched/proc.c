@@ -59,6 +59,7 @@ procinit(void)
 
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      initlock(&p->lth_exitlock, "lth_exitlock");
       p->ktime = 0;
       p->utime = 0;
       p->state = UNUSED;
@@ -268,15 +269,26 @@ void freeproc(struct proc *p)
   //   kfree((void*)p->trapframe);
   // p->trapframe = 0;
 
-  struct proc *cur_proc = myproc();
+
 #ifdef __DEBUG_FREEPROC
   Log("thread %d freeproc %d", mythread()->tid, cur_proc->pid);
 #endif
 
   // struct tcb  *cur_thread = mythread();
+  struct proc *cur_proc = myproc();
+  /**
+   * acturally, we needn't to free the threads here,
+   * because we have freed them in thread_exit
+   * and the only entry to proc_exit() is last thread's thread_exit()
+   * so we needn't to free them again if we have freed them in thread_exit
+   * we just need to wait for the last thread to exit before free the process
+   * 
+   */
+  acquire(&p->lth_exitlock);
   struct tcb *t, *tt;
-
   acquire(&cur_proc->tg.lock);
+
+  // sometimes it is not from the last thread's thread_exit
   list_for_each_entry_safe(t, tt, &(p->tg.threads), threads) {
     // TODO: is it right?
     if(t)
@@ -288,6 +300,7 @@ void freeproc(struct proc *p)
     free_thread(t);
   }
   release(&cur_proc->tg.lock);
+
 
   // have unmmaped threads' trapframe in free_thread
   // so needn't free them again
@@ -308,6 +321,7 @@ void freeproc(struct proc *p)
   // p->state = UNUSED;
   // change to UNUSED state
   pcb_q_change_state(p, UNUSED);
+  release(&p->lth_exitlock);
 #ifdef __DEBUG_FREEPROC
   Log("thread %d freeproc %d end", mythread()->tid, cur_proc->pid);
 #endif
@@ -574,6 +588,9 @@ void proc_exit(int status)
   pcb_q_change_state(p, ZOMBIE);
   release(&wait_lock);
 
+  #ifdef __DEBUG_PEXIT
+  Log("thread %d proc_exit %d", mythread()->tid, p->pid);
+  #endif
   // Jump into the scheduler, never to return.
   // sched();
   // thread_sched();
@@ -677,103 +694,6 @@ int wait4(pid_t pid, uint64 pstatus, int options) {
   
 
 }
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run.
-//  - swtch to start running that process.
-//  - eventually that process transfers control
-//    via swtch back to the scheduler.
-// void
-// scheduler(void)
-// {
-//   struct proc *p;
-//   struct cpu *c = mycpu();
-  
-//   c->proc = 0;
-//   for(;;){
-//     // Avoid deadlock by ensuring that devices can interrupt.
-//     intr_on();
-
-//     for(p = proc; p < &proc[NPROC]; p++) {
-//       acquire(&p->lock);
-//       if(p->state == RUNNABLE) {
-//         // Switch to chosen process.  It is the process's job
-//         // to release its lock and then reacquire it
-//         // before jumping back to us.
-//         p->state = RUNNING;
-//         c->proc = p;
-//         swtch(&c->context, &p->context);
-
-//         // Process is done running for now.
-//         // It should have changed its p->state before coming back.
-//         c->proc = 0;
-//       }
-//       release(&p->lock);
-//     }
-//   }
-// }
-
-// // p->scheduler
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
-// void
-// sched(void)
-// {
-//   int intena;
-//   struct proc *p = myproc();
-
-//   if(!holding(&p->lock))
-//     panic("sched p->lock");
-//   if(mycpu()->noff != 1)
-//     panic("sched locks");
-//   if(p->state == RUNNING)
-//     panic("sched running");
-//   if(intr_get())
-//     panic("sched interruptible");
-
-//   intena = mycpu()->intena;
-//   swtch(&p->context, &mycpu()->context);
-//   mycpu()->intena = intena;
-// }
-
-// Give up the CPU for one scheduling round.
-// void
-// yield(void)
-// {
-//   struct proc *p = myproc();
-//   acquire(&p->lock);
-//   p->state = RUNNABLE;
-//   sched();
-//   release(&p->lock);
-// }
-
-// A fork child's very first scheduling by scheduler()
-// will swtch to forkret.
-// void
-// forkret(void)
-// {
-//   static int first = 1;
-
-//   // Still holding p->lock from scheduler.
-//   release(&myproc()->lock);
-
-//   if (first) {
-//     // File system initialization must be run in the context of a
-//     // regular process (e.g., because it calls sleep), and thus cannot
-//     // be run from main().
-//     first = 0;
-//     fsinit(ROOTDEV);
-//   }
-
-//   usertrapret();
-// }
-
 
 
 
@@ -789,6 +709,9 @@ kill(int pid)
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if(p->pid == pid){
+#ifdef __DEBUG_KILL
+      Info("kill: pid %d, name %s", p->pid, p->name);
+#endif //__DEBUG_KILL
       p->killed = 1;
       // if(p->state == SLEEPING){
       //   // Wake process from sleep().

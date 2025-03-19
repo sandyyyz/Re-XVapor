@@ -914,6 +914,7 @@ reparent(char *s)
   int master_pid = getpid();
   for(int i = 0; i < 200; i++){
     int pid = fork();
+    printf("pid == %d\n", pid);
     if(pid < 0){
       printf("%s: fork failed\n", s);
       exit(1);
@@ -925,6 +926,7 @@ reparent(char *s)
       }
     } else {
       int pid2 = fork();
+      printf("pid2 == %d\n", pid2);
       if(pid2 < 0){
         kill(master_pid);
         exit(1);

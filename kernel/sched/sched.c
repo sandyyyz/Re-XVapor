@@ -50,6 +50,9 @@ void pcb_q_change_state(struct proc *p, enum procstate state_new) {
 /// @param  state_new the new state
 /// @attention must hold the t->lock. return with the thread's lock held. cannot use for turning to tcb_runnnig!!
 void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
+#ifdef __DEBUG_TCSTATE
+    Info("thread %d change state from %d to %d\n", t->tid, t->state, state_new);
+#endif
     queue_t *tcb_q_new = g_tcb_queues[state_new];
 
     // acquire(&t->lock);
@@ -97,8 +100,11 @@ void thread_sched(void) {
 #endif
     if(!holding(&t->lock))
     panic("sched t->lock");
-    if(mycpu()->noff != 1)
-    panic("sched t locks");
+    if(mycpu()->noff != 1) {
+        Info("noff %d\n", mycpu()->noff);
+        panic("sched t locks");
+    }
+
     if(t->state == TCB_RUNNING)
     panic("sched t running");
     if(intr_get())

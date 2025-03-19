@@ -46,7 +46,7 @@ usertrap(void)
   // walk_va(myproc()->mm.pagetable, THREAD_TRAPFRAME(mythread()->tidx));
   // walk_va(myproc()->mm.pagetable, TRAMPOLINE);
   // walk_va(myproc()->mm.pagetable, mythread()->trapframe->sp);
-  printf_green("thread %d usertrap!\n", mythread()->tid);
+  // printf_green("thread %d usertrap!\n", mythread()->tid);
 #endif
 // check SPP bit in sstatus
   if((r_sstatus() & SSTATUS_SPP) != 0) {
@@ -88,6 +88,9 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
+#ifdef __DEBUG_UTRAP
+    Info("thread %d usertrap: unexpected scause %p pid=%d\n", r_scause(), p->pid);
+#endif
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
 
@@ -216,7 +219,7 @@ kerneltrap()
   uint64 scause = r_scause();
   
 #ifdef __DEBUG_TRAP
-  printf("kerneltrap: sepc=%p stval=%p scause=%p\n", sepc, r_stval(), scause);
+  // printf("kerneltrap: sepc=%p stval=%p scause=%p\n", sepc, r_stval(), scause);
 #endif
 
   // struct proc *p = myproc();
@@ -228,6 +231,9 @@ kerneltrap()
     panic("kerneltrap: interrupts enabled");
 
   if((which_dev = devintr()) == 0){
+  #ifdef __DEBUG_TRAP
+    Info("thread %d kerneltrap: unexpected scause %p\n", mythread()->tid, scause);
+  #endif
     printf("unknow devintr()\n");
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());

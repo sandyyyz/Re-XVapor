@@ -261,3 +261,109 @@ panic: freewalk: leaf
 test killstatus: [INFO] fork: parent 3, child 30, child->leader_thread id: 30
 [INFO] fork: parent 30, child 31, child->leader_thread id: 31
 panic: acquire
+
+
+### thread.12
+scause 0d:
+load page fault
+$ usertests reparent
+usertests starting
+test reparent: unknow devintr()
+scause 0x000000000000000d
+sepc=0x000000008000399a stval=0x00000000000001d8
+panic: kerneltrap
+
+``` c
+
+holding(struct spinlock *lk)
+{
+  int r;
+  r = (lk->locked && lk->cpu == mycpu());
+    8000399a:	411c                	lw	a5,0(a0)
+    8000399c:	e399                	bnez	a5,800039a2 <holding+0x8>
+    8000399e:	4501                	li	a0,0
+  return r;
+}
+
+```
+
+usertests starting
+[INFO] fork: parent 3, child 4, child->leader_thread id: 4
+[LOG][sched/thread.c,254,thread_exit] thread 4 exit
+
+[LOG][sched/proc.c,578,proc_exit] thread 4 proc_exit 4
+[LOG][sched/thread.c,275,thread_exit] thread 4 has release p->lock
+
+[LOG][sched/thread.c,158,free_thread] thread 3 free thread 4
+
+[LOG][sched/thread.c,281,thread_exit] thread 4 has acquired p->tg.lock
+
+[LOG][sched/thread.c,289,thread_exit] thread 0 try to release p->tg.lock
+
+[LOG][sched/thread.c,295,thread_exit] thread 0 released p->tg.lock
+
+[LOG][sched/thread.c,300,thread_exit] thread 0 try to acquire t->lock
+
+[LOG][sched/thread.c,304,thread_exit] thread 0 has acquired t->lock
+
+[LOG][sched/thread.c,158,free_thread] thread 0 free thread 0
+
+unknow devintr()
+scause 0x000000000000000d
+sepc=0x0000000080003b3a stval=0x00000000000001d8
+panic: kerneltrap
+
+只是把proc退出，还没有完全退出thread时被free了(wait收尸)
+
+在pcb中加入了一个`lth_exitlock`用于保护thread完全退出
+
+
+### thread.13
+
+usertests reparent 
+pid2 == p91
+[LOG][sched/thread.c,254,thread_exit] thread 90 exit
+
+[LOG][sched/proc.c,592,proc_exit] thread 90 proc_exit 90
+[LOG][sched/thread.c,277,thread_exit] thread 90 has release p->lock
+
+[LOG][sched/thread.c,283,thread_exit] thread 90 has acquired p->tg.lock
+
+[LOG][sched/thread.c,291,thread_exit] thread 90 try to release p->tg.lock
+
+[LOG][sched/thread.c,297,threiad_exit] thread 90 released p->tg.lock
+
+[LOG][sched/thread.c,302,thread_exit] thread 90 try to acquire t->lock
+
+[LOG][sched/thread.c,306,thread_exit] thread 90 has acquired t->lock
+
+[LOG][schedd/thread.c,158,free_thread] thread 90 free thread 90
+
+2 == 0
+[LOG][sched/thread.c,254,thread_exit] thread 91 exit
+
+[LOG][sched/proc.c,592,proc_exit] thread 91 proc_exit 91
+[LOG][sched/thread.c,277,thread_exit] thread 91 has release p->lock
+
+unknow devintr()
+[LOG][sched/thread.c,283,thread_exit] thread 91 has acquired p->tg.lock
+
+[LOG][sched/thread.c,291,thread_exit] thread 91 try to release p->tg.lock
+
+[LOG][sched/thread.c,297,thread_exit] thread 91 released p->tg.lock
+
+scause 0x000000000000000f
+sepc=0x000000008000049e stval=0x0000000000000001
+panic[LOG][sched/thread.c,302,thread_exit] thr: keread 91 try to acquire t->lock
+
+[LOG][neltrap
+
+偶发错误，考虑竟态？
+
+### thread.14
+
+test exitiput: [INFO] fork: parent 407, child 422, child->leader_thread id: 422
+[INFO] fork: parent 422, child 423, child->leader_thread id: 423
+[LOG][sched/thread.c,254,thread_exit] thread 423 exit
+
+panic: sched t locks

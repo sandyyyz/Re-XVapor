@@ -7,6 +7,9 @@
 #include "riscv.h"
 #include "proc.h"
 #include "defs.h"
+#include "debug.h"
+
+extern int init_finished;
 
 void
 initlock(struct spinlock *lk, char *name)
@@ -85,6 +88,9 @@ int
 holding(struct spinlock *lk)
 {
   int r;
+  if(!lk) {
+    panic("holding NULL");
+  } 
   r = (lk->locked && lk->cpu == mycpu());
   return r;
 }
@@ -105,7 +111,9 @@ push_off(void)
   // 以便我们退出临界区时恢复中断状态
   if(mycpu()->noff == 0)
     mycpu()->intena = old;
+
   mycpu()->noff += 1;
+
 
 }
 

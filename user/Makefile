@@ -16,7 +16,7 @@ CFLAGS += -I$(KERNEL_DIR)/include
 ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
 # $(info src : $(SRC))
 # $(info obj : $(OBJ))
-# $(info uprogs : $(UPROGS))
+# $(info uprogs : $(UPROGS))r
 # $(info ulib : $(ULIB))
 default: all
 .PHONY: clean all

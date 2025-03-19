@@ -16,6 +16,7 @@
 #include "proc.h"
 
 volatile int panicked = 0;
+int printf_init = 0; // 0: not initialized, 1: initialized
 
 // lock to avoid interleaving concurrent printf's.
 static struct {
@@ -132,4 +133,5 @@ printfinit(void)
 {
   initlock(&pr.lock, "pr");
   pr.locking = 1;
+  printf_init = 1;
 }

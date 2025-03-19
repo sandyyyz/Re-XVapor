@@ -34,6 +34,7 @@ enum procstate {UNUSED, USED, ZOMBIE, PROC_STATEMAX };
 struct proc {
   struct spinlock lock;
 
+  struct spinlock lth_exitlock; // last thread exit lock, only use in racing between freeproc() and thread_exit()
   // p->lock must be held when using these:
   enum procstate state;        // Process state
   // void *chan;                  // If non-zero, sleeping on chan

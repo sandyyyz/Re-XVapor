@@ -7,7 +7,7 @@
 
 
 volatile static int started = 0;
-
+int init_finished = 0;
 // start() jumps here in supervisor mode on all CPUs.
 void
 main()
@@ -46,5 +46,6 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
 
+  init_finished = 1;
   thread_scheduler();        
 }

@@ -153,6 +153,10 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
  * @details return with the lock held
  */
 void free_thread(struct tcb *t) {
+
+#ifdef __DEBUG_FREE_THREAD
+    Log("thread %d free thread %d\n", mythread()->tid, t->tid);
+#endif
     // free & unmap tramframe
     acquire(&t->p->mm.lock);
     if (t->trapframe)
@@ -248,12 +252,15 @@ void thread_exit(int status) {
 
 #ifdef __DEBUG_THREAD_EXIT
     Log("thread %d exit\n", t->tid);
+    Info("noff when come in thread_exit: %d\n", mycpu()->noff);
 #endif
 
 
     if( t->state == TCB_SLEEPING) thread_wakeup_specific(t);
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
+        // protect the last thread exit
+        acquire(&p->lth_exitlock);
         // if this is the last thread in the group
         // free the process 
 
@@ -301,11 +308,15 @@ Log("thread %d has acquired t->lock\n", t->tid);
 #endif
     free_thread(t);
 
-
     tcb_q_change_state(t, TCB_UNUSED);
-
+    if(atomic_read(&tg->thread_cnt) == 0)
+        release(&p->lth_exitlock);
     // release(&t->lock);
     
+#ifdef __DEBUG_THREAD_EXIT
+    Info("noff when finish thread_exit: %d\n", mycpu()->noff);
+#endif
+
     thread_sched();
     
 
