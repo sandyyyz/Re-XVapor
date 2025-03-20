@@ -27,26 +27,27 @@ main(int argc, char *argv[])
     if(fork() > 0)
       break;
 
-  printf("write %d\n", i);
+  // printf("write %d\n", i);
 
   path[8] += i;
   fd = open(path, O_CREATE | O_RDWR);
-  printf("open done\n");
+  // printf("open done\n");
   for(i = 0; i < 20; i++) {
     write(fd, data, sizeof(data));
-    printf("write done %d\n",i);
+    // printf("write done %d\n",i);
   }
 //    printf(fd, "%d\n", i);
 
 
   close(fd);
-  printf("close\n");
+  // printf("close\n");
 
-  printf("read\n");
+  // printf("read\n");
 
   fd = open(path, O_RDONLY);
   for (i = 0; i < 20; i++)
     read(fd, data, sizeof(data));
+  // printf("read done\n");
   close(fd);
 
   wait(0);

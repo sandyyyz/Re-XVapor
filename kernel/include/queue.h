@@ -62,6 +62,9 @@ void *queue_pop_atomic(queue_t *q, int remove);
  * @param q: the queue* to traverse
  * @param member: the name of the list_head within the struct
  * @details not elegant right now, just used before using the condition variable for sleep-wakeup...
+ * @attention I think it should hold the lock of the queue before traversing
+ * @attention thinking about one case that: we are traversing the queue and reach the last node when we try to wakeup a thread
+ * @attention but just after we reach the end, the sleeping thread is pushed to the end of the queue... 
  */
 #define queue_for_each_entry_safe(pos, tmp, q, member) \
     list_for_each_entry_safe(pos, tmp, &(q->list), member)// buggy

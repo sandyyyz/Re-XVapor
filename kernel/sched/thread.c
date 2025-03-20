@@ -383,7 +383,7 @@ thread_wakeup_chan(void *chan)
 
     struct tcb *t, *tt;
     struct tcb *cur_threads = mythread();
-    // acquire(&g_tcb_queues[TCB_SLEEPING]->lock);
+    acquire(&g_tcb_queues[TCB_SLEEPING]->lock);
     queue_for_each_entry_safe(t, tt, g_tcb_queues[TCB_SLEEPING], state_list) {
 #ifdef __DEBUG_WAKEUP_CHAN
         // if(!t) Log("wakeup tid: %d, with state %d", t->tid, t->state);
@@ -394,7 +394,14 @@ thread_wakeup_chan(void *chan)
 #endif
             acquire(&t->lock);
             if(t->chan == chan) {
-                tcb_q_change_state(t, TCB_RUNNABLE);
+                // tcb_q_change_state(t, TCB_RUNNABLE);
+                queue_t *tcb_q_new = g_tcb_queues[TCB_RUNNABLE];
+                // queue_t *tcb_q_old = g_tcb_queues[TCB_SLEEPING];
+                queue_remove(t, TCB_STATE_QUEUE);
+                queue_push_back_atomic(tcb_q_new, t);
+                t->chan = 0;
+                t->state = TCB_RUNNABLE;
+
 #ifdef __DEBUG_WAKEUP_CHAN
                 Log("thread_wakeup_chan %d at chan %p", t->tid, chan);
 #endif
@@ -403,7 +410,7 @@ thread_wakeup_chan(void *chan)
             release(&t->lock);
         }
     }
-    // release(&g_tcb_queues[TCB_SLEEPING]->lock);
+    release(&g_tcb_queues[TCB_SLEEPING]->lock);
 
 }
 /// @brief wake up a given thread atomic, meaning that we needn't hold thread's lock in advance,
