@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "sleeplock.h"
+#include "debug.h"
 
 void
 initsleeplock(struct sleeplock *lk, char *name)
@@ -22,12 +23,25 @@ void
 acquiresleep(struct sleeplock *lk)
 {
   acquire(&lk->lk);
+
   // sleep时 lk->lk已经被释放
   // 多线程对sleeplock不会因为spinlock而阻塞
   while (lk->locked) {
     // sleep 等待获取锁lk
+#ifdef __DEBUG_SLEEPLOCK
+  int iswaken = 1;
+    if(iswaken)
+      Info("acquiresleep %p\n", lk);
+      iswaken = 0;
+#endif
+
     thread_sleep(lk, &lk->lk);
   }
+#ifdef __DEBUG_SLEEPLOCK
+  Info("acuiresleep wakeup %p\n", lk);
+  iswaken = 1;
+#endif
+
   // sleeplock 被spinlock保护
   lk->locked = 1;
   lk->pid = myproc()->pid;
@@ -40,6 +54,9 @@ releasesleep(struct sleeplock *lk)
   acquire(&lk->lk);
   lk->locked = 0;
   lk->pid = 0;
+#ifdef __DEBUG_SLEEPLOCK
+  Info("releasesleep %p\n", lk);
+#endif
   thread_wakeup_chan(lk);
   release(&lk->lk);
 }

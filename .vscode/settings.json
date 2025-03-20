@@ -48,7 +48,10 @@
         "fs.h": "c",
         "stat.h": "c",
         "file.h": "c",
-        "user.h": "c"
+        "user.h": "c",
+        "memory": "c",
+        "typeinfo": "c",
+        "string": "c"
     },
 
     "multiCommand.commands": [

@@ -4,15 +4,18 @@
 #include "riscv.h"
 #include "defs.h"
 #include "thread.h"
-
+#include "sched.h"
 
 volatile static int started = 0;
 int init_finished = 0;
+volatile static int cpunum = 4;
 // start() jumps here in supervisor mode on all CPUs.
 void
 main()
 {
   if(cpuid() == 0){
+    PCB_Q_ALL_INIT();
+    TCB_Q_ALL_INIT();
     consoleinit();
     printfinit();
     printf("\n");
@@ -36,6 +39,7 @@ main()
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
+    cpunum--;
   } else {
     while(started == 0)
       ;
@@ -44,8 +48,10 @@ main()
     kvminithart();    // turn on paging
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
+    cpunum--;
   }
+  if(!cpunum)
+    init_finished = 1;
 
-  init_finished = 1;
   thread_scheduler();        
 }

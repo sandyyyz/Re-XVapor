@@ -37,7 +37,15 @@ void pcb_q_change_state(struct proc *p, enum procstate state_new) {
     queue_t *pcb_q_old = g_pcb_queues[p->state];
 
     queue_remove_atomic(pcb_q_old, (void *)p);
+#ifdef __DEBUG_PCSTATE
+    if(p->pid == 5)
+        Info("process %d ready to push to state %d queue\n", p->pid, state_new);
+#endif
     queue_push_back_atomic(pcb_q_new, (void *)p);
+#ifdef __DEBUG_PCSTATE
+    if(p->pid == 5)
+        Info("process %d pushed to state %d queue\n", p->pid, state_new);
+#endif
     p->state = state_new;
 
     // release(&p->lock);
@@ -51,7 +59,8 @@ void pcb_q_change_state(struct proc *p, enum procstate state_new) {
 /// @attention must hold the t->lock. return with the thread's lock held. cannot use for turning to tcb_runnnig!!
 void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
 #ifdef __DEBUG_TCSTATE
-    Info("thread %d change state from %d to %d\n", t->tid, t->state, state_new);
+    if(t->tid == 5)
+        Info("thread %d change state from %d to %d\n", t->tid, t->state, state_new);
 #endif
     queue_t *tcb_q_new = g_tcb_queues[state_new];
 
@@ -63,8 +72,15 @@ void tcb_q_change_state(struct tcb *t, enum thread_state state_new) {
     } else {
         queue_remove((void *)t, TCB_STATE_QUEUE);
     }
+#ifdef __DEBUG_TCSTATE
+    if(t->tid == 5)
+        Info("thread %d ready to push to state %d queue\n", t->tid, state_new);
+#endif
     queue_push_back_atomic(tcb_q_new, (void *)t);
-
+#ifdef __DEBUG_TCSTATE
+    if(t->tid == 5)
+        Info("thread %d pushed to state %d queue\n", t->tid, state_new);
+#endif  
 
     t->state = state_new;
     return;
@@ -96,7 +112,8 @@ void thread_sched(void) {
     int intena;
     struct tcb *t = mythread();
 #ifdef __DEBUG_THREAD_SCHED
-    Log("thread %d is in thread_sched", t->tid);
+    if(t->tid == 36)
+        Log("thread %d is in thread_sched", t->tid);
 #endif
     if(!holding(&t->lock))
     panic("sched t->lock");

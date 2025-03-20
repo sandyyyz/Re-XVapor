@@ -55,7 +55,6 @@ procinit(void)
   // initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
 
-  PCB_Q_ALL_INIT();
 
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
@@ -518,7 +517,11 @@ fork(void)
   acquire(&np->lock);
   // np->state = RUNNABLE;
   // change the leader thread's state
+  acquire(&np->tg.lock);
+  acquire(&np->tg.group_leader->lock);
   tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
+  release(&np->tg.group_leader->lock);
+  release(&np->tg.lock);
   release(&np->lock);
 #ifdef __DEBUG_FORK
   Info("fork: parent %d, child %d, child->leader_thread id: %d\n", p->pid, np->pid, np->tg.group_leader->tid);
@@ -568,21 +571,21 @@ void proc_exit(int status)
     }
   }
 
-#ifdef __DEBUG_PEXIT
-  Info("noff before begin_op %d\n", mycpu()->noff);
-#endif
+// #ifdef __DEBUG_PEXIT
+//   Info("noff before begin_op %d\n", mycpu()->noff);
+// #endif
   begin_op();
-#ifdef __DEBUG_PEXIT
-  Info("noff after begin_op %d\n", mycpu()->noff);
-#endif
+// #ifdef __DEBUG_PEXIT
+//   Info("noff after begin_op %d\n", mycpu()->noff);
+// #endif
   iput(p->cwd);
-#ifdef __DEBUG_PEXIT
-  Info("noff after iput %d\n", mycpu()->noff);
-#endif
+// #ifdef __DEBUG_PEXIT
+//   Info("noff after iput %d\n", mycpu()->noff);
+// #endif
   end_op();
-#ifdef __DEBUG_PEXIT
-  Info("noff after end_op %d\n", mycpu()->noff);
-#endif
+// #ifdef __DEBUG_PEXIT
+//   Info("noff after end_op %d\n", mycpu()->noff);
+// #endif
   p->cwd = 0;
 
   acquire(&wait_lock);
@@ -599,12 +602,18 @@ void proc_exit(int status)
   // p->state = ZOMBIE;
   acquire(&p->lth_exitlock);
   
+#ifdef __DEBUG_PEXIT
+  Info("thread %d proc_exit, ready to change state to ZOMBIE\n", mythread()->tid);
+#endif
   pcb_q_change_state(p, ZOMBIE);
+#ifdef __DEBUG_PEXIT
+  Info("thread %d proc_exit, changed state to ZOMBIE\n", mythread()->tid);
+#endif
   release(&wait_lock);
 
-  #ifdef __DEBUG_PEXIT
-  Log("thread %d proc_exit %d", mythread()->tid, p->pid);
-  #endif
+  // #ifdef __DEBUG_PEXIT
+  // Log("thread %d proc_exit %d", mythread()->tid, p->pid);
+  // #endif
   // Jump into the scheduler, never to return.
   // sched();
   // thread_sched();
@@ -655,9 +664,15 @@ wait(uint64 addr)
       release(&wait_lock);
       return -1;
     }
-    
+
+#ifdef __DEBUG_WAIT
+    Info("thread %d wait, ready to sleep\n", mythread()->tid);
+#endif
     // Wait for a child to exit.
     thread_sleep(p, &wait_lock);  //DOC: wait-sleep
+#ifdef __DEBUG_WAIT
+    Info("thread %d wait, waked up\n", mythread()->tid);
+#endif
   }
 }
 

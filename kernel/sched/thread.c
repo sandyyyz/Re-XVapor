@@ -39,14 +39,12 @@ tcb_t tcb_pool[NTHREADS];
 // tcb init
 void tcb_init(void) {
     struct tcb *t;
-
-    TCB_Q_ALL_INIT();
     for (int i = 0; i < NTHREADS; i++) {
         t = tcb_pool + i;
         initlock(&t->lock, "tcb_lock"); // init its spinlock
         t->state = TCB_UNUSED;
         t->kstack = KSTACK((int)(t - tcb_pool));
-        queue_push_back(g_tcb_queues[TCB_UNUSED], t);
+        queue_push_back_atomic(g_tcb_queues[TCB_UNUSED], t);
     }
     Info("thread table init [ok]\n");
     return;
@@ -146,7 +144,7 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
 }
 
 /**
- * @brief free a thread
+ * @brief free a thread， and move it to the unused queue
  * 
  * @param t thread
  * @attention must hold the t->lock, and remenber to remove this thread of the thread group outside
@@ -256,7 +254,8 @@ void thread_exit(int status) {
 #endif
 
 
-    if( t->state == TCB_SLEEPING) thread_wakeup_specific(t);
+    if( t->state == TCB_SLEEPING) 
+        thread_wakeup_specific(t);
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
         // protect the last thread exit
@@ -308,7 +307,7 @@ Log("thread %d has acquired t->lock\n", t->tid);
 #endif
     free_thread(t);
 
-    tcb_q_change_state(t, TCB_UNUSED);
+    // tcb_q_change_state(t, TCB_UNUSED);
     if(atomic_read(&tg->thread_cnt) == 0)
         release(&p->lth_exitlock);
     // release(&t->lock);
@@ -384,6 +383,7 @@ thread_wakeup_chan(void *chan)
 
     struct tcb *t, *tt;
     struct tcb *cur_threads = mythread();
+    // acquire(&g_tcb_queues[TCB_SLEEPING]->lock);
     queue_for_each_entry_safe(t, tt, g_tcb_queues[TCB_SLEEPING], state_list) {
 #ifdef __DEBUG_WAKEUP_CHAN
         // if(!t) Log("wakeup tid: %d, with state %d", t->tid, t->state);
@@ -403,6 +403,7 @@ thread_wakeup_chan(void *chan)
             release(&t->lock);
         }
     }
+    // release(&g_tcb_queues[TCB_SLEEPING]->lock);
 
 }
 /// @brief wake up a given thread atomic, meaning that we needn't hold thread's lock in advance,

@@ -51,6 +51,10 @@ acquire(struct spinlock *lk)
 
   // Record info about lock acquisition for holding() and debugging.
   lk->cpu = mycpu();
+  #ifdef __DEBUG_SPINLOCK
+  if(init_finished)
+    Info("acquire %s: cpu %d\n", lk->name, cpuid());
+  #endif
 }
 
 // Release the lock.
@@ -79,6 +83,10 @@ release(struct spinlock *lk)
   //   amoswap.w zero, zero, (s1)
   __sync_lock_release(&lk->locked);
 
+  #ifdef __DEBUG_SPINLOCK
+  if(init_finished)
+    Info("release %s: cpu %d\n", lk->name, cpuid());
+  #endif
   pop_off();
 }
 

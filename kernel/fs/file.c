@@ -12,6 +12,8 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "debug.h"
+#include "thread.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -134,6 +136,10 @@ fileread(struct file *f, uint64 addr, int n)
 int
 filewrite(struct file *f, uint64 addr, int n)
 {
+#ifdef __DEBUG_FILEWRITE
+  printf("thread %d file write\n", mythread()->tid);
+#endif
+
   int r, ret = 0;
 
   if(f->writable == 0)
@@ -176,7 +182,10 @@ filewrite(struct file *f, uint64 addr, int n)
   } else {
     panic("filewrite");
   }
-
+#ifdef __DEBUG_FILEWRITE
+  if(ret != 1)
+    Info("thread %d filewrite: ret %d\n", mythread()->tid, ret);
+#endif
   return ret;
 }
 

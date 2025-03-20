@@ -1,12 +1,3 @@
-// Demonstrate that moving the "acquire" in iderw after the loop that
-// appends to the idequeue results in a race.
-
-// For this to work, you should also add a spin within iderw's
-// idequeue traversal loop.  Adding the following demonstrated a panic
-// after about 5 runs of stressfs in QEMU on a 2.1GHz CPU:
-//    for (i = 0; i < 40000; i++)
-//      asm volatile("");
-
 #include "types.h"
 #include "stat.h"
 #include "user.h"
@@ -20,21 +11,22 @@ main(int argc, char *argv[])
   char path[] = "stressfs0";
   char data[512];
 
-  printf("stressfs starting\n");
+  printf("writetest starting\n");
   memset(data, 'a', sizeof(data));
 
-  for(i = 0; i < 4; i++)
+  for(i = 0; i < 2; i++)
     if(fork() > 0)
       break;
 
-  printf("write %d\n", i);
+//   printf("write %d\n", i);
 
   path[8] += i;
   fd = open(path, O_CREATE | O_RDWR);
-  printf("open done\n");
+//   printf("open done\n");
   for(i = 0; i < 20; i++) {
     write(fd, data, sizeof(data));
-    printf("write done %d\n",i);
+    // sleep(1);
+    // printf("write done %d\n",i);
   }
 //    printf(fd, "%d\n", i);
 
@@ -50,6 +42,7 @@ main(int argc, char *argv[])
   close(fd);
 
   wait(0);
+  printf("wait done\n");
 
   exit(0);
 }

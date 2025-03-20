@@ -97,7 +97,7 @@ void queue_remove_atomic(queue_t *q, void *node) {
 void *queue_pop(queue_t *q, int remove) {
     if (queue_isempty(q))
         return NULL;
-    void *node = queue_first_node(q); // bug here now . node = 0xffffffffffffffb8
+    void *node = queue_first_node(q); 
     // remove it from queue??
     if (remove)
         queue_remove(node, q->type);

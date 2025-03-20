@@ -377,3 +377,148 @@ thread.c:513 end_op()
 [INFO] noff 2
 
 恰恰是因为加了thread.12中的保护锁，当进入proc_exit时noff!=0...
+调整顺序，保证iput()之前c->noff == 0
+
+### thread.15
+
+test writebig: unknow devintr()
+scause 0x000000000000000f
+sepc=0x00000000800004a6 stval=0x0000000000000001
+panic: kerneltrap
+
+$ usertests writebig
+usertests starting
+test writebig: OK
+ALL TESTS PASSED
+单独又能测过？，。。。
+
+### thread.16
+
+[INFO] noff when finish thread_exit: 1
+[INFO] fork: parent 5, child 184, child->leader_thread id: 184
+pid ==p id1 =8=4 
+0
+[INFO] fork: parent 184, child 185, child->leader_thread id: 185
+pid2 ==p id182 5
+=[LOG][sched/thread.c,254,thread_exit] thread 184 exi=t
+
+[INFO] noff when come in thread_exit: 0
+[LOG][sched/thread.c,278,thread_exit] thread 184 has release p->lock
+
+[LOG][sched/thread.c,284,thread_exit] thread 184 has acquired p->tg.lock
+
+[LOG][sched/thread.c,292,thread_exit] thread 184 try to release p->tg.lock
+
+[LOG][sched/thread.c,298,thread_exit] thread 184 released p->tg.lock
+
+[LOG][sched/thread.c,303,thread_exit] thread 184 try to acquire t->lock
+
+[LOG][sched/thread.c,307,thread_exit] thread 184 has acquired t->lock
+
+[INFO] noff when finish thread_exit: 1
+[INFO] thread 5 kerneltrap: unexpected scause 0x000000000000000f
+unknow devintr()
+scause 0x000000000000000f
+sepc=0x00000000800004a6 stval=0x0000000000000001
+panic: kerneltrap
+
+``` c
+
+// push back (atomic)
+void queue_push_back_atomic(queue_t *q, void *node) {
+    80000476:	1101                	addi	sp,sp,-32
+    80000478:	ec06                	sd	ra,24(sp)
+    8000047a:	e822                	sd	s0,16(sp)
+    8000047c:	e426                	sd	s1,8(sp)
+    8000047e:	e04a                	sd	s2,0(sp)
+    80000480:	1000                	addi	s0,sp,32
+    80000482:	84aa                	mv	s1,a0
+    80000484:	892e                	mv	s2,a1
+    acquire(&q->lock);
+    80000486:	00003097          	auipc	ra,0x3
+    8000048a:	7a4080e7          	jalr	1956(ra) # 80003c2a <acquire>
+    struct list_head *list = queue_entry(node, q->type);
+    8000048e:	44ac                	lw	a1,72(s1)
+    80000490:	854a                	mv	a0,s2
+    80000492:	00000097          	auipc	ra,0x0
+    80000496:	f3e080e7          	jalr	-194(ra) # 800003d0 <queue_entry>
+    __list_add(pnew, head->prev, head);
+    8000049a:	709c                	ld	a5,32(s1)
+    next->prev = pnew;
+    8000049c:	f088                	sd	a0,32(s1)
+    list_add_tail(list, &(q->list));
+    8000049e:	01848713          	addi	a4,s1,24
+    pnew->next = next;
+    800004a2:	e118                	sd	a4,0(a0)
+    pnew->prev = prev;
+    800004a4:	e51c                	sd	a5,8(a0)
+    prev->next = pnew;
+    这条指令报错：
+    800004a6:	e388                	sd	a0,0(a5)
+    release(&q->lock);
+    800004a8:	8526                	mv	a0,s1
+    800004aa:	00004097          	auipc	ra,0x4
+    800004ae:	834080e7          	jalr	-1996(ra) # 80003cde <release>
+}
+```
+
+[INFO] noff when come in thread_exit: 0
+[INFO] thread 5 change state from 4 to 2
+[INFO] thread 5 ready to push to state 2 queue
+[INFO] thread 5 pushed to state 2 queue
+[LOG][sched/thread.c,278,thread_exit] thread 96 has release p->lock
+
+[LOG][sched/thread.c,284,thread_exit] thread 96 has acquired p->tg.lock
+
+[LOG][sched/thread.c,292,thread_exit] thread 96 try to release p->tg.lock
+
+[LOG][sched/thread.c,298,thread_exit] thread 96 released p->tg.lock
+
+[LOG][sched/thread.c,303,thread_exit] thread 96 try to acquire t->lock
+
+[LOG][sched/thread.c,307,thread_exit] thread 96 has acquired t->lock
+
+[INFO] noff when finish thread_exit: 1
+[INFO] thread 5 kerneltrap: unexpected scause 0x000000000000000f
+unknow devintr()
+scause 0x000000000000000f
+sepc=0x00000000800004a6 stval=0x0000000000000001
+panic: kerneltrap
+
+thread5成功change thread state
+难道是process的问题？
+
+### thread.17
+
+$ writetest
+[INFO] fork: parent 2, child 4, child->leader_thread id: 4
+[INFO] thread 2 wait, ready to sleep
+stressfs starting
+[INFO] fork: parent 4, child 5, child->leader_thread id: 5
+write 0
+[INFO] fork: parent 5, child 6, child->leader_thread id: 6
+wrwrite 2
+ite 1
+open done
+open done
+write downre it0e
+ done 0w
+rite done 1
+write done 1
+write done 2
+write done 2
+wwrite donre 3
+ite done 3
+open donwerite
+ done 4
+wwrirte idteon ed 5
+one 4
+wwrriite tdeo nedo ne5
+ 0
+wriwrite done 1
+te done 6
+wwriter idteo donne 7
+e wri6
+te done 2
+QEMU: Terminated
+只要一涉及多核多线程并发，就有可能死锁，检查死锁和lostwakeup可能
