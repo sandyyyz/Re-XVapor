@@ -160,7 +160,15 @@ don't need rusage
 ![flags](image-34.png)
 
 
-## sys_exec
+## sys_execve
+
+``` c
+int execve(const char *pathname, char *const _Nullable argv[],
+                  char *const _Nullable envp[]);
+```
+      envp is an array of pointers to strings, conventionally of the
+       form key=value, which are passed as the environment of the new
+       program.  The envp array must be terminated by a null pointer.
 
 # 系统调用的说明以及调用方式
 

@@ -4,8 +4,6 @@ MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
 UTEST_DIR = user/test
-UPROGS_TEST = $(UTEST_DIR)/clone \
-$(UTEST_DIR)/fork \
 
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
 CFLAGS += -MD

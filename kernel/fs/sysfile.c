@@ -439,6 +439,83 @@ sys_chdir(void)
   return 0;
 }
 
+uint64 sys_execve(void){
+// come in like:
+// # execve(path, argv, envp)
+// where path is stored in a0, argv in a1 and envp in a2
+char path[MAXPATH], *argv[MAXARG], *envp[MAXENV];
+int i;
+uint64 uargv, uarg, uenvp, uenv;
+
+// copy path and argv from user space to kernel space
+argaddr(1, &uargv);
+if(argstr(0, path, MAXPATH) < 0) {
+  return -1;
+}
+argaddr(2, &uenvp);
+memset(envp, 0, sizeof(envp));
+for(i=0;; i++){
+  if(i >= NELEM(envp)){
+    goto badenv;
+  }
+  if(fetchaddr(uenvp+sizeof(uint64)*i, (uint64*)&uenv) < 0){
+    goto badenv;
+  }
+  if(uenv == 0){
+    envp[i] = 0;
+    break;
+  }
+  envp[i] = kalloc();
+  if(envp[i] == 0)
+    goto badenv;
+  if(fetchstr(uenv, envp[i], PGSIZE) < 0)
+    goto badenv;
+}
+
+memset(argv, 0, sizeof(argv));
+
+for(i=0;; i++){
+  if(i >= NELEM(argv)){
+    goto bad;
+  }
+  if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
+    goto bad;
+  }
+  if(uarg == 0){
+    argv[i] = 0;
+    break;
+  }
+  argv[i] = kalloc();
+  if(argv[i] == 0)
+    goto bad;
+  if(fetchstr(uarg, argv[i], PGSIZE) < 0)
+    goto bad;
+}
+
+// now path and argv holds the user's args
+int ret = execve(path, argv, envp);
+
+// free the temporary memory then return
+for(i = 0; i < NELEM(argv) && argv[i] != 0; i++) {
+  kfree(argv[i]);
+}
+
+for(i = 0; i < NELEM(envp) && envp[i] != 0; i++) {
+  kfree(envp[i]);
+}
+
+return ret;
+
+bad:
+for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
+  kfree(argv[i]);
+return -1;
+badenv:
+for(i = 0; i < NELEM(envp) && envp[i] != 0; i++)
+  kfree(envp[i]);
+return -1;
+}
+
 uint64
 sys_exec(void)
 {
