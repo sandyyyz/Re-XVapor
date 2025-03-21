@@ -51,7 +51,8 @@
         "user.h": "c",
         "memory": "c",
         "typeinfo": "c",
-        "string": "c"
+        "string": "c",
+        "wait.h": "c"
     },
 
     "multiCommand.commands": [
