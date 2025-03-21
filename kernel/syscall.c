@@ -119,6 +119,7 @@ extern uint64 sys_nanosleep(void);
 extern uint64 sys_clone(void);
 extern uint64 sys_getppid(void);
 extern uint64 sys_wait4(void);
+extern uint64 sys_execve(void);
 // 函数指针数组
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -147,6 +148,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_nanosleep] sys_nanosleep,
 [SYS_clone]   sys_clone,
 [SYS_wait4]   sys_wait4,
+[SYS_execve]  sys_execve,
 
 //other syscalls
 [SYS_times]   sys_times,

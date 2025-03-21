@@ -25,7 +25,7 @@ void            consputc(int);
 
 // exec.c
 int             exec(char*, char**);
-
+int execve(char *path, char **argv, char **envp);
 // file.c
 struct file*    filealloc(void);
 void            fileclose(struct file*);

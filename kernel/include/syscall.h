@@ -29,6 +29,7 @@
 #define SYS_nanosleep 101
 
 // process related
+#define SYS_execve 221
 #define SYS_clone 220
 #define SYS_getpid 172
 #define SYS_getppid 173

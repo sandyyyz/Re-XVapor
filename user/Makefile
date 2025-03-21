@@ -21,7 +21,9 @@ ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
 
 UPROGS_TEST = \
   $(UTEST_DIR)/clone \
-  $(UTEST_DIR)/wait
+  $(UTEST_DIR)/wait \
+  $(UTEST_DIR)/test_echo \
+  $(UTEST_DIR)/execve
 default: all
 .PHONY: clean all
 

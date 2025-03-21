@@ -45,3 +45,4 @@ entry("nanosleep");
 entry("clone");
 entry("getppid");
 entry("wait4");
+entry("execve");
