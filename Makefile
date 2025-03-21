@@ -1,9 +1,12 @@
 KERNEL_DIR=kernel
-USER_DIR=user
+USER_DIR := user
 MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
-UTEST_DIR = $(user)/test
+UTEST_DIR = user/test
+UPROGS_TEST = $(UTEST_DIR)/clone \
+$(UTEST_DIR)/fork \
+
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
@@ -13,8 +16,17 @@ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 &
 
 QEMU = qemu-system-riscv64
 
-UPROGS =
 
+
+UPROGS :=
+test: $(UPROGS_TEST)
+	@echo "UPROGS_TEST: $(UPROGS_TEST)"
+	@echo "UPROGS: $(UPROGS)"
+	@echo "BUILD_DIR: $(BUILD_DIR)"
+	@echo "USER_DIR: $(USER_DIR)"
+	@echo "KERNEL_DIR: $(KERNEL_DIR)"
+	@echo "UEXTRA: $(UEXTRA)"
+	@echo "UTEST_DIR: $(UTEST_DIR)"
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
 #TOOLPREFIX = 
@@ -74,11 +86,12 @@ mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h
 
 # $(USER_BUILD_DIR)/uprogs-list.mk:
 # 	$(MAKE) -C $(USER_DIR) uprogs-list.mk
-UPROGS_TEST = 
-fs.img: mkfs/mkfs README  $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
+
+fs.img: $(UPROGS_TEST) $(UEXTRA) $(UPROGS) mkfs/mkfs README  
 	$(MAKE) -C $(USER_DIR) all
 	@mkdir -p build/fs
-	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST)
+	echo "uprogs_test: $(UPROGS_TEST)"
+	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST) 
 
 -include kernel/*.d user/*.d
 

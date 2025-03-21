@@ -142,6 +142,8 @@ main(int argc, char *argv[])
       shortname += 6;
     else if(strncmp(shortname, "src/", 4) == 0)
       shortname += 4;
+    else if (strncmp(shortname, "user/test/", 10) == 0)
+      shortname += 10;  
     
     assert(index(shortname, '/') == 0);
     

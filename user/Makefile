@@ -6,7 +6,7 @@ SUBDIRS=init shell src
 SUBDIR_PATHS := $(patsubst %, $(BUILD_DIR)/%, $(SUBDIRS))
 UPROGS_BUILD_DIR=$(BUILD_DIR)/uprogs
 ULIB_DIR=lib
-
+UTEST_DIR = user/test
 SRC = $(wildcard *.c) $(foreach dir, $(SUBDIRS), $(wildcard $(dir)/*.c))
 OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC))
 UPROGS = $(patsubst $(BUILD_DIR)/%.o, $(BUILD_DIR)/%.prog,$(OBJ))
@@ -18,13 +18,16 @@ ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
 # $(info obj : $(OBJ))
 # $(info uprogs : $(UPROGS))r
 # $(info ulib : $(ULIB))
+
+UPROGS_TEST = \
+  $(UTEST_DIR)/clone 
 default: all
 .PHONY: clean all
 
 
 all: user
 
-uprogs-list.mk: $(UPROGS) $(UPROGS_TEST)
+uprogs-list.mk: 
 	@echo "UPROGS := $(UPROGS)" | sed 's|\.\./||g' > $(BUILD_DIR)/uprogs-list.mk
 	@echo "UPROGS_TEST := $(UPROGS_TEST)" | sed 's|\.\./||g' >> $(BUILD_DIR)/uprogs-list.mk
 
