@@ -105,13 +105,14 @@ int thread_killed(struct tcb *t);
 
 // void            sleep(void*, struct spinlock*);
 void            userinit(void);
-int             wait(uint64);
+int             wait_one(uint64);
 // void            wakeup(void*);
 // void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int wait4(pid_t pid, uint64 pstatus, int options);
+pid_t waitpid(pid_t pid, uint64 wstatus, int options);
 
 void thread_sleep(void*, struct spinlock*);
 void thread_wakeup_chan(void *chan);

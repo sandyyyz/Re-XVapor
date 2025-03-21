@@ -61,7 +61,100 @@ closely related
 ### sys_wait4
 
 ![wait4](image-33.png)
+来看看具体解释：
+  wait() and waitpid()
+       The wait() system call suspends execution of the calling thread
+       until one of its children terminates.  The call wait(&wstatus) is
+       equivalent to:
 
+           waitpid(-1, &wstatus, 0);
+
+       The waitpid() system call suspends execution of the calling thread
+       until a child specified by pid argument has changed state.  By
+       default, waitpid() waits only for terminated children, but this
+       behavior is modifiable via the options argument, as described
+       below.
+
+       The value of pid can be:
+
+       < -1   meaning wait for any child process whose process group ID
+              is equal to the absolute value of pid.
+
+       -1     meaning wait for any child process.
+
+       0      meaning wait for any child process whose process group ID
+              is equal to that of the calling process at the time of the
+              call to waitpid().
+
+       > 0    meaning wait for the child whose process ID is equal to the
+              value of pid.
+                The value of options is an OR of zero or more of the following
+       constants:
+
+       WNOHANG
+              return immediately if no child has exited.
+
+       WUNTRACED
+              also return if a child has stopped (but not traced via
+              ptrace(2)).  Status for traced children which have stopped
+              is provided even if this option is not specified.
+
+       WCONTINUED (since Linux 2.6.10)
+              also return if a stopped child has been resumed by delivery
+              of SIGCONT.
+
+       (For Linux-only options, see below.)
+
+       If wstatus is not NULL, wait() and waitpid() store status
+       information in the int to which it points.  This integer can be
+       inspected with the following macros (which take the integer itself
+       as an argument, not a pointer to it, as is done in wait() and
+       waitpid()!):
+
+       WIFEXITED(wstatus)
+              returns true if the child terminated normally, that is, by
+              calling exit(3) or _exit(2), or by returning from main().
+
+       WEXITSTATUS(wstatus)
+              returns the exit status of the child.  This consists of the
+              least significant 8 bits of the status argument that the
+              child specified in a call to exit(3) or _exit(2) or as the
+              argument for a return statement in main().  This macro
+              should be employed only if WIFEXITED returned true.
+
+       WIFSIGNALED(wstatus)
+              returns true if the child process was terminated by a
+              signal.
+
+       WTERMSIG(wstatus)
+              returns the number of the signal that caused the child
+              process to terminate.  This macro should be employed only
+              if WIFSIGNALED returned true.
+
+       WCOREDUMP(wstatus)
+              returns true if the child produced a core dump (see
+              core(5)).  This macro should be employed only if
+              WIFSIGNALED returned true.
+
+              This macro is not specified in POSIX.1-2001 and is not
+              available on some UNIX implementations (e.g., AIX, SunOS).
+              Therefore, enclose its use inside #ifdef WCOREDUMP ...
+              #endif.
+
+       WIFSTOPPED(wstatus)
+              returns true if the child process was stopped by delivery
+              of a signal; this is possible only if the call was done
+              using WUNTRACED or when the child is being traced (see
+              ptrace(2)).
+
+       WSTOPSIG(wstatus)
+              returns the number of the signal which caused the child to
+              stop.  This macro should be employed only if WIFSTOPPED
+              returned true.
+
+       WIFCONTINUED(wstatus)
+              (since Linux 2.6.10) returns true if the child process was
+              resumed by delivery of SIGCONT.
 don't need rusage  
 * flags:  
 ![flags](image-34.png)
@@ -94,9 +187,9 @@ don't need rusage
 - [ ] SYS_fstat  
 
 ## 进程管理相关
-- [ ] SYS_clone  
+- [x] SYS_clone  
 - [ ] SYS_execve  
-- [ ] SYS_wait4  
+- [x] SYS_wait4  
 - [x] SYS_exit  
 - [x] SYS_getppid  
 - [x] SYS_getpid  

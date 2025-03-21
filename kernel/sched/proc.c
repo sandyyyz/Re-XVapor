@@ -10,6 +10,7 @@
 #include "debug.h"
 #include "thread.h"
 #include "list.h"
+#include "wait.h"
 
 void thread_forkret(void);
 
@@ -623,14 +624,14 @@ void proc_exit(int status)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(uint64 addr)
+wait_one(uint64 addr)
 {
   struct proc *pp;
   int havekids, pid;
   struct proc *p = myproc();
   // struct tcb *t = mythread();
 
-  acquire(&wait_lock);
+  acquire(&wait_lock);    
 
   for(;;){
     // Scan through table looking for exited children.
@@ -676,7 +677,15 @@ wait(uint64 addr)
   }
 }
 
-int wait4(pid_t pid, uint64 pstatus, int options) {
+/**
+ * @brief wait for a specific child process to exit
+ * 
+ * @param pid child pid
+ * @param pstatus child process's status
+ * @param options options to specify the behavior of wait4, see wait.h
+ * @return child process's pid
+ */
+pid_t wait4(pid_t pid, uint64 pstatus, int options) {
   struct proc *pp;
   int havekids;
   struct proc *p = myproc();
@@ -714,6 +723,12 @@ int wait4(pid_t pid, uint64 pstatus, int options) {
       release(&wait_lock);
       return -1;
     }
+
+    // WNOHANG: return immediately if no child has exited.
+    if(options & WNOHANG) {
+      release(&wait_lock);
+      return 0;
+    }
     
     // Wait for a child to exit.
     // TODO: how to wait for a specific child process to exit??
@@ -721,9 +736,26 @@ int wait4(pid_t pid, uint64 pstatus, int options) {
     thread_sleep(p, &wait_lock);  //DOC: wait-sleep
   }
   
-
 }
 
+/**
+ * @brief entrance for waiting for a specific child process to exit
+ * 
+ * @param pid -1 means wait for any child process, any value greater than 0 means wait for the specific child process
+ * @param wstatus the status of the exited child process
+ * @param options specify the behavior of waitpid, in wait.h
+ * @return child process's pid
+ */
+pid_t waitpid(pid_t pid, uint64 wstatus, int options) {
+  if(pid < -1 || pid == 0) {
+    panic("waitpid: not support pid < -1 || pid == 0 right now!, for no process group!");
+  }
+  if(pid == -1 && options == 0) {
+    return wait_one(wstatus);
+  } else {
+    return wait4(pid, wstatus, options);
+  }
+}
 
 
 

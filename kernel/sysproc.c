@@ -83,8 +83,7 @@ uint64 sys_wait4(void) {
   argaddr(1, &pstatus);
   argint(2, &options);
  
-  if(pid == -1) return wait(pstatus);
-  return wait4(pid, pstatus, options);
+  return waitpid(pid, pstatus, options);
 }
 
 uint64
@@ -92,7 +91,7 @@ sys_wait(void)
 {
   uint64 p;
   argaddr(0, &p);
-  return wait(p);
+  return wait_one(p);
 }
 
 uint64
