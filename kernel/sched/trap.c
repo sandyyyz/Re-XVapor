@@ -87,8 +87,10 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
+
     if(which_dev == 3) {
       // read/write pagefault,maybe mmap cause
+      // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
       uint64 va = PGROUNDDOWN(r_stval());
       struct vma_struct *vma;
       acquire(&p->mm.lock);

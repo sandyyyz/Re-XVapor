@@ -71,10 +71,11 @@ procinit(void)
       p->utime = 0;
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
-      queue_push_back_atomic(&unused_p_q, p);
-
       INIT_LIST_HEAD(&p->state_list);
       INIT_LIST_HEAD(&p->sibling_list);
+      
+      queue_push_back_atomic(&unused_p_q, p);
+
       // mm_init(&p->mm);
   }
 
@@ -187,14 +188,16 @@ allocproc(void)
   // }
   // return 0;
 
-  if((p = (struct proc*) queue_pop_atomic(&unused_p_q, 1)) == NULL)
+  if((p = (struct proc*)queue_pop_atomic(&unused_p_q, 1)) == NULL)
     return NULL;
-  
+
   acquire(&p->lock);
 
 // found:
   p->pid = allocpid();
-
+#ifdef __DEBUG_ALLOCATE_PROC
+  Info("proc %d allocated, pcb %p\n", p->pid, p);
+#endif
   // process family tree
   p->first_child = NULL;
   INIT_LIST_HEAD(&p->sibling_list);
@@ -235,6 +238,9 @@ allocproc(void)
   // mm_struct
   initlock(&p->mm.lock, "mm_lock");
   p->mm.pagetable = proc_pagetable(p);
+#ifdef __DEBUG_ALLOCATE_PROC
+  Info("proc %d's pagetable = %p\n", p->pid, p->mm.pagetable);
+#endif
   INIT_LIST_HEAD(&p->mm.vma_list);
   p->mm.max_vma = MMAP_MAX_ADDR_START;
 
@@ -472,13 +478,17 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
   struct tcb  *t = mythread();
-   
   // Allocate process.
   // return with np->lock held
+#ifdef __DEBUG_FORK
+  Info("fork: parent %d, before allocproc\n", p->pid);
+#endif //__DEBUG_FORK
   if((np = allocproc()) == 0){
     return -1;
   }
-
+#ifdef __DEBUG_FORK
+  Info("fork: parent %d, child %d, after allocproc\n", p->pid, np->pid);
+#endif //__DEBUG_FORK
   if((t = alloc_thread(thread_forkret)) == 0) {
     freeproc(np);
     return -1;
@@ -487,14 +497,16 @@ fork(void)
   // make the allocated thread be the group leader
   proc_join_thread(np, t, NULL);
 
-
+#ifdef __DEBUG_FORK
+  Info("fork: parent %d, child %d, after proc_join_thread\n", p->pid, np->pid);
+#endif //__DEBUG_FORK
   // proc_join_thread(np, t, NULL);?
 
   // Copy user memory from parent to child.
 #ifdef __DEBUG_FORK
-  printf("old pagetable:\n");
+  printf("old pagetable pid %d :\n", p->pid);
   vmprint(p->mm.pagetable);
-  printf("new pagetable:\n");
+  printf("new pagetable: pid %d \n", np->pid);
   vmprint(np->mm.pagetable);
 #endif
   if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
