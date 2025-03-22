@@ -9,6 +9,7 @@
 #include "thread.h"
 #include "riscv.h"
 #include "vm.h"
+#include "mmap.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -86,7 +87,34 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
-    // ok
+    if(which_dev == 3) {
+      // read/write pagefault,maybe mmap cause
+      uint64 va = PGROUNDDOWN(r_stval());
+      struct vma_struct *vma;
+      acquire(&p->mm.lock);
+      if(!(vma = find_vma(p, va))) {
+        printf("thread %d usertrap: page fault at %p\n", t->tid, va);
+        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+        printf("scause=%p\n", r_scause());
+        printf("sstatus=%p\n", r_sstatus());
+        printf("satp=%p\n", r_satp());
+        panic("usertrap: page fault");
+      }
+      char* mem;
+      if(!(mem = kzalloc())) {
+        panic("usertrap: kalloc");
+      }
+      if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, vma->prot | PTE_U | PTE_X) != 0) {
+        panic("usertrap: mappages");
+      }
+      struct file* fp = vma->file;
+      int offset = va - vma->vm_start;
+      ilock(fp->ip);
+      readi(fp->ip, 1, va, offset, PGSIZE);
+      iunlock(fp->ip);
+      
+      release(&p->mm.lock);
+    }
   } else {
 #ifdef __DEBUG_UTRAP
     Info("thread %d usertrap: unexpected scause %p pid=%d\n", r_scause(), p->pid);
@@ -309,7 +337,11 @@ devintr()
     w_sip(r_sip() & ~2);
 
     return 2;
-  } else {
+  } else if(scause == 13 || scause == 15) {
+    // read /write page fault
+    return 3;
+  }
+  else {
     return 0;
   }
 }

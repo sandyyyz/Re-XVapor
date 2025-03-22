@@ -64,6 +64,7 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void*           kzalloc(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -154,6 +155,7 @@ int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
 
+int argfd(int n, int *pfd, struct file **pf);
 // trap.c
 extern uint     ticks;
 void            trapinit(void);

@@ -52,7 +52,8 @@
         "memory": "c",
         "typeinfo": "c",
         "string": "c",
-        "wait.h": "c"
+        "wait.h": "c",
+        "mmap.h": "c"
     },
 
     "multiCommand.commands": [

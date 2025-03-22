@@ -522,3 +522,20 @@ e wri6
 te done 2
 QEMU: Terminated
 只要一涉及多核多线程并发，就有可能死锁，检查死锁和lostwakeup可能
+
+
+### mmap.1
+
+old pagetable:
+page table 0x0000000087f2d000
+ ..255: pte 0x0000000021fcd001 pa 0x0000000087f34000
+ .. ..511: pte 0x0000000021fccc01 pa 0x0000000087f33000
+ .. .. ..510: pte 0x0000000021fcc807 pa 0x0000000087f32000
+ .. .. ..511: pte 0x000000002000240b pa 0x0000000080009000
+new pagetable:
+page table 0x0000000087f2d000
+ ..255: pte 0x0000000021fcd001 pa 0x0000000087f34000
+ .. ..511: pte 0x0000000021fccc01 pa 0x0000000087f33000
+ .. .. ..510: pte 0x0000000021fcc807 pa 0x0000000087f32000
+ .. .. ..511: pte 0x000000002000240b pa 0x0000000080009000
+panic: uvmcopy: pte should exist

@@ -34,3 +34,5 @@
 #define SYS_getpid 172
 #define SYS_getppid 173
 #define SYS_wait4 260
+#define SYS_mmap 222
+#define SYS_munmap 215

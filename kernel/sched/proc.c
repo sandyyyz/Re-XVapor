@@ -11,6 +11,7 @@
 #include "thread.h"
 #include "list.h"
 #include "wait.h"
+#include "mmap.h"
 
 void thread_forkret(void);
 
@@ -48,6 +49,12 @@ extern char trampoline[]; // trampoline.S
 struct spinlock wait_lock;
 
 // initialize the proc table.
+// static void mm_init(struct mm_struct *mm) {
+//     mm->max_vma = MMAP_MAX_ADDR_START;
+//     INIT_LIST_HEAD(&mm->vma_list);
+//     initlock(&mm->lock, "mm_lock");
+//     mm->pagetable = 0;
+// }
 void
 procinit(void)
 {
@@ -65,6 +72,10 @@ procinit(void)
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
       queue_push_back_atomic(&unused_p_q, p);
+
+      INIT_LIST_HEAD(&p->state_list);
+      INIT_LIST_HEAD(&p->sibling_list);
+      // mm_init(&p->mm);
   }
 
 
@@ -225,6 +236,7 @@ allocproc(void)
   initlock(&p->mm.lock, "mm_lock");
   p->mm.pagetable = proc_pagetable(p);
   INIT_LIST_HEAD(&p->mm.vma_list);
+  p->mm.max_vma = MMAP_MAX_ADDR_START;
 
   return p;
 }
@@ -479,12 +491,25 @@ fork(void)
   // proc_join_thread(np, t, NULL);?
 
   // Copy user memory from parent to child.
+#ifdef __DEBUG_FORK
+  printf("old pagetable:\n");
+  vmprint(p->mm.pagetable);
+  printf("new pagetable:\n");
+  vmprint(np->mm.pagetable);
+#endif
   if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
     return -1;
   }
   np->sz = p->sz;
+  
+  // copy vma
+  acquire(&p->mm.lock);
+  acquire(&np->mm.lock);
+  proc_copy_vma(p, np);
+  release(&np->mm.lock);
+  release(&p->mm.lock);
 
   // TODO: let's just copy the leader thread right now
   // copy saved user registers.
@@ -571,6 +596,9 @@ void proc_exit(int status)
       p->ofile[fd] = 0;
     }
   }
+  acquire(&p->mm.lock);
+  freeprocvm(p);
+  release(&p->mm.lock);
 
 // #ifdef __DEBUG_PEXIT
 //   Info("noff before begin_op %d\n", mycpu()->noff);

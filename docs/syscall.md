@@ -170,6 +170,8 @@ int execve(const char *pathname, char *const _Nullable argv[],
        form key=value, which are passed as the environment of the new
        program.  The envp array must be terminated by a null pointer.
 
+在XV6 exec()之上将环境变量数组和数组指针存入栈
+
 # 系统调用的说明以及调用方式
 
 系统调用方式遵循 RISC-V ABI，即调用号存放在 a7 寄存器中，6 个参数分别储存在 a0-a5 寄存器中，返回值保存在 a0 中。
@@ -196,7 +198,7 @@ int execve(const char *pathname, char *const _Nullable argv[],
 
 ## 进程管理相关
 - [x] SYS_clone  
-- [ ] SYS_execve  
+- [x] SYS_execve  
 - [x] SYS_wait4  
 - [x] SYS_exit  
 - [x] SYS_getppid  

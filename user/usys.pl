@@ -46,3 +46,5 @@ entry("clone");
 entry("getppid");
 entry("wait4");
 entry("execve");
+entry("mmap");
+entry("munmap");
