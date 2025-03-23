@@ -113,7 +113,7 @@ usertrap(void)
         panic("usertrap: mappages");
       }
 #ifdef __DEBUG_UTRAP
-      vmprint(p->mm.pagetable);
+      // vmprint(p->mm.pagetable);
 #endif
       struct file* fp = vma->file;
       int offset = va - vma->vm_start;

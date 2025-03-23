@@ -61,7 +61,7 @@ int proc_copy_vma(struct proc *p, struct proc *np) {
 void freeprocvm(struct proc *p) {
     struct vma_struct *vma, *next;
     list_for_each_entry_safe(vma, next, &p->mm.vma_list, vma_list) {
-        mmap_writeback_unmapf(p->mm.pagetable, vma);
+        mmap_writeback_unmapf(p->mm.pagetable, vma, vma->vm_end - vma->vm_start);
         list_del(&vma->vma_list);
     }
 }
@@ -104,12 +104,23 @@ uint64 sys_munmap(void) {
     return do_munmap(addr, len);
     
 }
-
+/**
+ * @brief map a file to the virtual memory of a process
+ * 
+ * @param addr given address
+ * @param length length of the file
+ * @param prot protection of the memory
+ * @param flags mapping flags, use to determine the behavior of the mapping
+ * @param fd file descriptor
+ * @param fp file pointer
+ * @param offset offset in the file
+ * @return return the start address of the mapping, -1 if failed
+ */
 uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, struct file *fp, uint64 offset) {
 
     struct proc *p = myproc();
     struct vma_struct *vma;
-
+    // printf("fp->writeable: %d\n", fp->writable);
     if(!fp->writable && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
         return -1;
     }
@@ -147,47 +158,63 @@ uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd,
  * 
  * @param vma vma 
  * @param pgtable pagetable
+ * @param len length of the vma want to unmap
  * @return return 0 if success, -1 if failed
  * @attention call with mm lock held
  */
-int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma) {
+int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) {
     pte_t *pte;
     uint64 va;
     struct file *fp = vma->file;
-    for(va = PGROUNDDOWN(vma->vm_start); va < vma->vm_end; va += PGSIZE) {
+    for(va = PGROUNDDOWN(vma->vm_start); va < vma->vm_start + len  && va < vma->vm_end; va += PGSIZE) {
         pte = walk(myproc()->mm.pagetable, va, 0);
         if(pte == 0) {
             panic("mmap_writeback: walk");
         }
+        // the page could not be mapped and allocated because never access by the thread, then never reach mmap pgfault handler
+        if(!(*pte) || !(*pte & PTE_V)) {
+            continue;
+        }
         if((*pte & PTE_D) && vma->flags & MAP_SHARED) {
-        // write back   
-        int offset = va - vma->vm_start;
-        ilock(fp->ip);
-        writei(fp->ip, 1, va, offset, PGSIZE);
-        iunlock(fp->ip);
+        // write back 
+        filewrite(fp, va, PGSIZE);
         }
-        if(va + PGSIZE >= vma->vm_end) {
-            fp->ref--;
-        }
+#ifdef __DEBUG_MMAP_WRITEBACK
+        Log("mmap_writeback_unmapf: va %p, pte %p, pa %p\n", va, *pte, PTE2PA(*pte));
+#endif
         uvmunmap(pgtable, va, 1, 1);
         *pte = 0;
     }
+
+    vma->vm_start += len;
     return 0;
 }
 
 int do_munmap(uint64 addr, int len) {
     struct proc *p = myproc();
     struct vma_struct *vma;
-    acquire(&p->mm.lock);
+
+    // TODO: 
+    // if we don't acquire &p->mm.lock, how can we protect the vma?...
+    // but if we acquire it, here is a potential deadlock that another thread is holding the file inode lock
+    // and waiting for the mm lock, and we are holding the mm lock and waiting for the file inode lock...
+    // when we sleep and waiting file inode lock..
+    // but is that possible?... maybe holding a spinlock when sleep is not always a bad thing...
+    // just never hold a spinlock when sleep right now in thread_sched()...
+
+    // acquire(&p->mm.lock);
     vma = find_vma(p, addr);
     if(vma == 0) {
-        release(&p->mm.lock);
+        // release(&p->mm.lock);
         return -1;
     }
-    mmap_writeback_unmapf(p->mm.pagetable, vma);
-    // free vma_struct now 
-    list_del(&vma->vma_list);
-    kfree((void *)vma);
-    release(&p->mm.lock);
+    mmap_writeback_unmapf(p->mm.pagetable, vma, len);
+    // free vma if it's empty
+    if(vma->vm_start >= vma->vm_end) {
+        vma->file->ref--;
+        list_del(&vma->vma_list);
+        kfree((void *)vma);
+    }
+    // release(&p->mm.lock);
     return 0;
 }
