@@ -167,6 +167,7 @@ mmap_test(void)
   for (i = 0; i < PGSIZE*2; i++)
     p[i] = 'Z';
 
+  // printf("ready to unmap\n");
   // unmap just the first two of three pages of mapped memory.
   if (munmap((uint64)p, PGSIZE*2) == -1)
     err("munmap (3)");

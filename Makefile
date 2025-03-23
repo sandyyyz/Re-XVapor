@@ -4,7 +4,6 @@ MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
 UTEST_DIR = user/test
-
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
@@ -14,9 +13,8 @@ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 &
 
 QEMU = qemu-system-riscv64
 
+UPROGS =
 
-
-UPROGS :=
 test: $(UPROGS_TEST)
 	@echo "UPROGS_TEST: $(UPROGS_TEST)"
 	@echo "UPROGS: $(UPROGS)"
@@ -58,7 +56,7 @@ export LD
 export OBJCOPY
 export OBJDUMP
 export CFLAGS
-# export UPROGS
+export UPROGS
 
 .PHONY: all user kernel qemu qemu-gdb clean
 
@@ -88,7 +86,6 @@ mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h
 fs.img: $(UPROGS_TEST) $(UEXTRA) $(UPROGS) mkfs/mkfs README  
 	$(MAKE) -C $(USER_DIR) all
 	@mkdir -p build/fs
-	echo "uprogs_test: $(UPROGS_TEST)"
 	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST) 
 
 -include kernel/*.d user/*.d
@@ -116,7 +113,7 @@ QEMUOPTS += -drive file=$(BUILD_DIR)/fs/fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 
-qemu: kernel fs.img
+qemu: user kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv

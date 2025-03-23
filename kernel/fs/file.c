@@ -131,10 +131,15 @@ fileread(struct file *f, uint64 addr, int n)
   return r;
 }
 
-// Write to file f.
-// addr is a user virtual address.
-int
-filewrite(struct file *f, uint64 addr, int n)
+/**
+ * @brief write a file
+ * 
+ * @param f file pointer 
+ * @param addr virtual address
+ * @param n length
+ * @return int return the number of bytes written, -1 if failed 
+ */
+int filewrite(struct file *f, uint64 addr, int n)
 {
 #ifdef __DEBUG_FILEWRITE
   printf("thread %d file write\n", mythread()->tid);

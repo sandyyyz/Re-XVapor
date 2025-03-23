@@ -539,3 +539,20 @@ page table 0x0000000087f2d000
  .. .. ..510: pte 0x0000000021fcc807 pa 0x0000000087f32000
  .. .. ..511: pte 0x000000002000240b pa 0x0000000080009000
 panic: uvmcopy: pte should exist
+
+### mmap.2
+$ mmaptest
+mmap_test starting
+test mmap f
+fp->writeable: 0
+test mmap f: OK
+test mmap private
+fp->writeable: 0
+test mmap private: OK
+test mmap read-only
+fp->writeable: 0
+test mmap read-only: OK
+test mmap read/write
+fp->writeable: 1
+panic: log_write outside of trans
+QEMU: Terminated
