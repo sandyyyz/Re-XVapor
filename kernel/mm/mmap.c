@@ -166,21 +166,26 @@ int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) 
     pte_t *pte;
     uint64 va;
     struct file *fp = vma->file;
-    for(va = PGROUNDDOWN(vma->vm_start); va < vma->vm_start + len; va += PGSIZE) {
+    for(va = PGROUNDDOWN(vma->vm_start); va < vma->vm_start + len  && va < vma->vm_end; va += PGSIZE) {
         pte = walk(myproc()->mm.pagetable, va, 0);
         if(pte == 0) {
             panic("mmap_writeback: walk");
+        }
+        // the page could not be mapped and allocated because never access by the thread, then never reach mmap pgfault handler
+        if(!(*pte) || !(*pte & PTE_V)) {
+            continue;
         }
         if((*pte & PTE_D) && vma->flags & MAP_SHARED) {
         // write back 
         filewrite(fp, va, PGSIZE);
         }
-        if(va + PGSIZE >= vma->vm_end) {
-            fp->ref--;
-        }
+#ifdef __DEBUG_MMAP_WRITEBACK
+        Log("mmap_writeback_unmapf: va %p, pte %p, pa %p\n", va, *pte, PTE2PA(*pte));
+#endif
         uvmunmap(pgtable, va, 1, 1);
         *pte = 0;
     }
+
     vma->vm_start += len;
     return 0;
 }
@@ -206,6 +211,7 @@ int do_munmap(uint64 addr, int len) {
     mmap_writeback_unmapf(p->mm.pagetable, vma, len);
     // free vma if it's empty
     if(vma->vm_start >= vma->vm_end) {
+        vma->file->ref--;
         list_del(&vma->vma_list);
         kfree((void *)vma);
     }

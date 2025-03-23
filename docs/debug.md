@@ -539,6 +539,7 @@ page table 0x0000000087f2d000
  .. .. ..510: pte 0x0000000021fcc807 pa 0x0000000087f32000
  .. .. ..511: pte 0x000000002000240b pa 0x0000000080009000
 panic: uvmcopy: pte should exist
+初始化state_list位置错误导致头尾相接
 
 ### mmap.2
 $ mmaptest
@@ -556,3 +557,70 @@ test mmap read/write
 fp->writeable: 1
 panic: log_write outside of trans
 QEMU: Terminated
+应该filewrite而不只是iwrite
+
+### mmap.3
+
+$ mmaptest
+mmap_test starting
+test mmap f
+test mmap f: OK
+test mmap private
+test mmap private: OK
+test mmap read-only
+test mmap read-only: OK
+test mmap read/write
+test mmap read/write: OK
+test mmap dirty
+test mmap dirty: OK
+test not-mapped unmap
+panic: uvmunmap: not mapped
+
+$ mmaptest
+mmap_test starting
+test mmap f
+[LOG][mm/mmap.c,152,do_mmap] process 3 do mmap: vma_start 0x0000003fffff4000, vma_end 0x0000003fffff6000, fd 3, offset 0
+
+[LOG][sched/trap.c,110,usertrap] proc 3 thread 3 usertrap: mappages va 0x0000003fffff4000, size 0x0000000000001000, mem 0x0000000087f20000, prot 0x0000000000000019
+
+[LOG][sched/trap.c,110,usertrap] proc 3 thread 3 usertrap: mappages va 0x0000003fffff5000, size 0x0000000000001000, mem 0x0000000087f2d000, prot 0x0000000000000019
+
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003fffff4000, pte 0x0000000021fc805b, pa 0x0000000087f20000
+
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003fffff5000, pte 0x0000000021fcb45b, pa 0x0000000087f2d000
+
+test mmap f: OK
+test mmap private
+[LOG][mm/mmap.c,152,do_mmap] process 3 do mmap: vma_start 0x0000003fffff2000, vma_end 0x0000003fffff4000, fd 3, offset 0
+
+[LOG][sched/trap.c,110,usertrap] proc 3 thread 3 usertrap: mappages va 0x0000003fffff2000, size 0x0000000000001000, mem 0x0000000087f2d000, prot 0x000000000000001b
+
+[LOG][sched/trap.c,110,usertrap] proc 3 thread 3 usertrap: mappages va 0x0000003fffff3000, size 0x0000000000001000, mem 0x0000000087f20000, prot 0x000000000000001b
+
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003fffff2000, pte 0x0000000021fcb4df, pa 0x0000000087f2d000
+
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003fffff3000, pte 0x0000000021fc80df, pa 0x0000000087f20000
+
+test mmap private: OK
+test mmap read-only
+test mmap read-only: OK
+test mmap read/write
+[LOG][mm/mmap.c,152,do_mmap] process 3 do mmap: vma_start 0x0000003ffffef000, vma_end 0x0000003fffff2000, fd 3, offset 0
+
+[LOG][sched/trap.c,110,usertrap] proc 3 thread 3 usertrap: mappages va 0x0000003ffffef000, size 0x0000000000001000, mem 0x0000000087f20000, prot 0x000000000000001b
+
+[LOG][sched/trap.c,110,usertrap] proc 3 thread 3 usertrap: mappages va 0x0000003fffff0000, size 0x0000000000001000, mem 0x0000000087f2d000, prot 0x000000000000001b
+
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003ffffef000, pte 0x0000000021fc80df, pa 0x0000000087f20000
+
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003fffff0000, pte 0x0000000021fcb4df, pa 0x0000000087f2d000
+
+test mmap read/write: OK
+test mmap dirty
+test mmap dirty: OK
+test not-mapped unmap
+[LOG][mm/mmap.c,179,mmap_writeback_unmapf] mmap_writeback_unmapf: va 0x0000003fffff1000, pte 0x0000000000000000, pa 0x0000000000000000
+
+panic: uvmunmap: not mapped
+
+vma页可能因为还没被访问而未被分配和映射，所以加个判断
