@@ -32,6 +32,8 @@ OBJS := $(ENTRY_OBJ) $(OBJS)
 # CFLAGS += -D__DEBUG_PCSTATE
 # CFLAGS += -D__DEBUG_SPINLOCK
 # CFLAGS += -D__DEBUG_TSLEEP
+# CFLAGS += -D__DEBUG_DO_MMAP
+
 .PHONY: all clean
 
 LDFLAGS = -z max-page-size=4096

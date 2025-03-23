@@ -62,7 +62,7 @@ printptr(uint64 x)
 
 // Print to the console. only understands %d, %x, %p, %s.
 void
-printf(char *fmt, ...)
+printf(const char *fmt, ...)
 {
   va_list ap;
   int i, c, locking;

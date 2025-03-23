@@ -106,18 +106,24 @@ usertrap(void)
       if(!(mem = kzalloc())) {
         panic("usertrap: kalloc");
       }
-      if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, vma->prot | PTE_U | PTE_X) != 0) {
+#ifdef __DEBUG_UTRAP
+      Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot %p\n", p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
+#endif
+      if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
         panic("usertrap: mappages");
       }
+#ifdef __DEBUG_UTRAP
+      vmprint(p->mm.pagetable);
+#endif
       struct file* fp = vma->file;
       int offset = va - vma->vm_start;
       ilock(fp->ip);
       readi(fp->ip, 1, va, offset, PGSIZE);
       iunlock(fp->ip);
-      
       release(&p->mm.lock);
     }
   } else {
+    
 #ifdef __DEBUG_UTRAP
     Info("thread %d usertrap: unexpected scause %p pid=%d\n", r_scause(), p->pid);
 #endif

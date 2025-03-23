@@ -86,7 +86,7 @@ uint64 sys_mmap(void) {
     }
     argint(5, &offset);
 
-    return mmap(addr, length, prot, flags, fd, fp, offset);
+    return do_mmap(addr, length, prot, flags, fd, fp, offset);
 
 
 }
@@ -105,7 +105,7 @@ uint64 sys_munmap(void) {
     
 }
 
-uint64 mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, struct file *fp, uint64 offset) {
+uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, struct file *fp, uint64 offset) {
 
     struct proc *p = myproc();
     struct vma_struct *vma;
@@ -137,7 +137,9 @@ uint64 mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, st
     }
     list_add_tail(&vma->vma_list, &p->mm.vma_list);
     release(&p->mm.lock);
-
+#ifdef __DEBUG_DO_MMAP
+    Log("process %d do mmap: vma_start %p, vma_end %p, fd %d, offset %d\n", p->pid, vma->vm_start, vma->vm_end, vma->fd, vma->offset);
+#endif
     return vma->vm_start;
 }
 /**

@@ -33,7 +33,7 @@ strcmp(const char *p, const char *q)
   return (uchar)*p - (uchar)*q;
 }
 
-uint
+int
 strlen(const char *s)
 {
   int n;
@@ -107,7 +107,7 @@ atoi(const char *s)
 }
 
 void*
-memmove(void *vdst, const void *vsrc, int n)
+memmove(void *vdst, const void *vsrc, uint n)
 {
   char *dst;
   const char *src;
