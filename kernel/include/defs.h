@@ -64,6 +64,7 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void*           kzalloc(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -78,7 +79,7 @@ int             piperead(struct pipe*, uint64, int);
 int             pipewrite(struct pipe*, uint64, int);
 
 // printf.c
-void            printf(char*, ...);
+void            printf(const char*, ...);
 void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
 
@@ -154,6 +155,7 @@ int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
 
+int argfd(int n, int *pfd, struct file **pf);
 // trap.c
 extern uint     ticks;
 void            trapinit(void);
@@ -172,7 +174,7 @@ int             uartgetc(void);
 void            kvminit(void);
 void            kvminithart(void);
 void            kvmmap(pagetable_t, uint64, uint64, uint64, int);
-int             mappages(pagetable_t, uint64, uint64, uint64, int);
+int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm);
 pagetable_t     uvmcreate(void);
 void            uvmfirst(pagetable_t, uchar *, uint);
 uint64          uvmalloc(pagetable_t, uint64, uint64, int);

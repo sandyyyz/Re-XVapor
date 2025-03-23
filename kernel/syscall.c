@@ -7,6 +7,7 @@
 #include "syscall.h"
 #include "defs.h"
 #include "thread.h"
+#include "mmap.h"
 
 struct timespec;
 
@@ -156,6 +157,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_uname]   sys_uname,
 [SYS_sched_yield] sys_sched_yield,
 [SYS_getppid] sys_getppid,
+[SYS_mmap]   sys_mmap,
+[SYS_munmap] sys_munmap,
 };
 
 void

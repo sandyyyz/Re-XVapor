@@ -348,7 +348,9 @@ thread_sleep(void *chan, struct spinlock *lk)
   // guaranteed that we won't miss any wakeup
   // (wakeup locks p->lock),
   // so it's okay to release lk.
-
+#ifdef __DEBUG_TSLEEP
+    Info("noff when enter tsleep: %d\n", mycpu()->noff);
+#endif
   // acquire(&p->lock);  //DOC: sleeplock1
   acquire(&t->lock);
   release(lk);

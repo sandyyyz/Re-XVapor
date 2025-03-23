@@ -5,6 +5,7 @@
 #include "list.h"
 
 typedef struct mm_struct {
+    uint64 max_vma; // max vma virtual address can used, make sure down side of this address is free
     list_head_t vma_list;
     spinlock_t lock;
     pagetable_t pagetable; // user pagetable        

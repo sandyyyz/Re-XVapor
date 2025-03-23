@@ -46,5 +46,13 @@ https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
 riscv64-softmmu.  Once they are installed, and in your shell
 search path, you can run "make qemu".
 
-Re-XVapor:
+
+## Re-XVapor:
 https://github.com/sandyyyz/Re-XVapor
+
+### How to run?
+
+make user   
+make qemu  
+
+*make sure make user first before make qemu!!*

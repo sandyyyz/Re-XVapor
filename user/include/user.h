@@ -11,7 +11,8 @@ int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
 int kill(int);
-int exec(const char*, char**);
+int exec(char*, char**);
+int execve(char *path, char **argv, char **envp);
 int open(const char*, int);
 int mknod(const char*, short, short);
 int unlink(const char*);
@@ -25,9 +26,11 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int nanosleep(struct timespec *req, struct timespec *rem);
+uint64 mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, uint64 offset);
+int munmap(uint64 addr, int len);
 
 // proc related
-int wait4(pid_t pid, int *status, int options);
+int wait4(pid_t pid, uint64 status, int options);
 
 // other syscall
 _clock_t times(struct tms *mytime);
@@ -37,13 +40,13 @@ int gettimeofday(struct timespec *ts, void *tz);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
-void *memmove(void*, const void*, int);
+void *memmove(void*, const void*, uint);
 char* strchr(const char*, char c);
 int strcmp(const char*, const char*);
 void fprintf(int, const char*, ...);
 void printf(const char*, ...);
 char* gets(char*, int max);
-uint strlen(const char*);
+int strlen(const char*);
 void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);

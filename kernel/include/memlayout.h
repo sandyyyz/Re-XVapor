@@ -67,4 +67,4 @@
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
 // thread-exclusive
 #define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx)*PGSIZE)
-
+#define MAX_THREAD 8 // max thread number in a process
