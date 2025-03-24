@@ -26,6 +26,7 @@
 #define MMAP_MAX_ADDR_START THREAD_TRAPFRAME(MAX_THREAD) /* max vitural start-address mmap can use, from here go downside*/
 #define MMAP_END_ADDRESS MMAP_MAX_ADDR_START - 1024 * 1024 * 1024 /* 1GB */
 #define PROT2PTE_FLAGS(prot) ((prot & PROT_READ ? PTE_R : 0) | (prot & PROT_WRITE ? PTE_W : 0) | (prot & PROT_EXEC ? PTE_X : 0))
+
 uint64 sys_mmap(void);
 uint64 sys_munmap(void);
 uint64 do_mmap(uint64 addr, uint64 len, uint64 prot, uint64 flags, uint64 fd, struct file *fp, uint64 offset);
@@ -33,7 +34,7 @@ int do_munmap(uint64 addr, int len);
 struct vma_struct *find_vma(struct proc *p, uint64 addr);
 void freeprocvm(struct proc *p);
 int proc_copy_vma(struct proc *p, struct proc *np);
-int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma);
+int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len);
 
 struct vma_struct {
     int valid; // 0: invalid, 1: valid
