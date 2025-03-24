@@ -95,6 +95,25 @@ sys_wait(void)
 }
 
 uint64
+sys_brk(void)
+{
+  uint64 old_addr,new_addr;
+  int sz;
+
+  argaddr(0, &new_addr);
+  old_addr = myproc()->sz;
+  if (new_addr == 0)
+  {
+    return old_addr;
+  }
+  
+  sz = new_addr - old_addr;
+  if(growproc(sz) < 0)
+    return -1;
+  return new_addr;
+}
+
+uint64
 sys_sbrk(void)
 {
   uint64 addr;
