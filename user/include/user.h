@@ -23,6 +23,7 @@ int chdir(const char*);
 int dup(int);
 int getpid(void);
 char* sbrk(int);
+int brk(uint64);
 int sleep(int);
 int uptime(void);
 int nanosleep(struct timespec *req, struct timespec *rem);
