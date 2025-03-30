@@ -24,7 +24,8 @@ UPROGS_TEST = \
   $(UTEST_DIR)/wait \
   $(UTEST_DIR)/test_echo \
   $(UTEST_DIR)/execve \
-  $(UTEST_DIR)/mmap
+  $(UTEST_DIR)/mmap \
+  $(UTEST_DIR)/brk
 default: all
 .PHONY: clean all
 
