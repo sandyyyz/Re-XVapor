@@ -10,6 +10,14 @@ typedef unsigned short uint16;
 typedef unsigned int  uint32;
 typedef unsigned long uint64;
 
+// #if !(defined (__GNUG__) && defined (uintptr_t))
+// typedef unsigned int uintptr_t;
+// #endif
+
+#if !(defined (__GNUG__) && defined (size_t))
+typedef long unsigned int size_t;
+#endif
+
 typedef uint64 pde_t;
 typedef int pid_t;
 typedef int tid_t;

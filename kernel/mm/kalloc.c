@@ -93,3 +93,21 @@ void *kzalloc(void) {
     memset((char *)r, 0, PGSIZE); // fill with junk
   return (void *)r;
 }
+
+/** 
+ * @brief allocate one page of physical memory,
+ * @attention just support size <= PAGESIZE right now
+ */
+void *kmalloc(uint size) {
+  if(size > PGSIZE)
+    return 0;
+  void *p = kalloc();
+  return p;
+}
+
+void  *kcalloc(int n, uint size) {
+  if(n * size > PGSIZE)
+    return 0;
+  void *p = kalloc();
+  return p;
+}

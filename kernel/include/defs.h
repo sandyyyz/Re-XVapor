@@ -1,3 +1,6 @@
+#ifndef __DEFS_H__
+#define __DEFS_H__
+
 struct buf;
 struct context;
 struct file;
@@ -65,7 +68,8 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 void*           kzalloc(void);
-
+void*           kmalloc(uint size);
+void*           kcalloc(int n, uint size);
 // log.c
 void            initlog(int, struct superblock*);
 void            log_write(struct buf*);
@@ -139,6 +143,7 @@ int             holdingsleep(struct sleeplock*);
 void            initsleeplock(struct sleeplock*, char*);
 
 // string.c
+void* memcpy(void *dst, const void *src, uint n);
 int             memcmp(const void*, const void*, uint);
 void*           memmove(void*, const void*, uint);
 void*           memset(void*, int, uint);
@@ -146,6 +151,8 @@ char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
 int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
+int strcmp(const char *p, const char *q);
+char * strcpy(char *s, const char *t);
 
 // syscall.c
 void            argint(int, int*);
@@ -202,3 +209,5 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+#endif

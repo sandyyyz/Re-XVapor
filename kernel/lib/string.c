@@ -81,6 +81,13 @@ strncpy(char *s, const char *t, int n)
   return os;
 }
 
+int strcmp(const char *p, const char *q)
+{
+    while (*p && *p == *q)
+        p++, q++;
+    return (uchar)*p - (uchar)*q;
+}
+
 // Like strncpy but guaranteed to NUL-terminate.
 char*
 safestrcpy(char *s, const char *t, int n)
@@ -104,5 +111,16 @@ strlen(const char *s)
   for(n = 0; s[n]; n++)
     ;
   return n;
+}
+
+char *
+strcpy(char *s, const char *t)
+{
+    char *os;
+
+    os = s;
+    while ((*s++ = *t++) != 0)
+        ;
+    return os;
 }
 

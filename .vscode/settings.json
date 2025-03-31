@@ -53,7 +53,22 @@
         "typeinfo": "c",
         "string": "c",
         "wait.h": "c",
-        "mmap.h": "c"
+        "mmap.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c",
+        "ext4_journal.h": "c",
+        "ext4_types.h": "c",
+        "ext4_config.h": "c",
+        "ext4_debug.h": "c",
+        "ext4_misc.h": "c",
+        "stdint.h": "c",
+        "ext4_errno.h": "c",
+        "errno.h": "c",
+        "inttypes.h": "c",
+        "stdio.h": "c",
+        "kernel.h": "c",
+        "sysinfo.h": "c",
+        "const.h": "c"
     },
 
     "multiCommand.commands": [

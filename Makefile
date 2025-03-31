@@ -4,7 +4,7 @@ MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
 UTEST_DIR = user/test
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable -Wno-error=format
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
