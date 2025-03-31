@@ -608,9 +608,7 @@ void proc_exit(int status)
       p->ofile[fd] = 0;
     }
   }
-  acquire(&p->mm.lock);
   freeprocvm(p);
-  release(&p->mm.lock);
 
 // #ifdef __DEBUG_PEXIT
 //   Info("noff before begin_op %d\n", mycpu()->noff);

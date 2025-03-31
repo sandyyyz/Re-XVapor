@@ -68,7 +68,8 @@
         "stdio.h": "c",
         "kernel.h": "c",
         "sysinfo.h": "c",
-        "const.h": "c"
+        "const.h": "c",
+        "ext4_blockdev.h": "c"
     },
 
     "multiCommand.commands": [

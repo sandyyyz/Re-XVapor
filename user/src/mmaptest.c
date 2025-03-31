@@ -274,14 +274,17 @@ fork_test(void)
 
   if((pid = fork()) < 0)
     err("fork");
+
   if (pid == 0) {
     _v1(p1);
     munmap((uint64)p1, PGSIZE); // just the first page
+    printf("fork_test child: unmap OK\n");
     exit(0); // tell the parent that the mapping looks OK.
   }
 
   int status = -1;
   wait(&status);
+  printf("fork_test parent: wait OK\n");
 
   if(status != 0){
     printf("fork_test failed\n");
@@ -289,7 +292,9 @@ fork_test(void)
   }
 
   // check that the parent's mappings are still there.
+  printf("ready to v1 p1\n");
   _v1(p1);
+  printf("ready to v1 p2\n");
   _v1(p2);
 
   printf("fork_test OK\n");
