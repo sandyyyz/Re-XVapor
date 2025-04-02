@@ -35,7 +35,7 @@ int cond_wait(struct cond *cond, struct spinlock *mutex) {
     int killed = t->killed;
     release(&t->lock);
     if (killed) {
-        // do_exit(-1);
+        thread_exit(-1);
         panic("thread has exit!!");
     }
     // ==========special for signal ==============

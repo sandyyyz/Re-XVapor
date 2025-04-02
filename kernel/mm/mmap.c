@@ -125,7 +125,8 @@ uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd,
     struct proc *p = myproc();
     struct vma_struct *vma;
     // printf("fp->writeable: %d\n", fp->writable);
-    if(!fp->writable && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
+    // printf("fp->flags: %d\n", fp->flags);
+    if(!IS_WRITABLE(fp->flags) && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
         return -1;
     }
 

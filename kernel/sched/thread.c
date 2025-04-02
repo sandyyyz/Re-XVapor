@@ -39,6 +39,7 @@ tcb_t tcb_pool[NTHREADS];
 // tcb init
 void tcb_init(void) {
     struct tcb *t;
+    TCB_Q_ALL_INIT();
     for (int i = 0; i < NTHREADS; i++) {
         t = tcb_pool + i;
         initlock(&t->lock, "tcb_lock"); // init its spinlock

@@ -36,12 +36,16 @@ pipealloc(struct file **f0, struct file **f1)
   pi->nread = 0;
   initlock(&pi->lock, "pipe");
   (*f0)->type = FD_PIPE;
-  (*f0)->readable = 1;
-  (*f0)->writable = 0;
+  // (*f0)->readable = 1;
+  // (*f0)->writable = 0;
+  SET_READABLE((*f0)->flags);
+  UNSET_WRITABLE((*f0)->flags);
   (*f0)->pipe = pi;
   (*f1)->type = FD_PIPE;
-  (*f1)->readable = 0;
-  (*f1)->writable = 1;
+  // (*f1)->readable = 0;
+  // (*f1)->writable = 1;
+  UNSET_READABLE((*f1)->flags);
+  SET_WRITABLE((*f1)->flags);
   (*f1)->pipe = pi;
   return 0;
 

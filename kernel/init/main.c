@@ -14,8 +14,7 @@ void
 main()
 {
   if(cpuid() == 0){
-    PCB_Q_ALL_INIT();
-    TCB_Q_ALL_INIT();
+
     consoleinit();
     printfinit();
     printf("\n");

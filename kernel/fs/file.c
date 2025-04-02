@@ -72,11 +72,12 @@ fileclose(struct file *f)
   }
   ff = *f;
   f->ref = 0;
+  f->flags = 0;
   f->type = FD_NONE;
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){
-    pipeclose(ff.pipe, ff.writable);
+    pipeclose(ff.pipe, IS_WRITABLE(ff.flags));
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
     begin_op();
     iput(ff.ip);
@@ -110,7 +111,7 @@ fileread(struct file *f, uint64 addr, int n)
 {
   int r = 0;
 
-  if(f->readable == 0)
+  if(!IS_READABLE(f->flags))
     return -1;
 
   if(f->type == FD_PIPE){
@@ -147,7 +148,7 @@ int filewrite(struct file *f, uint64 addr, int n)
 
   int r, ret = 0;
 
-  if(f->writable == 0)
+  if(!(IS_WRITABLE(f->flags)))
     return -1;
 
   if(f->type == FD_PIPE){

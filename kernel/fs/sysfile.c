@@ -364,12 +364,18 @@ sys_open(void)
     f->off = 0;
   }
   f->ip = ip;
-  f->readable = !(omode & O_WRONLY);
-  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+  // f->readable = !(omode & O_WRONLY);
+  // printf("flags %d\n", f->flags);
+  if(!(omode & O_WRONLY) )
+    SET_READABLE(f->flags);
+  // f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+  if((omode & O_WRONLY) || (omode & O_RDWR))
+    SET_WRITABLE(f->flags);
 
   if((omode & O_TRUNC) && ip->type == T_FILE){
     itrunc(ip);
   }
+
 
   iunlock(ip);
   end_op();

@@ -5,11 +5,24 @@
 #include "sleeplock.h"
 #include "fs.h"
 
+#define READABLE 0X1
+#define WRITABLE 0X2
+#define IS_READABLE(x) (((x) & READABLE) ? 1 : 0)
+#define IS_WRITABLE(x) (((x) & WRITABLE) ? 1 : 0)
+#define IS_READABLE_WRITABLE(x) (((x) & (READABLE | WRITABLE)) ? 1 : 0)
+
+#define SET_READABLE(x) ((x) |= READABLE)
+#define SET_WRITABLE(x) ((x) |= WRITABLE)
+#define SET_READABLE_WRITABLE(x) ((x) |= (READABLE | WRITABLE))
+#define UNSET_READABLE(x) ((x) &= ~READABLE)
+#define UNSET_WRITABLE(x) ((x) &= ~WRITABLE)
+#define UNSET_READABLE_WRITABLE(x) ((x) &= ~(READABLE | WRITABLE))
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
   int ref; // reference count
-  char readable;
-  char writable;
+  // char readable;
+  // char writable;
+  int flags;
   struct pipe *pipe; // FD_PIPE
   struct inode *ip;  // FD_INODE and FD_DEVICE
   uint off;          // FD_INODE

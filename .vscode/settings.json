@@ -69,7 +69,12 @@
         "kernel.h": "c",
         "sysinfo.h": "c",
         "const.h": "c",
-        "ext4_blockdev.h": "c"
+        "ext4_blockdev.h": "c",
+        "cond.h": "c",
+        "istream": "cpp",
+        "vfs.h": "c",
+        "vfs_ext4.h": "c",
+        "vfs_xv6fs.h": "c"
     },
 
     "multiCommand.commands": [

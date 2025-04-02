@@ -59,6 +59,7 @@ void
 procinit(void)
 {
   struct proc *p;
+  PCB_Q_ALL_INIT();
   atomic_set(&nextpid, 1);
   // initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
