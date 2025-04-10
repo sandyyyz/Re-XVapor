@@ -3,7 +3,6 @@
 
 struct buf;
 struct context;
-struct file;
 struct inode;
 struct pipe;
 struct proc;
@@ -12,6 +11,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct tcb;
+struct file;
 
 // bio.c
 void            binit(void);
@@ -153,6 +153,8 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 int strcmp(const char *p, const char *q);
 char * strcpy(char *s, const char *t);
+int substr_cmp(const char *p, const char *q);
+char *strcat(char *dest, const char *src);
 
 // syscall.c
 void            argint(int, int*);
@@ -209,5 +211,6 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
-
+#define N2ADDR(x) ((void*)(x))
+#define ADDR2N(x) ((uint64)(x))
 #endif

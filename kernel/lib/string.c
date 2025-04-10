@@ -124,3 +124,32 @@ strcpy(char *s, const char *t)
     return os;
 }
 
+/**
+ * @brief Compare if shorts is a substring of longs
+ * @param shorts the substring
+ * @param longs the string to be compared
+ * @return 0 if shorts is a substring of longs, -1 otherwise
+ */
+int substr_cmp(const char *shorts, const char *longs) {
+  while(*shorts && *shorts == *longs) {
+    shorts++;
+    longs++;
+  }
+  if(*shorts == '\0') {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+char *strcat(char *dest, const char *src) {
+  char *p = dest;
+  while (*p) {
+      ++p;
+  }
+  while (*src) {
+      *p++ = *src++;
+  }
+  *p = '\0';
+  return dest;
+}

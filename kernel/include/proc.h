@@ -7,6 +7,7 @@
 #include "semaphore.h" 
 #include "mm.h"
 #include "thread.h"
+#include "vfs.h"
 
 struct thread_group;
 struct tcb;

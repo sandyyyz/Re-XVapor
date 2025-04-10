@@ -15,21 +15,25 @@ int vfs_ext4_open(const char *path, int flags) {
     // For simplicity, we will just return a dummy file descriptor
     return 0;
 }
-int vfs_ext4_close(int fd) {
+void vfs_ext4_close(struct file* fp) {
     // Close the EXT4 filesystem
     // This function should close the file descriptor and release any resources
-    return 0;
+    return;
 }
-int vfs_ext4_read(int fd, void *buf, int count) {
+int vfs_ext4_read(struct file *fp, void *buf, int count) {
     // Read from the EXT4 filesystem
     // This function should read 'count' bytes from the file descriptor 'fd' into 'buf'
     // For simplicity, we will just return the number of bytes read
     return count;
 }
 
-int vfs_ext4_write(int fd, const void *buf, int count) {
+int vfs_ext4_write(struct file* fp, const void *buf, int count) {
     // Write to the EXT4 filesystem
     // This function should write 'count' bytes from 'buf' to the file descriptor 'fd'
     // For simplicity, we will just return the number of bytes written
     return count;
+}
+
+struct inode *vfs_ext4_namei(const char *path) {
+    return NULL;
 }
