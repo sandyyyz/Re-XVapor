@@ -1,5 +1,5 @@
-#ifndef __FS_H
-#define __FS_H
+#ifndef __XVFS_H
+#define __XVFS_H
 
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
@@ -14,7 +14,7 @@
 //
 // mkfs computes the super block and builds an initial file system. The
 // super block describes the disk layout:
-struct superblock {
+struct xvfs_superblock {
   uint magic;        // Must be FSMAGIC
   uint size;         // Size of file system image (blocks)
   uint nblocks;      // Number of data blocks
@@ -26,13 +26,13 @@ struct superblock {
 };
 
 #define FSMAGIC 0x10203040
-
+ 
 #define NDIRECT 12
 #define NINDIRECT (BSIZE / sizeof(uint))
 #define MAXFILE (NDIRECT + NINDIRECT)
 
 // On-disk inode structure
-struct dinode {
+struct xvfs_dinode {
   short type;           // File type
   short major;          // Major device number (T_DEVICE only)
   short minor;          // Minor device number (T_DEVICE only)
@@ -41,8 +41,22 @@ struct dinode {
   uint addrs[NDIRECT+1];   // Data block addresses
 };
 
+// In-memory copy of an xv6_dinode
+struct xv6_inode {
+  short type;
+  short major;
+  short minor;
+  short nlink;
+  uint size;
+  int flag;
+  uint addrs[NDIRECT+1];
+};
+
+#define XV6_INODE_FREE 0
+#define XV6_INODE_USED 1
+
 // Inodes per block.
-#define IPB           (BSIZE / sizeof(struct dinode))
+#define IPB           (BSIZE / sizeof(struct xvfs_dinode))
 
 // Block containing inode i
 // 将inode号转化为磁盘块号
@@ -59,10 +73,5 @@ struct dinode {
 
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
-
-struct dirent {
-  ushort inum;
-  char name[DIRSIZ];
-};
 
 #endif

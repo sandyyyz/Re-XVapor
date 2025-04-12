@@ -7,9 +7,10 @@
 
 #define stat xv6_stat  // avoid clash with host struct stat
 #include "../kernel/include/types.h"
-#include "../kernel/include/fs.h"
+#include "../kernel/include/xvfs.h"
 #include "../kernel/include/stat.h"
 #include "../kernel/include/param.h"
+#include "../kernel/include/vfs.h"
 
 #ifndef static_assert
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
@@ -27,7 +28,7 @@ int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap)
 int nblocks;  // Number of data blocks
 
 int fsfd;
-struct superblock sb;
+struct xvfs_superblock sb;
 char zeroes[BSIZE];
 uint freeinode = 1;
 uint freeblock;
@@ -35,8 +36,8 @@ uint freeblock;
 
 void balloc(int);
 void wsect(uint, void*);
-void winode(uint, struct dinode*);
-void rinode(uint inum, struct dinode *ip);
+void winode(uint, struct xvfs_dinode*);
+void rinode(uint inum, struct xvfs_dinode *ip);
 void rsect(uint sec, void *buf);
 uint ialloc(ushort type);
 void iappend(uint inum, void *p, int n);
@@ -72,7 +73,7 @@ main(int argc, char *argv[])
   uint rootino, inum, off;
   struct dirent de;
   char buf[BSIZE];
-  struct dinode din;
+  struct xvfs_dinode din;
 
 
   static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
@@ -82,7 +83,7 @@ main(int argc, char *argv[])
     exit(1);
   }
 
-  assert((BSIZE % sizeof(struct dinode)) == 0);
+  assert((BSIZE % sizeof(struct xvfs_dinode)) == 0);
   assert((BSIZE % sizeof(struct dirent)) == 0);
 
   fsfd = open(argv[1], O_RDWR|O_CREAT|O_TRUNC, 0666);
@@ -203,29 +204,29 @@ wsect(uint sec, void *buf)
 }
 
 void
-winode(uint inum, struct dinode *ip)
+winode(uint inum, struct xvfs_dinode *ip)
 {
   char buf[BSIZE];
   uint bn;
-  struct dinode *dip;
+  struct xvfs_dinode *dip;
 
   bn = IBLOCK(inum, sb);
   rsect(bn, buf);
-  dip = ((struct dinode*)buf) + (inum % IPB);
+  dip = ((struct xvfs_dinode*)buf) + (inum % IPB);
   *dip = *ip;
   wsect(bn, buf);
 }
 
 void
-rinode(uint inum, struct dinode *ip)
+rinode(uint inum, struct xvfs_dinode *ip)
 {
   char buf[BSIZE];
   uint bn;
-  struct dinode *dip;
+  struct xvfs_dinode *dip;
 
   bn = IBLOCK(inum, sb);
   rsect(bn, buf);
-  dip = ((struct dinode*)buf) + (inum % IPB);
+  dip = ((struct xvfs_dinode*)buf) + (inum % IPB);
   *ip = *dip;
 }
 
@@ -242,7 +243,7 @@ uint
 ialloc(ushort type)
 {
   uint inum = freeinode++;
-  struct dinode din;
+  struct xvfs_dinode din;
 
   bzero(&din, sizeof(din));
   din.type = xshort(type);
@@ -275,7 +276,7 @@ iappend(uint inum, void *xp, int n)
 {
   char *p = (char*)xp;
   uint fbn, off, n1;
-  struct dinode din;
+  struct xvfs_dinode din;
   char buf[BSIZE];
   uint indirect[NINDIRECT];
   uint x;

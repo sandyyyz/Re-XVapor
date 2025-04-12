@@ -8,7 +8,7 @@
 #include "param.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "fs.h"
+#include "xvfs.h"
 #include "file.h"
 #include "memlayout.h"
 #include "riscv.h"

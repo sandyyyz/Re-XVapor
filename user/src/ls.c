@@ -1,7 +1,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-#include "fs.h"
+#include "xvfs.h"
 
 char *fmtname(char *path) {
   static char buf[DIRSIZ + 1];

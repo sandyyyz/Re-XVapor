@@ -11,7 +11,7 @@
 #include "stat.h"
 #include "spinlock.h"
 #include "proc.h"
-#include "fs.h"
+#include "xvfs.h"
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
@@ -551,7 +551,7 @@ sys_exec(void)
     if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
       goto bad;
     }
-    if(uarg == 0){
+	if(uarg == 0){
       argv[i] = 0;
       break;
     }
@@ -608,5 +608,38 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+
+uint64 sys_mount() {
+  /**
+   * * 功能：挂载文件系统；
+* 输入：
+    - special: 挂载设备；
+    - dir: 挂载点；
+    - fstype: 挂载的文件系统类型；
+    - flags: 挂载参数；
+    - data: 传递给文件系统的字符串参数，可为NULL；
+* 返回值：成功返回0，失败返回-1；
+```
+const char *special, const char *dir, const char *fstype, unsigned long flags, const void *data;
+int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
+```
+   * 
+   */
+
+  char *special = NULL, *dir = NULL, *fstype = NULL;
+  int flags;
+  uint64 data;
+  if(argstr(0, special, MAXPATH) < 0 ||
+     argstr(1, dir, MAXPATH) < 0 ||
+     argstr(2, fstype, MAXPATH) < 0)
+    return -1;
+  argint(3, &flags);
+  argaddr(4, &data);
+
+  // struct vfs_filesystem *fs = vfs_getfs_byname(fstype);
+
   return 0;
 }

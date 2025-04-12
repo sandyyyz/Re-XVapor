@@ -4,6 +4,7 @@
 #include "types.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "buf.h"
 
 #ifndef VFS_MAXFS
 #define VFS_MAXFS 4
@@ -19,19 +20,28 @@ typedef enum vfs_type {
 } vfs_type_t;
 
 struct mount_point {
-    char *mp; // Mount point
+    char *mp; // Mount point 
     int dev; // Device number
     vfs_type_t type; // Filesystem type
 };
 
 struct vfs_filesystem {
     int dev; // Device number
-    vfs_type_t type; // Filesystem type
     char *name; // Filesystem name
+    vfs_type_t type; // Filesystem type
+
+    struct inode_ops *iops; // Inode operations
+    struct file_ops *fops; // File operations
     struct fs_ops *fsops; // Filesystem operations
-    void *fs_data; // Filesystem-specific data, e.g. superblock
+    
+    void *fs_data; // Filesystem-specific data, e.g. xvfs_superblock
 };
 
+struct dirent {
+    ushort inum;
+    char name[DIRSIZ];
+};
+  
 // struct inode {
 //     struct inode_ops *iops; // Inode operations
 //     void *private_data; // Private data for the inode, may point to a filesystem-specific structure like inode
@@ -54,33 +64,45 @@ struct vfs_filesystem {
 // };
 
 struct inode_ops {
-    int (*readi)(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
-    int (*writei)(struct inode *ip, int user_src, uint64 src, uint off, uint n);
-    void (*ilock)(struct inode *ip);
-    void (*iupdate)(struct inode *ip);
-    void (*iput)(struct inode *ip);
-    void (*iunlockput)(struct inode *ip);
-    struct inode* (*idup)(struct inode *ip); 
-    struct inode* (*iget)(int dev, int inum);
+    struct inode*       (*dirlookup)(struct inode *dp, char *name, uint *off);
+    void                (*iupdate)(struct inode *ip);
+    void                (*itrunc)(struct inode *ip);
+    void                (*cleanup)(struct inode *ip);
+    uint                (*bmap)(struct inode *ip, uint bn);
+    void                (*ilock)(struct inode* ip);
+    void                (*iunlock)(struct inode* ip);
+    void                (*stati)(struct inode *ip, struct stat *st);
+    int                 (*readi)(struct inode *ip, char *dst, uint off, uint n);
+    int                 (*writei)(struct inode *ip, char *src, uint off, uint n);
+    int                 (*dirlink)(struct inode *dp, char *name, uint inum, uint type);
+    int                 (*unlink)(struct inode *dp, uint off);
+    int                 (*isdirempty)(struct inode *dp);
 };
 
 struct file_ops {
-    struct file* (*dup)(struct file *f);
-    int (*open)(const char *path, int flags);
-    void (*close)(struct file *f);
-    int (*read)(struct file *f, void *buf, int count);
-    int (*write)(struct file *f, const void *buf, int count);
-    int (*filestat)(struct file *f, uint64 addr);
+
+    int             (*open)(const char *path, int flags);
+    void            (*close)(struct file *f);
+    int             (*read)(struct file *f, void *buf, int count);
+    int             (*write)(struct file *f, const void *buf, int count);
+    int             (*filestat)(struct file *f, uint64 addr);
 
 };
 
 struct fs_ops {
-    int (*mount)(const char *path, const char *fs_type, const char *options);
-    int (*unmount)(const char *path);
-    // int (*statfs)(const char *path, struct statfs *buf);
-    // int (*sync)(void);
-    // should be here?..
-    struct vfs_node* (*vfs_namei)(char *path);
+    int             (*fs_init) (void);
+    int             (*mount) (const char *path, const char *fs_type, const char *options);
+    int             (*unmount) (const char *path);
+    struct inode*   (*getroot)(int, int);
+    void            (*readsb)(int dev, struct superblock *sb);
+    struct inode*   (*ialloc)(uint dev, short type);
+    uint            (*balloc)(uint dev);
+    void            (*bzero)(int dev, int bno);
+    void            (*bfree)(int dev, uint b);
+    void            (*brelse)(struct buf *b);
+    void            (*bwrite)(struct buf *b);
+    struct buf*     (*bread)(uint dev, uint blockno);
+    int             (*namecmp)(const char *s, const char *t);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

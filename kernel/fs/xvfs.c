@@ -17,21 +17,21 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "sleeplock.h"
-#include "fs.h"
+#include "xvfs.h"
 #include "buf.h"
 #include "file.h"
 #include "debug.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
-// there should be one superblock per disk device, but we run with
+// there should be one xvfs_superblock per disk device, but we run with
 // only one device
-struct superblock sb;
+struct xvfs_superblock sb;
 
 // Read the super block.
-static void readsb(int dev, struct superblock *sb) {
+static void readsb(int dev, struct xvfs_superblock *sb) {
   struct buf *bp;
 
-  // block 1 is superblock
+  // block 1 is xvfs_superblock
   bp = bread(dev, 1);
   memmove(sb, bp->data, sizeof(*sb));
   brelse(bp);
@@ -207,7 +207,7 @@ static struct inode *iget(uint dev, uint inum);
 struct inode *ialloc(uint dev, short type) {
   int inum;
   struct buf *bp;
-  struct dinode *dip;
+  struct xvfs_dinode *dip;
 
 // why does it start from 1?
 // inode starts from 1
@@ -215,7 +215,7 @@ struct inode *ialloc(uint dev, short type) {
     bp = bread(dev, IBLOCK(inum, sb));
     // +inum % IPB得到inode相对位置
     // 得到inode在磁盘块中的位置
-    dip = (struct dinode *)bp->data + inum % IPB;
+    dip = (struct xvfs_dinode *)bp->data + inum % IPB;
     if (dip->type == 0) { // a free inode
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
@@ -235,10 +235,10 @@ struct inode *ialloc(uint dev, short type) {
 // Caller must hold ip->lock.
 void iupdate(struct inode *ip) {
   struct buf *bp;
-  struct dinode *dip;
+  struct xvfs_dinode *dip;
 
   bp = bread(ip->dev, IBLOCK(ip->inum, sb));
-  dip = (struct dinode *)bp->data + ip->inum % IPB;
+  dip = (struct xvfs_dinode *)bp->data + ip->inum % IPB;
   dip->type = ip->type;
   dip->major = ip->major;
   dip->minor = ip->minor;
@@ -297,7 +297,7 @@ struct inode *idup(struct inode *ip) {
 // Reads the inode from disk if necessary.
 void ilock(struct inode *ip) {
   struct buf *bp;
-  struct dinode *dip;
+  struct xvfs_dinode *dip;
 
   if (ip == 0 || ip->ref < 1)
     panic("ilock");
@@ -306,7 +306,7 @@ void ilock(struct inode *ip) {
 
   if (ip->valid == 0) {
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
-    dip = (struct dinode *)bp->data + ip->inum % IPB;
+    dip = (struct xvfs_dinode *)bp->data + ip->inum % IPB;
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;

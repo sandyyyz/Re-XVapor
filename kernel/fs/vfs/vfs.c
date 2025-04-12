@@ -192,3 +192,16 @@ struct inode* vfs_namei(char *path) {
             return NULL;
     }
 }
+
+void vfs_mount(char *path, struct vfs_filesystem *fs) {
+    acquire(&vfs_mount_table.lock);
+    for (int i = 0; i < MAX_MOUNTS; i++) {
+        if (vfs_mount_table.mount_points[i].mp == NULL) {
+            vfs_mount_table.mount_points[i].mp = path;
+            vfs_mount_table.mount_points[i].dev = fs->dev;
+            vfs_mount_table.mount_points[i].type = fs->type;
+            break;
+        }
+    }
+    release(&vfs_mount_table.lock);
+}

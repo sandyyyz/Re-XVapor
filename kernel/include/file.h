@@ -3,7 +3,7 @@
 
 #include "types.h"
 #include "sleeplock.h"
-#include "fs.h"
+#include "xvfs.h"
 
 #define READABLE 0X1
 #define WRITABLE 0X2
@@ -17,6 +17,7 @@
 #define UNSET_READABLE(x) ((x) &= ~READABLE)
 #define UNSET_WRITABLE(x) ((x) &= ~WRITABLE)
 #define UNSET_READABLE_WRITABLE(x) ((x) &= ~(READABLE | WRITABLE))
+
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
   int ref; // reference count
@@ -27,6 +28,9 @@ struct file {
   struct inode *ip;  // FD_INODE and FD_DEVICE
   uint off;          // FD_INODE
   short major;       // FD_DEVICE
+
+  // support vfs
+  struct file_ops *fops; // file operations
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)
@@ -47,6 +51,20 @@ struct inode {
   short nlink;
   uint size;
   uint addrs[NDIRECT+1];
+
+  // support vfs
+  struct inode_ops *iops; // Inode operations
+};
+
+
+struct superblock {
+  int major;        // Driver major number from it superblocks is stored in.
+  int minor;        // Driver major number from it superblocks is stored in.
+  uint blocksize;  // Block size of this superblock
+  void *fs_info;    // Filesystem-specific info
+  unsigned char s_blocksize_bits;
+
+  int flags;       // Superblock Falgs to map its usage
 };
 
 // map major device number to device functions.

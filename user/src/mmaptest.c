@@ -3,7 +3,7 @@
 #include "types.h"
 #include "stat.h"
 #include "riscv.h"
-#include "fs.h"
+#include "xvfs.h"
 #include "user.h"
 #include "mmap.h"
 

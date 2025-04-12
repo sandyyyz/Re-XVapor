@@ -77,7 +77,7 @@ clean:
 	@if [ -f mkfs/mkfs ]; then rm mkfs/mkfs; fi
 
 
-mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h 
+mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xvfs.h $(KERNEL_DIR)/include/param.h 
 	gcc $(XCFLAGS) -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 
 # $(USER_BUILD_DIR)/uprogs-list.mk:
@@ -122,6 +122,5 @@ qemu: user kernel fs.img
 qemu-gdb: $(BUILD_DIR)/$(KERNEL_DIR)/kernel .gdbinit $(BUILD_DIR)/fs/fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
 
 

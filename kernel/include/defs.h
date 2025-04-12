@@ -9,7 +9,7 @@ struct proc;
 struct spinlock;
 struct sleeplock;
 struct stat;
-struct superblock;
+struct xvfs_superblock;
 struct tcb;
 struct file;
 
@@ -71,7 +71,7 @@ void*           kzalloc(void);
 void*           kmalloc(uint size);
 void*           kcalloc(int n, uint size);
 // log.c
-void            initlog(int, struct superblock*);
+void            initlog(int, struct xvfs_superblock*);
 void            log_write(struct buf*);
 void            begin_op(void);
 void            end_op(void);

@@ -4,7 +4,7 @@
 #include "param.h"
 #include "spinlock.h"
 #include "proc.h"
-#include "fs.h"
+#include "xvfs.h"
 #include "sleeplock.h"
 #include "file.h"
 

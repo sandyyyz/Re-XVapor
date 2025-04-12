@@ -39,3 +39,6 @@ https://www.kernel.org/doc/html/v6.13/filesystems/vfs.html
 4. 加入一个virtio管理系统以及一个简单的block设备表。实现mount机制将不同文件系统挂载到不同的设备上
 5. 支持ext4
 6. 测试ext4正确性
+
+There are three major structures to
+handle filesystem-independent information: `inode`, `superblock` and `filesystem_type`.
