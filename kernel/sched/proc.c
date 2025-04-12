@@ -459,13 +459,19 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
-    if((sz = uvmalloc(p->mm.pagetable, sz, sz + n, PTE_W)) == 0) {
+    // lazy
+    if (p->sz + n > MAXVA) {
       return -1;
     }
+    p->sz += n;
   } else if(n < 0){
+    if (p->sz + n < 0) {
+      return -1;
+    }
     sz = uvmdealloc(p->mm.pagetable, sz, sz + n);
+    p->sz = sz;
   }
-  p->sz = sz;
+  
   return 0;
 }
 

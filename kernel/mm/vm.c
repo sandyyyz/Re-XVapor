@@ -8,7 +8,6 @@
 #include "fs.h"
 #include "proc.h"
 #include "kalloc.h"
-
 /*
  * the kernel's page table.
  */
@@ -237,9 +236,11 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
+      // panic("uvmunmap: walk");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmunmap: not mapped");
+      // panic("uvmunmap: not mapped");
+      continue;
     if(PTE_FLAGS(*pte) == PTE_V)
       // 叶PTE末12位应该是0？
       panic("uvmunmap: not a leaf");
@@ -399,16 +400,18 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      // panic("uvmcopy: pte should exist");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      // panic("uvmcopy: page not present");
+      continue;
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
       goto err;
-    // 复制父进程内存
+    // copy parent process's page into child process's page
     memmove(mem, (char*)pa, PGSIZE);
-    // 建立子进程映射
+    // map child process's page to the new page
     if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
       kfree(mem);
       goto err;
@@ -575,3 +578,4 @@ vmprint(pagetable_t pgtbl)
   printf("page table %p\n", pgtbl);
   _vmprint(pgtbl, 0);
 }
+

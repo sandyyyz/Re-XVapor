@@ -21,27 +21,17 @@ void kernelvec();
 
 extern int devintr();
 
-void
-trapinit(void)
-{
-  initlock(&tickslock, "time");
-}
+void trapinit(void) { initlock(&tickslock, "time"); }
 
 // set up to take exceptions and traps while in the kernel.
-void
-trapinithart(void)
-{
-  w_stvec((uint64)kernelvec);
-}
+void trapinithart(void) { w_stvec((uint64)kernelvec); }
 
 // trampoline已经换栈和页表
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
-void
-usertrap(void)
-{
+void usertrap(void) {
   int which_dev = 0;
 #ifdef __DEBUG_UTRAP
   // walk_va(myproc()->mm.pagetable, THREAD_TRAPFRAME(mythread()->tidx));
@@ -49,11 +39,11 @@ usertrap(void)
   // walk_va(myproc()->mm.pagetable, mythread()->trapframe->sp);
   // printf_green("thread %d usertrap!\n", mythread()->tid);
 #endif
-// check SPP bit in sstatus
-  if((r_sstatus() & SSTATUS_SPP) != 0) {
+  // check SPP bit in sstatus
+  if ((r_sstatus() & SSTATUS_SPP) != 0) {
     printf("\nprocess %d, thread %d\n", myproc()->pid, mythread()->tid);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-    printf("sstatus : 0x%x\n",r_sstatus());
+    printf("sstatus : 0x%x\n", r_sstatus());
     printf("scause: 0x%x\n", r_scause());
     panic("usertrap: not from user mode");
   }
@@ -63,17 +53,17 @@ usertrap(void)
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
-  // change to thread 
+  // change to thread
   struct tcb *t = mythread();
-  
+
   // save user program counter.
   // p->trapframe->epc = r_sepc();
   t->trapframe->epc = r_sepc();
-  
-  if(r_scause() == 8){
+
+  if (r_scause() == 8) {
     // system call
 
-    if(thread_killed(t))
+    if (thread_killed(t))
       thread_exit(-1);
 
     // sepc points to the ecall instruction,
@@ -86,15 +76,15 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } else if ((which_dev = devintr()) != 0) {
 
-    if(which_dev == 3) {
+    if (which_dev == 3) {
       // read/write pagefault,maybe mmap cause
       // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
       uint64 va = PGROUNDDOWN(r_stval());
       struct vma_struct *vma;
       acquire(&p->mm.lock);
-      if(!(vma = find_vma(p, va))) {
+      if (!(vma = find_vma(p, va))) {
         printf("thread %d usertrap: page fault at %p\n", t->tid, va);
         printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
         printf("scause=%p\n", r_scause());
@@ -102,71 +92,83 @@ usertrap(void)
         printf("satp=%p\n", r_satp());
         panic("usertrap: page fault");
       }
-      char* mem;
-      if(!(mem = kzalloc())) {
+      char *mem;
+      if (!(mem = kzalloc())) {
         panic("usertrap: kalloc");
       }
 #ifdef __DEBUG_UTRAP
-      Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot %p\n", p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
+      Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot "
+          "%p\n",
+          p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
 #endif
-      if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
+      if (mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem,
+                   PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
         panic("usertrap: mappages");
       }
 #ifdef __DEBUG_UTRAP
       // vmprint(p->mm.pagetable);
 #endif
-      struct file* fp = vma->file;
+      struct file *fp = vma->file;
       int offset = va - vma->vm_start;
       ilock(fp->ip);
       readi(fp->ip, 1, va, offset, PGSIZE);
       iunlock(fp->ip);
       release(&p->mm.lock);
     }
+    else if (which_dev == 4){
+      uint64 va = PGROUNDDOWN(r_stval());
+      uint64 newmem = (uint64)kzalloc();
+      if (newmem == 0)
+      {
+        // TODO
+      }
+      if(mappages(p->mm.pagetable, va, PGSIZE, newmem, PTE_W|PTE_R|PTE_X|PTE_U) != 0){
+        kfree((void*)newmem);
+        // TODO
+      }
+
+    }
   } else {
-    
+
 #ifdef __DEBUG_UTRAP
-    Info("thread %d usertrap: unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    Info("thread %d usertrap: unexpected scause %p pid=%d\n", r_scause(),
+         p->pid);
 #endif
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
 
-    list_for_each_entry(t, &p->tg.threads, threads) {
-      thread_setkilled(t);
-    }
+    list_for_each_entry(t, &p->tg.threads, threads) { thread_setkilled(t); }
     setkilled(p);
   }
 
-  if(thread_killed(t) || killed(p))
+  if (thread_killed(t) || killed(p))
     // exit all threads of the process's thread group,
     // and then exit the process
     // every thread will go here
     thread_exit(-1);
-    // thread_exit(-1);
-    
+  // thread_exit(-1);
+
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2) {
+  if (which_dev == 2) {
     p->utime++;
     thread_yield();
   }
 
-  // each of the syscall, interrupt, exceptions from userspace will return from here
-  // because we have set the t->tramframe->kernel_trap = (uint64)usertrap
+  // each of the syscall, interrupt, exceptions from userspace will return from
+  // here because we have set the t->tramframe->kernel_trap = (uint64)usertrap
   // and set the stvec to uservec before returned to userspace last time
-  // next time's trap: uservec->usertrap->usertrapret->userret 
+  // next time's trap: uservec->usertrap->usertrapret->userret
   usertrapret();
 }
 
 extern int g_first_exec;
-int inline dodebug() { return 0;}
+int inline dodebug() { return 0; }
 
 //
 // return to user space
 //
 
-void
-usertrapret(void)
-{
-
+void usertrapret(void) {
 
   struct proc *p = myproc();
   struct tcb *t = mythread();
@@ -180,10 +182,11 @@ usertrapret(void)
 
   // send syscalls, interrupts, and exceptions to uservec in trampoline.S
   uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
-  // uint64 trampoline_debug_uservec = TRAMPOLINE + (debug_uservec - trampoline);
+  // uint64 trampoline_debug_uservec = TRAMPOLINE + (debug_uservec -
+  // trampoline);
 
   // if(t->tid != 1) {
-    w_stvec(trampoline_uservec);
+  w_stvec(trampoline_uservec);
   // } else {
   //   w_stvec(trampoline_debug_uservec);
   // }
@@ -194,14 +197,15 @@ usertrapret(void)
   // p->trapframe->kernel_trap = (uint64)usertrap;
   // p->trapframe->kernel_hartid = r_tp();         // hartid for cpuid()
 
-  t->trapframe->kernel_satp = r_satp();         // kernel page table
-  t->trapframe->kernel_sp = t->kstack + KSTACK_PAGE * PGSIZE; // thread's kernel stack
+  t->trapframe->kernel_satp = r_satp(); // kernel page table
+  t->trapframe->kernel_sp =
+      t->kstack + KSTACK_PAGE * PGSIZE; // thread's kernel stack
   t->trapframe->kernel_trap = (uint64)usertrap;
   t->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
   // set up the registers that trampoline.S's sret will use
   // to get to user space.
-  
+
   // set S Previous Privilege mode to User.
   unsigned long x = r_sstatus();
   x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
@@ -216,60 +220,60 @@ usertrapret(void)
   // because the threads shared the same pagetable
   uint64 satp = MAKE_SATP(p->mm.pagetable);
 
-  // write tidx to sscratch for uservec in the future 
+  // write tidx to sscratch for uservec in the future
   // w_sscratch(t->tidx);
 
-  // jump to userret in trampoline.S at the top of memory, which 
+  // jump to userret in trampoline.S at the top of memory, which
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
   // 定位到userret (trampoline.s)
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
-  #ifdef __DEBUG_UTRAPRET
+#ifdef __DEBUG_UTRAPRET
   // static int startd = 0;
-  if(dodebug())
-  { 
+  if (dodebug()) {
     // startd += 1;
-    // Log("TRAMPOLINE = %p, (userret-trampoline) = %p", TRAMPOLINE, userret - trampoline);
-    // Log("usertrapret: trampoline_userret = %p\n", trampoline_userret);
-    // Log("trapframe->ra = %p, epc = %p, tid = %d", t->trapframe->ra, t->trapframe->epc, t->tid);
-    // printf_blue("  startd = %d \n", startd);
+    // Log("TRAMPOLINE = %p, (userret-trampoline) = %p", TRAMPOLINE, userret -
+    // trampoline); Log("usertrapret: trampoline_userret = %p\n",
+    // trampoline_userret); Log("trapframe->ra = %p, epc = %p, tid = %d",
+    // t->trapframe->ra, t->trapframe->epc, t->tid); printf_blue("  startd = %d
+    // \n", startd);
     print_trapframe(t->trapframe);
     vmprint(p->mm.pagetable);
     // walk_va(p->mm.pagetable, (uint64)(t->trapframe));
     // walk_va(p->mm.pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
     walk_va(p->mm.pagetable, t->trapframe->sp);
   }
-  #endif
+#endif
 
-  ((void (*)(uint64, uint64))trampoline_userret)(satp, THREAD_TRAPFRAME(t->tidx));
+  ((void (*)(uint64, uint64))trampoline_userret)(satp,
+                                                 THREAD_TRAPFRAME(t->tidx));
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,
 // on whatever the current kernel stack is.
-void 
-kerneltrap()
-{
+void kerneltrap() {
   int which_dev = 0;
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
-  
+
 #ifdef __DEBUG_TRAP
-  // printf("kerneltrap: sepc=%p stval=%p scause=%p\n", sepc, r_stval(), scause);
+  // printf("kerneltrap: sepc=%p stval=%p scause=%p\n", sepc, r_stval(),
+  // scause);
 #endif
 
   // struct proc *p = myproc();
 
-
-  if((sstatus & SSTATUS_SPP) == 0)
+  if ((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
-  if(intr_get() != 0)
+  if (intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 
-  if((which_dev = devintr()) == 0){
-  #ifdef __DEBUG_TRAP
-    Info("thread %d kerneltrap: unexpected scause %p\n", mythread()->tid, scause);
-  #endif
+  if ((which_dev = devintr()) == 0) {
+#ifdef __DEBUG_TRAP
+    Info("thread %d kerneltrap: unexpected scause %p\n", mythread()->tid,
+         scause);
+#endif
     printf("unknow devintr()\n");
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -278,11 +282,10 @@ kerneltrap()
 
   // give up the CPU if this is a timer interrupt.
   // and if there is a thread running on cpu
-  if(which_dev == 2 && mythread() != 0 && mythread()->state == TCB_RUNNING) {
-    myproc()->ktime++;  
+  if (which_dev == 2 && mythread() != 0 && mythread()->state == TCB_RUNNING) {
+    myproc()->ktime++;
     thread_yield();
   }
-
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -290,9 +293,7 @@ kerneltrap()
   w_sstatus(sstatus);
 }
 
-void
-clockintr()
-{
+void clockintr() {
   acquire(&tickslock);
   ticks++;
   thread_wakeup_chan(&ticks);
@@ -304,53 +305,55 @@ clockintr()
 // returns 2 if timer interrupt,
 // 1 if other device,
 // 0 if not recognized.
-int
-devintr()
-{
+int devintr() {
   uint64 scause = r_scause();
 
-  if((scause & 0x8000000000000000L) &&
-     (scause & 0xff) == 9){
+  if ((scause & 0x8000000000000000L) && (scause & 0xff) == 9) {
     // this is a supervisor external interrupt, via PLIC.
 
     // irq indicates which device interrupted.
     int irq = plic_claim();
 
-    if(irq == UART0_IRQ){
+    if (irq == UART0_IRQ) {
       uartintr();
-    } else if(irq == VIRTIO0_IRQ){
+    } else if (irq == VIRTIO0_IRQ) {
       virtio_disk_intr();
-    } else if(irq){
+    } else if (irq) {
       printf("unexpected interrupt irq=%d\n", irq);
     }
 
     // the PLIC allows each device to raise at most one
     // interrupt at a time; tell the PLIC the device is
     // now allowed to interrupt again.
-    if(irq)
+    if (irq)
       plic_complete(irq);
 
     return 1;
-  } else if(scause == 0x8000000000000001L){
+  } else if (scause == 0x8000000000000001L) {
     // software interrupt from a machine-mode timer interrupt,
     // forwarded by timervec in kernelvec.S.
 
     // only the fisrt cpu to deal with the clockintr
-    if(cpuid() == 0){
+    if (cpuid() == 0) {
       clockintr();
     }
-    
+
     // acknowledge the software interrupt by clearing
     // the SSIP bit in sip.
     w_sip(r_sip() & ~2);
 
     return 2;
-  } else if(scause == 13 || scause == 15) {
+  } else if (scause == 13 || scause == 15) {
     // read /write page fault
+    struct proc *p = myproc();
+    uint64 va = PGROUNDDOWN(r_stval());
+    if (va <= p->sz && va >= mythread()->trapframe->sp && !(find_vma(p, va))) {
+      return 4;
+    }
     return 3;
   }
+
   else {
     return 0;
   }
 }
-
