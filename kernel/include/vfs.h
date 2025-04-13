@@ -5,6 +5,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "buf.h"
+#include "stat.h"
 
 #ifndef VFS_MAXFS
 #define VFS_MAXFS 4
