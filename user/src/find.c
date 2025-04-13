@@ -2,6 +2,7 @@
 #include "stat.h"
 #include "user.h"
 #include "xvfs.h"
+#include "vfs.h"
 
 void find(char *path, char *name) {
   int fd;

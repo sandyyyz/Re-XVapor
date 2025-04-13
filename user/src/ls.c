@@ -2,6 +2,7 @@
 #include "stat.h"
 #include "user.h"
 #include "xvfs.h"
+#include "vfs.h"
 
 char *fmtname(char *path) {
   static char buf[DIRSIZ + 1];
