@@ -299,7 +299,7 @@ r_sp()
   return x;
 }
 
-// read and write tp, the thread pointer, which xv6 uses to hold
+// read and write tp, the thread pointer, which xv6fs uses to hold
 // this core's hartid (core number), the index into cpus[].
 static inline uint64
 r_tp()

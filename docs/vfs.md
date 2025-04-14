@@ -35,10 +35,11 @@ https://www.kernel.org/doc/html/v6.13/filesystems/vfs.html
 
 1. 拓展file和inode抽象，修改文件操作路径，使得vfs统一分发
 2. 测试加入vfs层后原本文件系统的正确性
-3. qemu启动时挂载多个磁盘镜像
-4. 加入一个virtio管理系统以及一个简单的block设备表。实现mount机制将不同文件系统挂载到不同的设备上
-5. 支持ext4
-6. 测试ext4正确性
+3. qemu启动时挂载多个磁盘镜像（可选）
+4. 加入一个virtio管理系统以及一个简单的block设备表,将物理磁盘分为多个设备（不同分区）。
+5. 实现mount机制将不同文件系统挂载到不同的设备上
+6. 支持ext4
+7. 测试ext4正确性
 
 There are three major structures to
 handle filesystem-independent information: `inode`, `superblock` and `filesystem_type`.

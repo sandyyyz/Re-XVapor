@@ -1,7 +1,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "vfs.h"
 
 void find(char *path, char *name) {

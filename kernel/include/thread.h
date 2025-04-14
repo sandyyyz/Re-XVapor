@@ -33,7 +33,7 @@ struct context {
   uint64 s2;
   uint64 s3;
   uint64 s4;
-  uint64 s5;
+  uint64 xv6fs;
   uint64 s6;
   uint64 s7;
   uint64 s8;
@@ -80,7 +80,7 @@ struct trapframe {
   /* 176 */ uint64 s2;
   /* 184 */ uint64 s3;
   /* 192 */ uint64 s4;
-  /* 200 */ uint64 s5;
+  /* 200 */ uint64 xv6fs;
   /* 208 */ uint64 s6;
   /* 216 */ uint64 s7;
   /* 224 */ uint64 s8;

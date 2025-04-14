@@ -25,8 +25,8 @@ struct inode_ops xv6fs_inode_ops = {
     .iput = vfs_xv6fs_iput,
 };
 int vfs_xv6fs_open(const char *path, int flags) {
-    // Open the XV6FS filesystem
-    // This function should locate the file in the XV6FS filesystem and return a file descriptor
+    // Open the xv6fsFS filesystem
+    // This function should locate the file in the xv6fsFS filesystem and return a file descriptor
     // For simplicity, we will just return a dummy file descriptor
     return 0;
 }
@@ -49,7 +49,7 @@ int vfs_xv6fs_filewrite(struct file* f, const void *buf, int count) {
 }
 
 int vfs_xv6fs_readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
-    // Read data from the XV6FS filesystem
+    // Read data from the xv6fsFS filesystem
     // This function should read 'n' bytes from the inode 'ip' into 'dst'
     // For simplicity, we will just return the number of bytes read
     return n;

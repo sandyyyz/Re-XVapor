@@ -1,6 +1,6 @@
 // This file implements the Mount table and utilities functions
-#ifndef XV6_VFSMOUNT_H_
-#define XV6_VFSMOUNT_H_
+#ifndef xv6fs_VFSMOUNT_H_
+#define xv6fs_VFSMOUNT_H_
 #include "param.h"
 #include "vfs.h"
 #include "file.h"
@@ -32,6 +32,6 @@ struct inode* mnt_inode(struct inode * ip);
 int is_rtinode(struct inode* ip);
 void mntinit(void);
 
-#endif /* XV6_VFSMOUNT_H_ */
+#endif /* xv6fs_VFSMOUNT_H_ */
 
 

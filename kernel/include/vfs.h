@@ -6,6 +6,8 @@
 #include "file.h"
 #include "buf.h"
 #include "stat.h"
+#include "param.h"
+#include "list.h"
 
 #ifndef VFS_MAXFS
 #define VFS_MAXFS 4
@@ -14,19 +16,49 @@
 #define VFS_INODE_MAX 60
 #define MAX_MOUNTS 4
 
+#define I_BUSY 0x1
+#define I_VALID 0x2
+
+#define SB_LOADED 1
+#define SB_UNLOADED 0
+
+struct icache_t {
+    // synchronize access for multiple processes
+    struct spinlock lock;
+    // active inodes
+    struct inode inode[NINODE];
+};
+
 typedef enum vfs_type {
     VFS_TYPE_UNKNOWN = 0,
     VFS_TYPE_EXT4,
     VFS_TYPE_XV6FS,
 } vfs_type_t;
 
+/*
+ * This is struct is the map block device and its filesystem.
+ * Its main job is return the filesystem type of current (major, minor)
+ * mounted device. It is used when it is not possible retrive the
+ * filesystem_type from the inode.
+ */
+struct vfs {
+    int major;
+    int minor;
+    int flag;
+    struct vfs_filesystem *fs_t;
+    struct list_head fs_next; // Next mounted on vfs
+  };
+#define VFS_FREE 0
+#define VFS_USED 1
+
+  
 struct mount_point {
     char *mp; // Mount point 
     int dev; // Device number
     vfs_type_t type; // Filesystem type
 };
 
-struct vfs_filesystem {
+struct  vfs_filesystem {
     int dev; // Device number
     char *name; // Filesystem name
     vfs_type_t type; // Filesystem type
@@ -34,8 +66,9 @@ struct vfs_filesystem {
     struct inode_ops *iops; // Inode operations
     struct file_ops *fops; // File operations
     struct fs_ops *fsops; // Filesystem operations
-    
-    void *fs_data; // Filesystem-specific data, e.g. xvfs_superblock
+
+    void *fs_data; // Filesystem-specific data, e.g. xv6fs_superblock
+    struct list_head fs_list; // List of mounted filesystems
 };
 
 struct dirent {
@@ -92,9 +125,9 @@ struct file_ops {
 
 struct fs_ops {
     int             (*fs_init) (void);
-    int             (*mount) (const char *path, const char *fs_type, const char *options);
-    int             (*unmount) (const char *path);
-    struct inode*   (*getroot)(int, int);
+    int             (*mount) (struct inode *devi, struct inode *ip);
+    int             (*unmount) (struct inode *devi);
+    struct inode*   (*getroot)(int major, int minor);
     void            (*readsb)(int dev, struct superblock *sb);
     struct inode*   (*ialloc)(uint dev, short type);
     uint            (*balloc)(uint dev);
@@ -110,8 +143,11 @@ struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);
 struct vfs_filesystem *vfs_getfs_bydev(int dev);
 struct vfs_filesystem *vfs_getfs_byname(const char *name);
 struct vfs_filesystem *vfs_getfs_bypath(const char *path);
-struct inode* vfs_namei(char *path);
-
-struct file* vfile_alloc(void);
+void generic_iunlock(struct inode *ip);
+void generic_stati(struct inode *ip, struct stat *st);
+int generic_dirlink(struct inode *dp, char *name, uint inum, uint type);
+int generic_readi(struct inode *ip, char *dst, uint off, uint n);
+struct vfs_filesystem* getfs(const char *fs_name);
+int register_fs(struct vfs_filesystem *fs);
 
 #endif

@@ -12,7 +12,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "buf.h"
 #include "virtio.h"
 #include "debug.h"

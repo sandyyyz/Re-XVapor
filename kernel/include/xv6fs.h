@@ -1,9 +1,10 @@
-#ifndef __XVFS_H
-#define __XVFS_H
+#ifndef __XV6FS_H
+#define __XV6FS_H
 
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
 
+#include "types.h"
 
 #define ROOTINO  1   // root i-number
 #define BSIZE 1024  // block size
@@ -14,7 +15,7 @@
 //
 // mkfs computes the super block and builds an initial file system. The
 // super block describes the disk layout:
-struct xvfs_superblock {
+struct xv6fs_superblock {
   uint magic;        // Must be FSMAGIC
   uint size;         // Size of file system image (blocks)
   uint nblocks;      // Number of data blocks
@@ -23,7 +24,12 @@ struct xvfs_superblock {
   uint logstart;     // Block number of first log block
   uint inodestart;   // Block number of first inode block
   uint bmapstart;    // Block number of first free map block
+
+  int flags;
 };
+
+#define XV6_SB_FREE 0
+#define XV6_SB_USED 1
 
 #define FSMAGIC 0x10203040
  
@@ -32,7 +38,7 @@ struct xvfs_superblock {
 #define MAXFILE (NDIRECT + NINDIRECT)
 
 // On-disk inode structure
-struct xvfs_dinode {
+struct xv6fs_dinode {
   short type;           // File type
   short major;          // Major device number (T_DEVICE only)
   short minor;          // Minor device number (T_DEVICE only)
@@ -41,22 +47,22 @@ struct xvfs_dinode {
   uint addrs[NDIRECT+1];   // Data block addresses
 };
 
-// In-memory copy of an xv6_dinode
-struct xv6_inode {
+// In-memory copy of an xv6fs_dinode
+struct xv6fs_inode {
   short type;
   short major;
   short minor;
   short nlink;
   uint size;
-  int flag;
+  int flags;
   uint addrs[NDIRECT+1];
 };
 
-#define XV6_INODE_FREE 0
-#define XV6_INODE_USED 1
+#define XV6FS_INODE_FREE 0
+#define XV6FS_INODE_USED 1
 
 // Inodes per block.
-#define IPB           (BSIZE / sizeof(struct xvfs_dinode))
+#define IPB           (BSIZE / sizeof(struct xv6fs_dinode))
 
 // Block containing inode i
 // 将inode号转化为磁盘块号

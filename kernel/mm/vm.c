@@ -5,7 +5,7 @@
 #include "elf.h"
 #include "riscv.h"
 #include "defs.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "proc.h"
 #include "kalloc.h"
 

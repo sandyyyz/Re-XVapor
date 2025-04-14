@@ -4,7 +4,7 @@
 #include "param.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "buf.h"
 
 // Simple logging that allows concurrent FS system calls.
@@ -47,17 +47,21 @@ struct log {
   struct logheader lh;
 };
 struct log log;
+// #define NLOG 3  // max number of active logs
+// struct log log[NLOG];
 
 static void recover_from_log(void);
 static void commit();
 
 // initalize the log with sb
 // and recovery from log
-void initlog(int dev, struct xvfs_superblock *sb) {
+void initlog(int dev, struct xv6fs_superblock *sb) {
   if (sizeof(struct logheader) >= BSIZE)
     panic("initlog: too big logheader");
 
   initlock(&log.lock, "log");
+  if(!sb) 
+    panic("initlog: no sb");
   log.start = sb->logstart;
   log.size = sb->nlog;
   log.dev = dev;

@@ -11,7 +11,7 @@
 #include "stat.h"
 #include "spinlock.h"
 #include "proc.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
@@ -629,17 +629,73 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    * 
    */
 
-  char *special = NULL, *dir = NULL, *fstype = NULL;
-  int flags;
-  uint64 data;
-  if(argstr(0, special, MAXPATH) < 0 ||
-     argstr(1, dir, MAXPATH) < 0 ||
-     argstr(2, fstype, MAXPATH) < 0)
-    return -1;
-  argint(3, &flags);
-  argaddr(4, &data);
-
-  // struct vfs_filesystem *fs = vfs_getfs_byname(fstype);
-
-  return 0;
+   char *devf;
+   char *path;
+   char *fstype;
+   struct inode *ip, *devi;
+ 
+   if (argstr(0, &devf, MAXPATH) < 0 || argstr(1, &path, MAXPATH) < 0 || argstr(2, &fstype, MAXPATH) < 0) {
+     return -1;
+   }
+ 
+   if ((ip = namei(path)) == 0 || (devi = namei(devf)) == 0) {
+     return -1;
+   }
+ 
+   struct vfs_filesystem *fs = getfs(fstype);
+ 
+   if (fs == 0) {
+     cprintf("FS type not found\n");
+     return -1;
+   }
+ 
+   ip->iops->ilock(ip);
+   devi->iops->ilock(devi);
+   // we only can mount points over directories nodes
+   if (ip->type != T_DIR && ip->ref > 1) {
+     ip->iops->iunlock(ip);
+     devi->iops->iunlock(devi);
+     return -1;
+   }
+ 
+   // The device inode should be T_DEV
+   if (devi->type != T_DEVICE) {
+     ip->iops->iunlock(ip);
+     devi->iops->iunlock(devi);
+     return -1;
+   }
+ 
+   if (bdev_open(devi) != 0) {
+     ip->iops->iunlock(ip);
+     devi->iops->iunlock(devi);
+     return -1;
+   }
+ 
+   if (devi->minor == 0 || devi->minor == ROOTDEV) {
+     ip->iops->iunlock(ip);
+     devi->iops->iunlock(devi);
+     return -1;
+   }
+ 
+   // Add this to a list to retrieve the Filesystem type to current device
+   if (putvfsonlist(devi->major, devi->minor, fs) == -1) {
+     ip->iops->iunlock(ip);
+     devi->iops->iunlock(devi);
+     return -1;
+   }
+ 
+   int mounted = fs->fsops->mount(devi, ip, 0);
+ 
+   if (mounted != 0) {
+     ip->iops->iunlock(ip);
+     devi->iops->iunlock(devi);
+     return -1;
+   }
+ 
+   ip->type = T_MOUNT;
+ 
+   ip->iops->iunlock(ip);
+   devi->iops->iunlock(devi);
+ 
+   return 0;
 }

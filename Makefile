@@ -59,6 +59,7 @@ export CFLAGS
 export UPROGS
 
 .PHONY: all user kernel qemu qemu-gdb clean
+.default: kernel
 
 all: kernel user fs.img
 
@@ -77,7 +78,7 @@ clean:
 	@if [ -f mkfs/mkfs ]; then rm mkfs/mkfs; fi
 
 
-mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xvfs.h $(KERNEL_DIR)/include/param.h 
+mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xv6fs.h $(KERNEL_DIR)/include/param.h 
 	gcc $(XCFLAGS) -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 
 # $(USER_BUILD_DIR)/uprogs-list.mk:

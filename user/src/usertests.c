@@ -2,14 +2,14 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "fcntl.h"
 #include "syscall.h"
 #include "memlayout.h"
 #include "riscv.h"
 
 //
-// Tests xv6 system calls.  usertests without arguments runs them all
+// Tests xv6fs system calls.  usertests without arguments runs them all
 // and usertests <name> runs <name> test. The test runner creates for
 // each test a process and based on the exit status of the process,
 // the test runner reports "OK" or "FAILED".  Some tests result in
@@ -344,7 +344,7 @@ truncate1(char *s)
 
 // write to an open FD whose file has just been truncated.
 // this causes a write at an offset beyond the end of the file.
-// such writes fail on xv6 (unlike POSIX) but at least
+// such writes fail on xv6fs (unlike POSIX) but at least
 // they don't crash.
 void
 truncate2(char *s)

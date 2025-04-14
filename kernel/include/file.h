@@ -3,7 +3,7 @@
 
 #include "types.h"
 #include "sleeplock.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 
 #define READABLE 0X1
 #define WRITABLE 0X2
@@ -53,7 +53,9 @@ struct inode {
   uint addrs[NDIRECT+1];
 
   // support vfs
+  struct vfs_filesystem *fs; // Filesystem
   struct inode_ops *iops; // Inode operations
+  void *i_private; // private data for the inode
 };
 
 
@@ -69,8 +71,8 @@ struct superblock {
 
 // map major device number to device functions.
 struct devsw {
-  int (*read)(int, uint64, int);
-  int (*write)(int, uint64, int);
+  int (*read)(int user_src, uint64 dst, int n);
+  int (*write)(int user_src, uint64 src, int n);
 };
 
 extern struct devsw devsw[];

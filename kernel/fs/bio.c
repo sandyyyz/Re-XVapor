@@ -22,7 +22,7 @@
 #include "sleeplock.h"
 #include "riscv.h"
 #include "defs.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "buf.h"
 
 struct {

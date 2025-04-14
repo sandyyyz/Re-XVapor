@@ -6,7 +6,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "param.h"
-#include "xvfs.h"
+#include "xv6fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"

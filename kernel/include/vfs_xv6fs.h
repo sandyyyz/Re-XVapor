@@ -1,5 +1,5 @@
-#ifndef __VFS_XV6FS_H
-#define __VFS_XV6FS_H
+#ifndef __VFS_xv6fsFS_H
+#define __VFS_xv6fsFS_H
 
 int vfs_xv6fs_open(const char *path, int flags);
 int vfs_xv6fs_close(int fd);

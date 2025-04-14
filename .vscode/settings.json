@@ -75,7 +75,11 @@
         "vfs.h": "c",
         "vfs_ext4.h": "c",
         "vfs_xv6fs.h": "c",
-        "elf.h": "c"
+        "elf.h": "c",
+        "vfs_mount.h": "c",
+        "iosfwd": "c",
+        "streambuf": "c",
+        "ostream": "c"
     },
 
     "multiCommand.commands": [

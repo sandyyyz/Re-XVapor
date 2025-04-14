@@ -6,6 +6,11 @@ xv6文件系统
 https://th0ar.gitbooks.io/xv6-chinese/content/content/chapter6.html   
 https://www.cnblogs.com/KatyuMarisaBlog/p/14366115.html
 
+The superblock is filled in by a separate program, called mkfs,
+which builds an initial file system.
+
+![xv6fs](image-110.png)
+
 ## ext4
 All fields in ext4 are written to disk in little-endian order. HOWEVER, all fields in jbd2 (the journal) are written to disk in big-endian order.  
 
