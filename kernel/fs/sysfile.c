@@ -634,7 +634,7 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    char *fstype;
    struct inode *ip, *devi;
  
-   if (argstr(0, &devf, MAXPATH) < 0 || argstr(1, &path, MAXPATH) < 0 || argstr(2, &fstype, MAXPATH) < 0) {
+   if (argstr(0, devf, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0 || argstr(2, fstype, MAXPATH) < 0) {
      return -1;
    }
  
@@ -645,7 +645,7 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    struct vfs_filesystem *fs = getfs(fstype);
  
    if (fs == 0) {
-     cprintf("FS type not found\n");
+     printf("FS type not found\n");
      return -1;
    }
  

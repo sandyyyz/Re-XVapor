@@ -242,75 +242,7 @@ void get_absolute_path(const char *path, const char *cwd, char *absolute_path) {
     }
 }
 
-// Look up and return the inode for a path name.
-// If parent != 0, return the inode for the parent and copy the final
-// path element into name, which must have room for DIRSIZ bytes.
-// Must be called inside a transaction since it calls iput().
-static struct inode*
-namex(char *path, int nameiparent, char *name)
-{
-  struct inode *ip, *next, *ir;
-
-  if(*path == '/')
-    ip = rootfs->fs_t->fsops->getroot(BLOCKMAJOR, ROOTDEV);
-  else
-    ip = idup(myproc()->cwd);
-
-  while((path = skipelem(path, name)) != 0){
-    ip->iops->ilock(ip);
-    if(ip->type != T_DIR){
-      iunlockput(ip);
-      return 0;
-    }
-    if(nameiparent && *path == '\0'){
-      // Stop one level early.
-      ip->iops->iunlock(ip);
-      return ip;
-    }
-
-    component_search:
-    if((next = ip->iops->dirlookup(ip, name, 0)) == 0){
-      iunlockput(ip);
-      return 0;
-    }
-
-    ir = next->fs->fsops->getroot(BLOCKMAJOR, next->dev);
-
-    if (next->inum == ir->inum  && isinoderoot(ip) && (strncmp(name, "..", 2) == 0)) {
-      struct inode *mntinode = mtablemntinode(ip);
-      iunlockput(ip);
-      ip = mntinode;
-      ip->iops->ilock(ip);
-      ip->ref++;
-      goto component_search;
-    }
-
-    iunlockput(ip);
-
-    ip = next;
-  }
-  if(nameiparent){
-    iput(ip);
-    return 0;
-  }
-  return ip;
-}
-
-struct inode*
-namei(char *path)
-{
-  char name[DIRSIZ];
-  return namex(path, 0, name);
-}
-
-struct inode*
-nameiparent(char *path, char *name)
-{
-  return namex(path, 1, name);
-}
-
-int
-sb_set_blocksize(struct superblock *sb, int size)
+int sb_set_blocksize(struct superblock *sb, int size)
 {
   /* If we get here, we know size is power of two
    * and it's value is between 512 and PAGE_SIZE */
@@ -334,13 +266,10 @@ void vfs_mount(char *path, struct vfs_filesystem *fs) {
 }
 void generic_iunlock(struct inode *ip)
 {
-  if(ip == 0 || !(ip->flags & I_BUSY) || ip->ref < 1)
+  if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
     panic("iunlock");
 
-  acquire(&icache.lock);
-  ip->flags &= ~I_BUSY;
-  wakeup(ip);
-  release(&icache.lock);
+  release(&ip->lock);
 }
 
 void generic_stati(struct inode *ip, struct stat *st)
@@ -366,7 +295,7 @@ int generic_dirlink(struct inode *dp, char *name, uint inum, uint type)
 
   // Look for an empty dirent.
   for(off = 0; off < dp->size; off += sizeof(de)){
-    if(dp->iops->readi(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+    if(dp->iops->readi(dp, 0, (char*)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlink read");
     if(de.inum == 0)
       break;
@@ -374,7 +303,7 @@ int generic_dirlink(struct inode *dp, char *name, uint inum, uint type)
 
   strncpy(de.name, name, DIRSIZ);
   de.inum = inum;
-  if(dp->iops->writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+  if(dp->iops->writei(dp, 0, (char*)&de, off, sizeof(de)) != sizeof(de))
     panic("dirlink");
 
   return 0;
@@ -427,42 +356,6 @@ int generic_readi(struct inode *ip, char *dst, uint off, uint n)
     }
   }
   
-  static struct inode *iget(uint dev, uint inum);
-  
-
-  // Find the inode with number inum on device dev
-  // and return the in-memory copy. Does not lock
-  // the inode and does not read it from disk.
-  static struct inode *iget(uint dev, uint inum) {
-    struct inode *ip, *empty;
-  
-    acquire(&icache.lock);
-  
-    // Is the inode already in the table?
-    empty = 0;
-    for (ip = &icache.inode[0]; ip < &icache.inode[NINODE]; ip++) {
-      if (ip->ref > 0 && ip->dev == dev && ip->inum == inum) {
-        ip->ref++;
-        release(&icache.lock);
-        return ip;
-      }
-      if (empty == 0 && ip->ref == 0) // Remember empty slot.
-        empty = ip;
-    }
-  
-    // Recycle an inode entry.
-    if (empty == 0)
-      panic("iget: no inodes");
-  
-    ip = empty;
-    ip->dev = dev;
-    ip->inum = inum;
-    ip->ref = 1;
-    ip->valid = 0;
-    release(&icache.lock);
-  
-    return ip;
-  }
   
   // Find the inode with number inum on device dev
 // and return the in-memory copy. Does not lock
@@ -511,7 +404,7 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
   ip->dev = dev;
   ip->inum = inum;
   ip->ref = 1;
-  ip->flags = 0;
+  ip->valid = 0;
   ip->fs = fs;
   ip->iops = fs->iops;
 
@@ -569,31 +462,6 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
   
   int namecmp(const char *s, const char *t) { return strncmp(s, t, DIRSIZ); }
   
-  // Look for a directory entry in a directory.
-  // If found, set *poff to byte offset of entry.
-  struct inode *dirlookup(struct inode *dp, char *name, uint *poff) {
-    uint off, inum;
-    struct dirent de;
-  
-    if (dp->type != T_DIR)
-      panic("dirlookup not DIR");
-  
-    for (off = 0; off < dp->size; off += sizeof(de)) {
-      if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-        panic("dirlookup read");
-      if (de.inum == 0)
-        continue;
-      if (namecmp(name, de.name) == 0) {
-        // entry matches path element
-        if (poff)
-          *poff = off;
-        inum = de.inum;
-        return iget(dp->dev, inum);
-      }
-    }
-  
-    return 0;
-  }
   
   // Paths
   
@@ -632,43 +500,6 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
     return path;
   }
   
-  // Look up and return the inode for a path name.
-  // If parent != 0, return the inode for the parent and copy the final
-  // path element into name, which must have room for DIRSIZ bytes.
-  // Must be called inside a transaction since it calls iput().
-  static struct inode *namex(char *path, int nameiparent, char *name) {
-    struct inode *ip, *next;
-  
-    if (*path == '/')
-      ip = iget(ROOTDEV, ROOTINO);
-    else
-      ip = idup(myproc()->cwd);
-  
-    while ((path = skipelem(path, name)) != 0) {
-      ilock(ip);
-      if (ip->type != T_DIR) {
-        iunlockput(ip);
-        return 0;
-      }
-      if (nameiparent && *path == '\0') {
-        // Stop one level early.
-        iunlock(ip);
-        return ip;
-      }
-      if ((next = dirlookup(ip, name, 0)) == 0) {
-        iunlockput(ip);
-        return 0;
-      }
-      iunlockput(ip);
-      ip = next;
-    }
-    if (nameiparent) {
-      iput(ip);
-      return 0;
-    }
-    return ip;
-  }
-  
   struct inode *namei(char *path) {
     char name[DIRSIZ];
     return namex(path, 0, name);
@@ -678,3 +509,57 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
     return namex(path, 1, name);
   }
   
+  
+// Look up and return the inode for a path name.
+// If parent != 0, return the inode for the parent and copy the final
+// path element into name, which must have room for DIRSIZ bytes.
+// Must be called inside a transaction since it calls iput().
+static struct inode*
+namex(char *path, int nameiparent, char *name)
+{
+  struct inode *ip, *next, *ir;
+
+  if(*path == '/')
+    ip = rootfs->fs_t->fsops->getroot(BLOCKMAJOR, ROOTDEV);
+  else
+    ip = idup(myproc()->cwd);
+
+  while((path = skipelem(path, name)) != 0){
+    ip->iops->ilock(ip);
+    if(ip->type != T_DIR){
+      iunlockput(ip);
+      return 0;
+    }
+    if(nameiparent && *path == '\0'){
+      // Stop one level early.
+      ip->iops->iunlock(ip);
+      return ip;
+    }
+
+    component_search:
+    if((next = ip->iops->dirlookup(ip, name, 0)) == 0){
+      iunlockput(ip);
+      return 0;
+    }
+
+    ir = next->fs->fsops->getroot(BLOCKMAJOR, next->dev);
+
+    if (next->inum == ir->inum  && isinoderoot(ip) && (strncmp(name, "..", 2) == 0)) {
+      struct inode *mntinode = mtablemntinode(ip);
+      iunlockput(ip);
+      ip = mntinode;
+      ip->iops->ilock(ip);
+      ip->ref++;
+      goto component_search;
+    }
+
+    iunlockput(ip);
+
+    ip = next;
+  }
+  if(nameiparent){
+    iput(ip);
+    return 0;
+  }
+  return ip;
+}

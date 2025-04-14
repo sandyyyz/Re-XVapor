@@ -26,6 +26,7 @@
 
 int xv6fs_init(void);
 struct xv6fs_superblock* alloc_xv6fs_sb();
+struct xv6fs_inode* alloc_xv6fs_inode();
 int xv6fs_mount(struct inode *devi, struct inode *ip);
 int xv6fs_unmount(struct inode *devi);
 struct inode *xv6fs_getroot(int major, int minor);
@@ -41,8 +42,8 @@ void xv6fs_itrunc(struct inode *ip);
 void xv6fs_cleanup(struct inode *ip);
 uint xv6fs_bmap(struct inode *ip, uint bn);
 void xv6fs_ilock(struct inode *ip);
-int xv6fs_readi(struct inode *ip, int user_dst, char *dst, uint off, uint n);
-int xv6fs_writei(struct inode *ip, int user_src, char *src, uint off, uint n);
+int xv6fs_readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
+int xv6fs_writei(struct inode *ip, int user_src, uint64 src, uint off, uint n);
 int xv6fs_unlink(struct inode *dp, uint off);
 int xv6fs_isdirempty(struct inode *dp);
 struct inode* xv6fs_iget(uint dev, uint inum);
@@ -108,8 +109,8 @@ alloc_xv6fs_sb()
 
   acquire(&xv6fs_sb_pool.lock);
   for (sb = &xv6fs_sb_pool.sb[0]; sb < &xv6fs_sb_pool.sb[MAXVFSSIZE]; sb++) {
-    if (sb->flags == XV6_SB_FREE) {
-      sb->flags |= XV6_SB_USED;
+    if (sb->flags == XV6FS_SB_FREE) {
+      sb->flags |= XV6FS_SB_USED;
       release(&xv6fs_sb_pool.lock);
 
       return sb;
@@ -117,6 +118,23 @@ alloc_xv6fs_sb()
   }
   release(&xv6fs_sb_pool.lock);
 
+  return 0;
+}
+
+struct xv6fs_inode*
+alloc_xv6fs_inode()
+{
+  struct xv6fs_inode *ip;
+
+  acquire(&xv6fs_inode_pool.lock);
+  for (ip = &xv6fs_inode_pool.xv6fs_i_entry[0]; ip < &xv6fs_inode_pool.xv6fs_i_entry[NINODE]; ip++) {
+    if (ip->flags == XV6FS_INODE_FREE) {
+      ip->flags |= XV6FS_INODE_USED;
+      release(&xv6fs_inode_pool.lock);
+      return ip;
+    }
+  }
+  release(&xv6fs_inode_pool.lock);
   return 0;
 }
 
@@ -203,7 +221,7 @@ xv6fs_readsb(int dev, struct superblock *sb)
   struct buf *bp;
   struct xv6fs_superblock *xsb;
 
-  if(!(xsb->flags & SB_LOADED)) {
+  if(!(sb->flags & SB_LOADED)) {
     xsb = alloc_xv6fs_sb(); // Allocate a new S5 sb struct to the superblock.
   } else{
     xsb = sb->fs_info;
@@ -312,7 +330,7 @@ xv6fs_dirlookup(struct inode *dp, char *name, uint *poff)
     panic("dirlookup not DIR");
 
   for(off = 0; off < dp->size; off += sizeof(de)){
-    if(xv6fs_iops.readi(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+    if(xv6fs_iops.readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlink read");
     if(de.inum == 0)
       continue;
@@ -452,8 +470,8 @@ void xv6fs_ilock(struct inode *ip)
     ip->minor = dip->minor;
     ip->nlink = dip->nlink;
     ip->size = dip->size;
-    memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
-    brelse(bp);
+    memmove(xip->addrs, dip->addrs, sizeof(xip->addrs));
+    xv6fs_fsops.brelse(bp);
     ip->valid = 1;
     if(ip->type == 0)
       panic("ilock: no type");
@@ -461,7 +479,7 @@ void xv6fs_ilock(struct inode *ip)
 }
 
 int
-xv6fs_readi(struct inode *ip, int user_dst, char *dst, uint off, uint n)
+xv6fs_readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
   uint tot, m;
   struct buf *bp;
@@ -488,7 +506,7 @@ xv6fs_readi(struct inode *ip, int user_dst, char *dst, uint off, uint n)
 }
 
 int
-xv6fs_writei(struct inode *ip, int user_src, char *src, uint off, uint n)
+xv6fs_writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
   uint tot, m;
   struct buf *bp;
@@ -496,7 +514,7 @@ xv6fs_writei(struct inode *ip, int user_src, char *src, uint off, uint n)
   if(ip->type == T_DEVICE){
     if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
       return -1;
-    return devsw[ip->major].write(ip, src, n);
+    return devsw[ip->major].write(0, src, n);
   }
 
   if(off > ip->size || off + n < off)
@@ -536,7 +554,7 @@ xv6fs_isdirempty(struct inode *dp)
   struct dirent de;
 
   for(off=2*sizeof(de); off<dp->size; off+=sizeof(de)){
-    if(xv6fs_iops.readi(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+    if(xv6fs_iops.readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("isdirempty: readi");
     if(de.inum != 0)
       return 0;
@@ -550,7 +568,7 @@ xv6fs_unlink(struct inode *dp, uint off)
   struct dirent de;
 
   memset(&de, 0, sizeof(de));
-  if(dp->iops->writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+  if(dp->iops->writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     return -1;
 
   return 0;
@@ -579,6 +597,6 @@ xv6fs_fill_inode(struct inode *ip) {
 struct inode*
 xv6fs_iget(uint dev, uint inum)
 {
-  return ige__xv6fs_Ht(dev, inum, &xv6fs_fill_inode);
+  return iget(dev, inum, &xv6fs_fill_inode);
 }
 

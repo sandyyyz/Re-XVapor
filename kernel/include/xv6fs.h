@@ -28,8 +28,8 @@ struct xv6fs_superblock {
   int flags;
 };
 
-#define XV6_SB_FREE 0
-#define XV6_SB_USED 1
+#define XV6FS_SB_FREE 0
+#define XV6FS_SB_USED 1
 
 #define FSMAGIC 0x10203040
  

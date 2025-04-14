@@ -50,7 +50,6 @@ struct inode {
   short minor;
   short nlink;
   uint size;
-  uint addrs[NDIRECT+1];
 
   // support vfs
   struct vfs_filesystem *fs; // Filesystem
