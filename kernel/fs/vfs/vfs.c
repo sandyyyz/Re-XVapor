@@ -9,10 +9,14 @@
 #include "proc.h"
 #include "stat.h"
 #include "list.h"
+#include "device.h"
+#include "vfs_mount.h"
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 extern struct file_ops ext4_fops;
 extern struct file_ops xv6fs_fops;
-
+static struct inode* namex(char *path, int nameiparent, char *name);
 struct superblock sb[NDEV];
 
 /*
@@ -82,7 +86,7 @@ install_rootfs(void)
   rootfs->major = BLOCKMAJOR;
   rootfs->minor = ROOTDEV;
 
-  struct filesystem_type *fst = getfs(ROOTFSTYPE);
+  struct vfs_filesystem *fst = getfs(ROOTFSTYPE);
   if (fst == 0) {
     panic("The root fs type is not supported");
   }
@@ -116,8 +120,7 @@ get_vfs_entry(int major, int minor)
   return 0;
 }
 
-int
-put_vfs_on_list(int major, int minor, struct filesystem_type *fs_t)
+int put_vfs_on_list(int major, int minor, struct vfs_filesystem *fs_t)
 {
   struct vfs* nvfs;
 
@@ -141,20 +144,6 @@ init_vfssw(void)
 {
   initlock(&vfssw.lock, "vfssw");
   INIT_LIST_HEAD(&(vfssw.fs_list));
-}
-
-struct vfs*
-get_vfs_entry(int major, int minor)
-{
-  struct vfs *vfs;
-
-  list_for_each_entry(vfs, &(vfsmlist.fs_list), fs_next) {
-    if (vfs->major == major && vfs->minor == minor) {
-      return vfs;
-    }
-  }
-
-  return 0;
 }
 
 int
@@ -327,25 +316,12 @@ int sb_set_blocksize(struct superblock *sb, int size)
   return sb->blocksize;
 }
 
-
-void vfs_mount(char *path, struct vfs_filesystem *fs) {
-    acquire(&vfs_mount_table.lock);
-    for (int i = 0; i < MAX_MOUNTS; i++) {
-        if (vfs_mount_table.mount_points[i].mp == NULL) {
-            vfs_mount_table.mount_points[i].mp = path;
-            vfs_mount_table.mount_points[i].dev = fs->dev;
-            vfs_mount_table.mount_points[i].type = fs->type;
-            break;
-        }
-    }
-    release(&vfs_mount_table.lock);
-}
 void generic_iunlock(struct inode *ip)
 {
   if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
     panic("iunlock");
 
-  release(&ip->lock);
+  releasesleep(&ip->lock);
 }
 
 void generic_stati(struct inode *ip, struct stat *st)
@@ -371,7 +347,7 @@ int generic_dirlink(struct inode *dp, char *name, uint inum, uint type)
 
   // Look for an empty dirent.
   for(off = 0; off < dp->size; off += sizeof(de)){
-    if(dp->iops->readi(dp, 0, (char*)&de, off, sizeof(de)) != sizeof(de))
+    if(dp->iops->readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlink read");
     if(de.inum == 0)
       break;
@@ -379,7 +355,7 @@ int generic_dirlink(struct inode *dp, char *name, uint inum, uint type)
 
   strncpy(de.name, name, DIRSIZ);
   de.inum = inum;
-  if(dp->iops->writei(dp, 0, (char*)&de, off, sizeof(de)) != sizeof(de))
+  if(dp->iops->writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("dirlink");
 
   return 0;
@@ -393,7 +369,7 @@ int generic_readi(struct inode *ip, char *dst, uint off, uint n)
   if(ip->type == T_DEVICE){
     if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
       return -1;
-    return devsw[ip->major].read(ip, dst, n);
+    return devsw[ip->major].read(0, (uint64)dst, n);
   }
 
   if(off > ip->size || off + n < off)
@@ -410,18 +386,6 @@ int generic_readi(struct inode *ip, char *dst, uint off, uint n)
 
   return n;
 }
-
-  // Zero a block.
-  // add in transaction
-  static void bzero(int dev, int bno) {
-    struct buf *bp;
-  
-    bp = bread(dev, bno);
-    memset(bp->data, 0, BSIZE);
-    log_write(bp);
-    brelse(bp);
-  }
-
   
   void iinit() {
     int i = 0;
@@ -450,7 +414,7 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
 
       // If the current inode is an mount point
       if (ip->type == T_MOUNT) {
-        struct inode *rinode = mtablertinode(ip);
+        struct inode *rinode = mnt_rtinode(ip);
 
         if (rinode == 0) {
           panic("Invalid Inode on Mount Table");
@@ -620,8 +584,8 @@ namex(char *path, int nameiparent, char *name)
 
     ir = next->fs->fsops->getroot(BLOCKMAJOR, next->dev);
 
-    if (next->inum == ir->inum  && isinoderoot(ip) && (strncmp(name, "..", 2) == 0)) {
-      struct inode *mntinode = mtablemntinode(ip);
+    if (next->inum == ir->inum  && is_rtinode(ip) && (strncmp(name, "..", 2) == 0)) {
+      struct inode *mntinode = mnt_inode(ip);
       iunlockput(ip);
       ip = mntinode;
       ip->iops->ilock(ip);

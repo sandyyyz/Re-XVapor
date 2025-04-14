@@ -6,6 +6,9 @@
 #include "file.h"
 #include "vfs_mount.h"
 
+
+struct mt mtable;
+
 /**
  * @brief get the mounted root inode for the given inode
  * @param given inode

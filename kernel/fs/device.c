@@ -8,6 +8,11 @@
 #include "file.h"
 #include "device.h"
 
+void bdev_table_init(void);
+int register_bdev(struct bdev dev);
+int unregister_bdev(struct bdev dev);
+int bdev_open(struct inode *devi);
+
 struct {
   struct spinlock lock;
   struct bdev_ops *bdeventry[MAXBDEV];
@@ -59,3 +64,12 @@ bdev_open(struct inode *devi)
   return bops->open(devi->minor);
 }
 
+unsigned int blksize_bits(unsigned int size)
+{
+  unsigned int bits = 8;
+  do {
+      bits++;
+      size >>= 1;
+    } while (size > 256);
+  return bits;
+}

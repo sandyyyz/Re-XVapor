@@ -1,6 +1,7 @@
 #ifndef XV6_DEVICE_H_
 #define XV6_DEVICE_H_
 
+
 // Block device switch table entry.
 struct bdev_ops {
   int (*open)(int minor);
@@ -13,15 +14,11 @@ struct bdev {
 };
 
 /* assumes size > 256 */
-static inline unsigned int blksize_bits(unsigned int size)
-{
-  unsigned int bits = 8;
-  do {
-      bits++;
-      size >>= 1;
-    } while (size > 256);
-  return bits;
-}
+unsigned int blksize_bits(unsigned int size);
+void bdev_table_init(void);
+int register_bdev(struct bdev dev);
+int unregister_bdev(struct bdev dev);
+int bdev_open(struct inode *devi);
 
 #endif /* XV6_DEVICE_H_ */
 

@@ -22,7 +22,6 @@ struct file_ops xv6fs_fops = {
 
 struct inode_ops xv6fs_inode_ops = {
     .readi = vfs_xv6fs_readi,
-    .iput = vfs_xv6fs_iput,
 };
 int vfs_xv6fs_open(const char *path, int flags) {
     // Open the xv6fsFS filesystem

@@ -20,10 +20,10 @@ struct mntentry {
 };
 
 // Mount Table Structure
-struct {
+struct mt{
     struct spinlock lock;
     struct mntentry mpoint[MOUNTSIZE];
-  } mtable;
+};
   
 // Utility functions
 

@@ -39,7 +39,7 @@ typedef enum vfs_type {
  * This is struct is the map block device and its filesystem.
  * Its main job is return the filesystem type of current (major, minor)
  * mounted device. It is used when it is not possible retrive the
- * filesystem_type from the inode.
+ * vfs_filesystem from the inode.
  */
 struct vfs {
     int major;
@@ -150,5 +150,7 @@ int generic_readi(struct inode *ip, char *dst, uint off, uint n);
 struct vfs_filesystem* getfs(const char *fs_name);
 int register_fs(struct vfs_filesystem *fs);
 struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *));
+int put_vfs_on_list(int major, int minor, struct vfs_filesystem *fs_t);
+int sb_set_blocksize(struct superblock *sb, int size);
 
 #endif

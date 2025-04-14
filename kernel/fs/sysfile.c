@@ -18,6 +18,7 @@
 #include "debug.h"
 #include "vm.h"
 #include "memlayout.h"
+#include "device.h"
 
 // for debug
 int g_first_exec = 0;
@@ -629,9 +630,9 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    * 
    */
 
-   char *devf;
-   char *path;
-   char *fstype;
+   char devf[MAXPATH];
+   char path[MAXPATH];
+   char fstype[MAXPATH];
    struct inode *ip, *devi;
  
    if (argstr(0, devf, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0 || argstr(2, fstype, MAXPATH) < 0) {
