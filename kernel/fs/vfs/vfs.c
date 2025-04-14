@@ -47,28 +47,104 @@ struct {
     struct mount_point mount_points[MAX_MOUNTS];
 } vfs_mount_table;
 
-void mount_init() {
-    initlock(&vfs_mount_table.lock, "vfs_mount_table");
-    for (int i = 0; i < MAX_MOUNTS; i++) {
-        vfs_mount_table.mount_points[i].mp = NULL;
-        vfs_mount_table.mount_points[i].dev = -1;
-        vfs_mount_table.mount_points[i].type = VFS_TYPE_UNKNOWN;
+static struct {
+  struct spinlock lock;
+  struct vfs vfsentry[MAXVFSSIZE];
+} vfspool;
+
+struct vfs*
+allocvfs()
+{
+  struct vfs *vfs;
+
+  acquire(&vfspool.lock);
+  for (vfs = &vfspool.vfsentry[0]; vfs < &vfspool.vfsentry[MAXVFSSIZE]; vfs++) {
+    if (vfs->flag == VFS_FREE) {
+      vfs->flag |= VFS_USED;
+      release(&vfspool.lock);
+
+      return vfs;
     }
+  }
+  release(&vfspool.lock);
+
+  return 0;
 }
 
-void vfs_init() {
-    mount_init();
+// Add rootvfs on the list
+void
+install_rootfs(void)
+{
+  if ((rootfs = allocvfs()) == 0) {
+    panic("Failed on rootfs allocation");
+  }
+
+  rootfs->major = BLOCKMAJOR;
+  rootfs->minor = ROOTDEV;
+
+  struct filesystem_type *fst = getfs(ROOTFSTYPE);
+  if (fst == 0) {
+    panic("The root fs type is not supported");
+  }
+
+  rootfs->fs_t = fst;
+
+  acquire(&vfsmlist.lock);
+  list_add_tail(&(rootfs->fs_next), &(vfsmlist.fs_list));
+  release(&vfsmlist.lock);
 }
 
 void
-initvfssw(void)
+init_vfsmlist(void)
+{
+  initlock(&vfsmlist.lock, "vfsmlist");
+  initlock(&vfspool.lock, "vfspol");
+  INIT_LIST_HEAD(&(vfsmlist.fs_list));
+}
+
+struct vfs*
+get_vfs_entry(int major, int minor)
+{
+  struct vfs *vfs;
+
+  list_for_each_entry(vfs, &(vfsmlist.fs_list), fs_next) {
+    if (vfs->major == major && vfs->minor == minor) {
+      return vfs;
+    }
+  }
+
+  return 0;
+}
+
+int
+put_vfs_on_list(int major, int minor, struct filesystem_type *fs_t)
+{
+  struct vfs* nvfs;
+
+  if ((nvfs = allocvfs()) == 0) {
+    return -1;
+  }
+
+  nvfs->major = major;
+  nvfs->minor = minor;
+  nvfs->fs_t  = fs_t;
+
+  acquire(&vfsmlist.lock);
+  list_add_tail(&(nvfs->fs_next), &(vfsmlist.fs_list));
+  release(&vfsmlist.lock);
+
+  return 0;
+}
+
+void
+init_vfssw(void)
 {
   initlock(&vfssw.lock, "vfssw");
   INIT_LIST_HEAD(&(vfssw.fs_list));
 }
 
 struct vfs*
-getvfsentry(int major, int minor)
+get_vfs_entry(int major, int minor)
 {
   struct vfs *vfs;
 
@@ -398,7 +474,7 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
   if(empty == 0)
     panic("iget: no inodes");
 
-  fs = getvfsentry(BLOCKMAJOR, dev)->fs_t;
+  fs = get_vfs_entry(BLOCKMAJOR, dev)->fs_t;
 
   ip = empty;
   ip->dev = dev;

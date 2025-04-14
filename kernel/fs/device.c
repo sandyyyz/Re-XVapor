@@ -11,38 +11,38 @@
 struct {
   struct spinlock lock;
   struct bdev_ops *bdeventry[MAXBDEV];
-} bdevtable;
+} bdev_table;
 
 void
-bdevtableinit(void)
+bdev_table_init(void)
 {
-  initlock(&bdevtable.lock, "bdevtable");
+  initlock(&bdev_table.lock, "bdev_table");
 }
 
 int
-registerbdev(struct bdev dev)
+register_bdev(struct bdev dev)
 {
 
   if (dev.major > MAXBDEV - 1)
     return -1;
 
-  acquire(&bdevtable.lock);
-  bdevtable.bdeventry[dev.major] = dev.ops;
-  release(&bdevtable.lock);
+  acquire(&bdev_table.lock);
+  bdev_table.bdeventry[dev.major] = dev.ops;
+  release(&bdev_table.lock);
 
   return 0;
 }
 
 int
-unregisterbdev(struct bdev dev)
+unregister_bdev(struct bdev dev)
 {
 
   if (dev.major > MAXBDEV - 1)
     return -1;
 
-  acquire(&bdevtable.lock);
-  bdevtable.bdeventry[dev.major] = 0;
-  release(&bdevtable.lock);
+  acquire(&bdev_table.lock);
+  bdev_table.bdeventry[dev.major] = 0;
+  release(&bdev_table.lock);
 
   return 0;
 }
@@ -53,7 +53,7 @@ bdev_open(struct inode *devi)
   if (devi->major > MAXBDEV - 1)
     return -1;
 
-  struct bdev_ops *bops = bdevtable.bdeventry[devi->major];
+  struct bdev_ops *bops = bdev_table.bdeventry[devi->major];
   if (bops == 0) return -1;
 
   return bops->open(devi->minor);

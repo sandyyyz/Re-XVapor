@@ -678,13 +678,13 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    }
  
    // Add this to a list to retrieve the Filesystem type to current device
-   if (putvfsonlist(devi->major, devi->minor, fs) == -1) {
+   if (put_vfs_on_list(devi->major, devi->minor, fs) == -1) {
      ip->iops->iunlock(ip);
      devi->iops->iunlock(devi);
      return -1;
    }
  
-   int mounted = fs->fsops->mount(devi, ip, 0);
+   int mounted = fs->fsops->mount(devi, ip);
  
    if (mounted != 0) {
      ip->iops->iunlock(ip);

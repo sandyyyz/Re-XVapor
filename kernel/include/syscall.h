@@ -1,3 +1,5 @@
+#ifndef __SYSCALL_H
+#define __SYSCALL_H
 // System call numbers
 #define SYS_fork    1
 #define SYS_exit    93  /// changed from 2 to 93
@@ -36,3 +38,5 @@
 #define SYS_wait4 260
 #define SYS_mmap 222
 #define SYS_munmap 215
+
+#endif
