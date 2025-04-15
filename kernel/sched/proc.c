@@ -12,6 +12,7 @@
 #include "list.h"
 #include "wait.h"
 #include "mmap.h"
+#include "vfs.h"
 
 void thread_forkret(void);
 
@@ -611,21 +612,9 @@ void proc_exit(int status)
   }
   freeprocvm(p);
 
-// #ifdef __DEBUG_PEXIT
-//   Info("noff before begin_op %d\n", mycpu()->noff);
-// #endif
   begin_op();
-// #ifdef __DEBUG_PEXIT
-//   Info("noff after begin_op %d\n", mycpu()->noff);
-// #endif
   iput(p->cwd);
-// #ifdef __DEBUG_PEXIT
-//   Info("noff after iput %d\n", mycpu()->noff);
-// #endif
   end_op();
-// #ifdef __DEBUG_PEXIT
-//   Info("noff after end_op %d\n", mycpu()->noff);
-// #endif
   p->cwd = 0;
 
   acquire(&wait_lock);
@@ -651,13 +640,9 @@ void proc_exit(int status)
 #endif
   release(&wait_lock);
 
-  // #ifdef __DEBUG_PEXIT
-  // Log("thread %d proc_exit %d", mythread()->tid, p->pid);
-  // #endif
   // Jump into the scheduler, never to return.
-  // sched();
-  // thread_sched();
-  // panic("zombie exit");
+  thread_sched();
+  panic("zombie exit");
 }
 
 // Wait for a child process to exit and return its pid.

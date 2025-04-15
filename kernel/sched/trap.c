@@ -117,9 +117,9 @@ usertrap(void)
 #endif
       struct file* fp = vma->file;
       int offset = va - vma->vm_start;
-      ilock(fp->ip);
-      readi(fp->ip, 1, va, offset, PGSIZE);
-      iunlock(fp->ip);
+      fp->ip->iops->ilock(fp->ip);
+      fp->ip->iops->readi(fp->ip, 1, va, offset, PGSIZE);
+      fp->ip->iops->iunlock(fp->ip);
       release(&p->mm.lock);
     }
   } else {

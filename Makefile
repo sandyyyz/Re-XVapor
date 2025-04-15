@@ -79,7 +79,7 @@ clean:
 
 
 mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xv6fs.h $(KERNEL_DIR)/include/param.h 
-	gcc $(XCFLAGS) -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
+	gcc -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 
 # $(USER_BUILD_DIR)/uprogs-list.mk:
 # 	$(MAKE) -C $(USER_DIR) uprogs-list.mk

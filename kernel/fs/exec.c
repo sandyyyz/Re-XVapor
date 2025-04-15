@@ -55,10 +55,10 @@ int exec(char *path, char **argv)
     end_op();
     return -1;
   }
-  ilock(ip);
+  ip->iops->ilock(ip);
 
   // Check ELF header
-  if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+  if(ip->iops->readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
 
   if(elf.magic != ELF_MAGIC)
@@ -71,7 +71,7 @@ int exec(char *path, char **argv)
   
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+    if(ip->iops->readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
     if(ph.type != ELF_PROG_LOAD)
       continue;
@@ -197,10 +197,10 @@ int execve(char *path, char **argv, char **envp)
     end_op();
     return -1;
   }
-  ilock(ip);
+  ip->iops->ilock(ip);
 
   // Check ELF header
-  if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+  if(ip->iops->readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
 
   if(elf.magic != ELF_MAGIC)
@@ -213,7 +213,7 @@ int execve(char *path, char **argv, char **envp)
   
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+    if(ip->iops->readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
     if(ph.type != ELF_PROG_LOAD)
       continue;
@@ -359,7 +359,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
       n = sz - i;
     else
       n = PGSIZE;
-    if(readi(ip, 0, (uint64)pa, offset+i, n) != n)
+    if(ip->iops->readi(ip, 0, (uint64)pa, offset+i, n) != n)
       return -1;
   }
   

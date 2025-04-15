@@ -10,7 +10,8 @@
 #include "../kernel/include/xv6fs.h"
 #include "../kernel/include/stat.h"
 #include "../kernel/include/param.h"
-#include "../kernel/include/vfs.h"
+// #include "../kernel/include/vfs.h"
+#include "mkfs.h"
 
 #ifndef static_assert
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)

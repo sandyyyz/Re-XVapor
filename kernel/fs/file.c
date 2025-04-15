@@ -94,9 +94,9 @@ filestat(struct file *f, uint64 addr)
   struct stat st;
   
   if(f->type == FD_INODE || f->type == FD_DEVICE){
-    ilock(f->ip);
-    stati(f->ip, &st);
-    iunlock(f->ip);
+    f->ip->iops->ilock(f->ip);
+    f->ip->iops->stati(f->ip, &st);
+    f->ip->iops->iunlock(f->ip);
     if(copyout(p->mm.pagetable, addr, (char *)&st, sizeof(st)) < 0)
       return -1;
     return 0;
@@ -121,10 +121,10 @@ fileread(struct file *f, uint64 addr, int n)
       return -1;
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
-    ilock(f->ip);
-    if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
+    f->ip->iops->ilock(f->ip);
+    if((r = f->ip->iops->readi(f->ip, 1, addr, f->off, n)) > 0)
       f->off += r;
-    iunlock(f->ip);
+    f->ip->iops->iunlock(f->ip);
   } else {
     panic("fileread");
   }
@@ -172,10 +172,10 @@ int filewrite(struct file *f, uint64 addr, int n)
         n1 = max;
 
       begin_op();
-      ilock(f->ip);
-      if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0)
+      f->ip->iops->ilock(f->ip);
+      if ((r = f->ip->iops->writei(f->ip, 1, addr + i, f->off, n1)) > 0)
         f->off += r;
-      iunlock(f->ip);
+      f->ip->iops->iunlock(f->ip);
       end_op();
 
       if(r != n1){

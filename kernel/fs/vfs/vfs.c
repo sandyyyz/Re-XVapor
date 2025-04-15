@@ -316,6 +316,13 @@ int sb_set_blocksize(struct superblock *sb, int size)
   return sb->blocksize;
 }
 
+// Common idiom: unlock, then put.
+void iunlockput(struct inode *ip)
+{
+  ip->iops->iunlock(ip);
+  iput(ip);
+}
+
 void generic_iunlock(struct inode *ip)
 {
   if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
@@ -333,7 +340,7 @@ void generic_stati(struct inode *ip, struct stat *st)
   st->size = ip->size;
 }
 
-int generic_dirlink(struct inode *dp, char *name, uint inum, uint type)
+int generic_dirlink(struct inode *dp, char *name, uint inum)
 {
   int off;
   struct dirent de;
@@ -387,17 +394,25 @@ int generic_readi(struct inode *ip, char *dst, uint off, uint n)
   return n;
 }
   
-  void iinit() {
-    int i = 0;
-  
-    initlock(&icache.lock, "icache");
-    for (i = 0; i < NINODE; i++) {
-      initsleeplock(&icache.inode[i].lock, "inode");
-    }
+void iinit() {
+  int i = 0;
+
+  initlock(&icache.lock, "icache");
+  for (i = 0; i < NINODE; i++) {
+    initsleeplock(&icache.inode[i].lock, "inode");
   }
+}
+
+void fsinit(int dev) {
   
+  rootfs->fs_t->fsops->readsb(dev, &sb[dev]);
+  // TODO: how about other kind of fs?
+  if(rootfs->fs_t->type == VFS_TYPE_XV6FS)
+    initlog(dev,(struct xv6fs_superblock*)&sb[dev].fs_info);
+}
+
   
-  // Find the inode with number inum on device dev
+// Find the inode with number inum on device dev
 // and return the in-memory copy. Does not lock
 // the inode and does not read it from disk.
 struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
@@ -466,43 +481,39 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
   }
   
   
-  // Drop a reference to an in-memory inode.
-  // If that was the last reference, the inode table entry can
-  // be recycled.
-  // If that was the last reference and the inode has no links
-  // to it, free the inode (and its content) on disk.
-  // All calls to iput() must be inside a transaction in
-  // case it has to free the inode.
-  void iput(struct inode *ip) {
-    acquire(&icache.lock);
-  
-    if (ip->ref == 1 && ip->valid && ip->nlink == 0) {
-      // inode has no links and no other references: truncate and free.
-  
-      // ip->ref == 1 means no other process can have ip locked,
-      // so this acquiresleep() won't block (or deadlock).
-      acquiresleep(&ip->lock);
-  
-      release(&icache.lock);
-  
-      itrunc(ip);
-      ip->type = 0;
-      iupdate(ip);
-      ip->valid = 0;
-  
-      releasesleep(&ip->lock);
-  
-      acquire(&icache.lock);
-    }
-  
-    ip->ref--;
+// Drop a reference to an in-memory inode.
+// If that was the last reference, the inode table entry can
+// be recycled.
+// If that was the last reference and the inode has no links
+// to it, free the inode (and its content) on disk.
+// All calls to iput() must be inside a transaction in
+// case it has to free the inode.
+void iput(struct inode *ip) {
+  acquire(&icache.lock);
+
+  if (ip->ref == 1 && ip->valid && ip->nlink == 0) {
+    // inode has no links and no other references: truncate and free.
+
+    // ip->ref == 1 means no other process can have ip locked,
+    // so this acquiresleep() won't block (or deadlock).
+    acquiresleep(&ip->lock);
+
     release(&icache.lock);
+
+    ip->iops->itrunc(ip);
+    ip->type = 0;
+    ip->iops->iupdate(ip);
+    ip->valid = 0;
+    ip->iops->cleanup(ip);
+    releasesleep(&ip->lock);
+
+    acquire(&icache.lock);
   }
-  
-  
-  int namecmp(const char *s, const char *t) { return strncmp(s, t, DIRSIZ); }
-  
-  
+
+  ip->ref--;
+  release(&icache.lock);
+}
+
   // Paths
   
   // Copy the next path element from path into name.

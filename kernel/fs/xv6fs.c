@@ -24,6 +24,8 @@
 #include "vfs.h"
 #include "vfs_mount.h"
 
+extern struct mt mtable;
+
 int xv6fs_init(void);
 struct xv6fs_superblock* alloc_xv6fs_sb();
 struct xv6fs_inode* alloc_xv6fs_inode();
@@ -47,6 +49,7 @@ int xv6fs_writei(struct inode *ip, int user_src, uint64 src, uint off, uint n);
 int xv6fs_unlink(struct inode *dp, uint off);
 int xv6fs_isdirempty(struct inode *dp);
 struct inode* xv6fs_iget(uint dev, uint inum);
+
 struct fs_ops xv6fs_fsops = {
   .fs_init = &xv6fs_init,
   .mount   = &xv6fs_mount,
@@ -446,6 +449,8 @@ xv6fs_bmap(struct inode *ip, uint bn)
   panic("bmap: out of range");
 }
 
+// Lock the given inode.
+// Reads the inode from disk if necessary.
 void xv6fs_ilock(struct inode *ip)
 {
   struct buf *bp;

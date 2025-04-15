@@ -79,7 +79,8 @@
         "vfs_mount.h": "c",
         "iosfwd": "c",
         "streambuf": "c",
-        "ostream": "c"
+        "ostream": "c",
+        "xv6fs.h": "c"
     },
 
     "multiCommand.commands": [

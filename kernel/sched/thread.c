@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "vm.h"
 #include "proc.h"
+#include "vfs.h"
 
 queue_t unused_t_queue, used_t_queue, runnable_t_queue, sleeping_t_queue;
 

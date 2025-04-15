@@ -108,7 +108,7 @@ struct inode_ops {
     void                (*stati)(struct inode *ip, struct stat *st);
     int                 (*readi)(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
     int                 (*writei)(struct inode *ip,int user_src, uint64 src, uint off, uint n);
-    int                 (*dirlink)(struct inode *dp, char *name, uint inum, uint type);
+    int                 (*dirlink)(struct inode *dp, char *name, uint inum);
     int                 (*unlink)(struct inode *dp, uint off);
     int                 (*isdirempty)(struct inode *dp);
 };
@@ -145,12 +145,16 @@ struct vfs_filesystem *vfs_getfs_byname(const char *name);
 struct vfs_filesystem *vfs_getfs_bypath(const char *path);
 void generic_iunlock(struct inode *ip);
 void generic_stati(struct inode *ip, struct stat *st);
-int generic_dirlink(struct inode *dp, char *name, uint inum, uint type);
+int generic_dirlink(struct inode *dp, char *name, uint inum);
 int generic_readi(struct inode *ip, char *dst, uint off, uint n);
 struct vfs_filesystem* getfs(const char *fs_name);
 int register_fs(struct vfs_filesystem *fs);
 struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *));
 int put_vfs_on_list(int major, int minor, struct vfs_filesystem *fs_t);
 int sb_set_blocksize(struct superblock *sb, int size);
+void fsinit(int dev);
+void iput(struct inode *ip);
+void iunlockput(struct inode *ip);
+void iinit();
 
 #endif
