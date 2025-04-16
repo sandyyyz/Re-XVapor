@@ -80,4 +80,7 @@ struct xv6fs_inode {
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
 
+
+int init_xv6fs(void);
+
 #endif

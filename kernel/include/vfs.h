@@ -156,5 +156,8 @@ void fsinit(int dev);
 void iput(struct inode *ip);
 void iunlockput(struct inode *ip);
 void iinit();
+void install_rootfs(void);
+void init_vfssw(void);
+void init_vfsmlist(void);
 
 #endif

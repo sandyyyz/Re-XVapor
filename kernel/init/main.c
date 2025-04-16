@@ -5,11 +5,21 @@
 #include "defs.h"
 #include "thread.h"
 #include "sched.h"
+#include "xv6fs.h"
+#include "vfs_mount.h"
+#include "vfs.h"
+#include "device.h"
 
 volatile static int started = 0;
 int init_finished = 0;
 volatile static int cpunum = 4;
 // start() jumps here in supervisor mode on all CPUs.
+
+static void initfss() {
+  if(init_xv6fs() < 0) {
+    panic("xv6fs_init failed");
+  }
+}
 void
 main()
 {
@@ -34,6 +44,12 @@ main()
     binit();         // buffer cache
     iinit();         // inode table
     fileinit();      // file table
+    init_vfssw();
+    init_vfsmlist();
+    mntinit();
+    bdev_table_init();
+    initfss();
+    install_rootfs();
     virtio_disk_init(); // emulated hard disk
     userinit();      // first user process
     __sync_synchronize();
@@ -54,3 +70,4 @@ main()
 
   thread_scheduler();        
 }
+

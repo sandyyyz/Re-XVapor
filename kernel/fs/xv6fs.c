@@ -83,6 +83,7 @@ struct inode_ops xv6fs_iops = {
 };
 
 struct vfs_filesystem xv6fs = {
+  .type = VFS_TYPE_XV6FS,
   .name = "xv6fs",
   .fsops = &xv6fs_fsops,
   .iops = &xv6fs_iops
@@ -150,7 +151,7 @@ alloc_xv6fs_inode()
 // }
 
 int
-initxv6fs(void)
+init_xv6fs(void)
 {
   initlock(&xv6fs_sb_pool.lock, "xv6fs_sb_pool");
   initlock(&xv6fs_inode_pool.lock, "xv6fs_inode_pool");
