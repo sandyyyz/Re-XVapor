@@ -8,7 +8,7 @@
 #define NINODE       50  // maximum number of active i-nodes
 #define NDEV         10  // maximum major device number
 #define ROOTDEV       1  // device number of file system root disk
-#define BLOCKMAJOR   0  // major number of block device
+#define BLOCKMAJOR   1  // major number of block device
 #define MAXARG       32  // max exec arguments
 #define MAXENV       8  // max exec environment variables
 #define MAXOPBLOCKS  10  // max # of blocks any FS op writes

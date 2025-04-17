@@ -28,11 +28,13 @@ void ls(char *path) {
   struct dirent de;
   struct stat st;
 
+  printf("ls: %s\n", path);
   if ((fd = open(path, 0)) < 0) {
     fprintf(2, "ls: cannot open %s\n", path);
     return;
   }
 
+  printf("open success\n");
   if (fstat(fd, &st) < 0) {
     fprintf(2, "ls: cannot stat %s\n", path);
     close(fd);

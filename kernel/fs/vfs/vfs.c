@@ -575,64 +575,110 @@ void iput(struct inode *ip) {
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
-static struct inode*
-namex(char *path, int nameiparent, char *name)
-{
-  struct inode *ip, *next, *ir;
+// static struct inode*
+// namex(char *path, int nameiparent, char *name)
+// {
+//   struct inode *ip, *next, *ir;
 
-  if(*path == '/')
+//   if(*path == '/')
+//     ip = rootfs->fs_t->fsops->getroot(BLOCKMAJOR, ROOTDEV);
+//   else
+//     ip = idup(myproc()->cwd);
+
+//   while((path = skipelem(path, name)) != 0){
+//     ip->iops->ilock(ip);
+//     if(ip->type != T_DIR){
+//       iunlockput(ip);
+//       return 0;
+//     }
+//     if(nameiparent && *path == '\0'){
+//       // Stop one level early.
+//       ip->iops->iunlock(ip);
+//       return ip;
+//     }
+
+//     component_search:
+//     if((next = ip->iops->dirlookup(ip, name, 0)) == 0){
+//       iunlockput(ip);
+//       return 0;
+//     }
+
+//     ir = next->fs->fsops->getroot(BLOCKMAJOR, next->dev);
+
+//     if (next->inum == ir->inum  && is_rtinode(ip) && (strncmp(name, "..", 2) == 0)) {
+//       struct inode *mntinode = mnt_inode(ip);
+//       iunlockput(ip);
+//       ip = mntinode;
+//       ip->iops->ilock(ip);
+//       ip->ref++;
+//       goto component_search;
+//     }
+
+//     iunlockput(ip);
+//     ip = next;
+//   }
+//   if(nameiparent){
+//     iput(ip);
+//     return 0;
+//   }
+
+//   #ifdef __DEBUG_NAMEX
+//   struct xv6fs_inode *xip = ip->i_private;
+//   Log("ip->dev = %d", ip->dev);
+//   Log("ip->inum = %d", ip->inum);
+//   Log("xip->type = %d", xip->type);
+//   Log("xip->size = %d", xip->size);
+//   Log("xip->nlink = %d", xip->nlink);
+//   Log("xip->major = %d", xip->major);
+//   Log("xip->minor = %d", xip->minor);
+//   Log("xip->addrs[0] = %d", xip->addrs[0]);
+// #endif  
+//   return ip;
+// }
+
+// Look up and return the inode for a path name.
+// If parent != 0, return the inode for the parent and copy the final
+// path element into name, which must have room for DIRSIZ bytes.
+// Must be called inside a transaction since it calls iput().
+static struct inode *namex(char *path, int nameiparent, char *name) {
+  struct inode *ip, *next;
+
+  if (*path == '/')
     ip = rootfs->fs_t->fsops->getroot(BLOCKMAJOR, ROOTDEV);
   else
     ip = idup(myproc()->cwd);
 
-  while((path = skipelem(path, name)) != 0){
+  while ((path = skipelem(path, name)) != 0) {
     ip->iops->ilock(ip);
-    if(ip->type != T_DIR){
+    if (ip->type != T_DIR) {
       iunlockput(ip);
       return 0;
     }
-    if(nameiparent && *path == '\0'){
+    if (nameiparent && *path == '\0') {
       // Stop one level early.
       ip->iops->iunlock(ip);
       return ip;
     }
-
-    component_search:
-    if((next = ip->iops->dirlookup(ip, name, 0)) == 0){
+    if ((next = ip->iops->dirlookup(ip, name, 0)) == 0) {
       iunlockput(ip);
       return 0;
     }
-
-    ir = next->fs->fsops->getroot(BLOCKMAJOR, next->dev);
-
-    if (next->inum == ir->inum  && is_rtinode(ip) && (strncmp(name, "..", 2) == 0)) {
-      struct inode *mntinode = mnt_inode(ip);
-      iunlockput(ip);
-      ip = mntinode;
-      ip->iops->ilock(ip);
-      ip->ref++;
-      goto component_search;
-    }
-
     iunlockput(ip);
-
     ip = next;
   }
-  if(nameiparent){
+  if (nameiparent) {
     iput(ip);
     return 0;
   }
-  struct xv6fs_inode *xip = ip->i_private;
-
   #ifdef __DEBUG_NAMEX
-  Log("ip->dev = %d", ip->dev);
+  Log("ip->type = %d", ip->type);
   Log("ip->inum = %d", ip->inum);
-  Log("xip->type = %d", xip->type);
-  Log("xip->size = %d", xip->size);
-  Log("xip->nlink = %d", xip->nlink);
-  Log("xip->major = %d", xip->major);
-  Log("xip->minor = %d", xip->minor);
-  Log("xip->addrs[0] = %d", xip->addrs[0]);
+  Log("ip->size = %d", ip->size);
+  Log("ip->dev = %d", ip->dev);
+  Log("ip->nlink = %d", ip->nlink);
+  Log("ip->major = %d", ip->major);
+  Log("ip->minor = %d", ip->minor);
+  Log("ip->addrs[0] = %d", ip->addrs[0]);
 #endif  
   return ip;
 }
