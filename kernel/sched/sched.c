@@ -111,12 +111,8 @@ void thread_yield(void) {
 void thread_sched(void) {
     int intena;
     struct tcb *t = mythread();
-#ifdef __DEBUG_THREAD_SCHED
-    if(t->tid == 36)
-        Log("thread %d is in thread_sched", t->tid);
-#endif
     if(!holding(&t->lock))
-    panic("sched t->lock");
+        panic("sched t->lock");
     if(mycpu()->noff != 1) {
         Info("noff %d\n", mycpu()->noff);
         panic("sched t locks");

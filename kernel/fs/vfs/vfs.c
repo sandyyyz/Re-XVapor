@@ -667,7 +667,7 @@ static struct inode *namex(char *path, int nameiparent, char *name) {
     ip = next;
   }
   if (nameiparent) {
-    iput(ip);
+    iput(ip); 
     return 0;
   }
   #ifdef __DEBUG_NAMEX

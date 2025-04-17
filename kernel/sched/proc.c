@@ -629,21 +629,15 @@ void proc_exit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
-  // p->state = ZOMBIE;
-  acquire(&p->lth_exitlock);
   
-#ifdef __DEBUG_PEXIT
-  Info("thread %d proc_exit, ready to change state to ZOMBIE\n", mythread()->tid);
-#endif
+  acquire(&p->lth_exitlock);
+
   pcb_q_change_state(p, ZOMBIE);
-#ifdef __DEBUG_PEXIT
-  Info("thread %d proc_exit, changed state to ZOMBIE\n", mythread()->tid);
-#endif
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.
-  thread_sched();
-  panic("zombie exit");
+  // thread_sched();
+  // panic("zombie exit");
 }
 
 // Wait for a child process to exit and return its pid.

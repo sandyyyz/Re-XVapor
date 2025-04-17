@@ -250,73 +250,30 @@ void thread_exit(int status) {
     struct proc *p = t->p;
     struct thread_group *tg = &(p->tg);
 
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d exit\n", t->tid);
-    Info("noff when come in thread_exit: %d\n", mycpu()->noff);
-#endif
-
-
     if( t->state == TCB_SLEEPING) 
         thread_wakeup_specific(t);
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
-        // protect the last thread exit
 
-        // if this is the last thread in the group
-        // free the process 
-
-        // acquire(&p->lock);
-// #ifdef __DEBUG_THREAD_EXIT
-//         Log("thread %d has acquired p->lock\n", t->tid);
-// #endif
-        // freeproc(p);
-        
-        // t->xstate = status;
         proc_exit(status);
 
         release(&p->lock);
-#ifdef __DEBUG_THREAD_EXIT
-        Log("thread %d has release p->lock\n", t->tid);
-#endif
+
     }
 
     acquire(&p->tg.lock);
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d has acquired p->tg.lock\n", t->tid);
-#endif
     list_del_reinit(&t->threads);
     if(p->tg.group_leader == t) {
         p->tg.group_leader = list_first_entry(&p->tg.threads, struct tcb, threads);
     }
 
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d try to release p->tg.lock\n", t->tid);
-#endif
-
     release(&p->tg.lock);
-
-#ifdef __DEBUG_THREAD_EXIT
-    Log("thread %d released p->tg.lock\n", t->tid);
-#endif
-
-
-#ifdef __DEBUG_THREAD_EXIT
-Log("thread %d try to acquire t->lock\n", t->tid);
-#endif
+    
     acquire(&t->lock);
-#ifdef __DEBUG_THREAD_EXIT
-Log("thread %d has acquired t->lock\n", t->tid);
-#endif
     free_thread(t);
-
     // tcb_q_change_state(t, TCB_UNUSED);
     if(atomic_read(&tg->thread_cnt) == 0)
         release(&p->lth_exitlock);
-    // release(&t->lock);
-    
-#ifdef __DEBUG_THREAD_EXIT
-    Info("noff when finish thread_exit: %d\n", mycpu()->noff);
-#endif
 
     thread_sched();
     
