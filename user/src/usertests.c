@@ -589,9 +589,11 @@ writebig(char *s)
 
   for(i = 0; i < MAXFILE; i++){
     ((int*)buf)[0] = i;
-    if(write(fd, buf, BSIZE) != BSIZE){
-      printf("%s: error: write big file failed\n", s, i);
+    if((n = write(fd, buf, BSIZE)) != BSIZE){
+      // printf("%s: error: write big file failed, n = %d\n", s, i, n);
       exit(1);
+    } else {
+      // printf("write big file %d success\n", i);
     }
   }
 

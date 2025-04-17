@@ -439,6 +439,7 @@ xv6fs_bmap(struct inode *ip, uint bn)
     bp = xv6fs_fsops.bread(ip->dev, addr);
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
+      addr = xv6fs_fsops.balloc(ip->dev);
       if(addr) {
         a[bn] = addr = xv6fs_fsops.balloc(ip->dev);
         log_write(bp);
