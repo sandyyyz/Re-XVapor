@@ -440,13 +440,10 @@ struct inode* iget(uint dev, uint inum, int (*fill_inode)(struct inode *))
       // If the current inode is an mount point
       if (ip->type == T_MOUNT) {
         struct inode *rinode = mnt_rtinode(ip);
-
         if (rinode == 0) {
           panic("Invalid Inode on Mount Table");
         }
-
         rinode->ref++;
-
         release(&icache.lock);
         return rinode;
       }
@@ -514,13 +511,14 @@ void iput(struct inode *ip) {
     ip->type = 0;
     ip->iops->iupdate(ip);
     ip->valid = 0;
-    ip->iops->cleanup(ip);
     releasesleep(&ip->lock);
-
     acquire(&icache.lock);
   }
 
   ip->ref--;
+  if (ip->ref == 0 ) {
+    ip->iops->cleanup(ip);
+  }
   release(&icache.lock);
 }
 

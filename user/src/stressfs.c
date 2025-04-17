@@ -51,6 +51,7 @@ main(int argc, char *argv[])
   close(fd);
 
   wait(0);
+  printf("stressfs done\n");
 
   exit(0);
 }

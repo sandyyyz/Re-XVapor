@@ -14,7 +14,7 @@ ENTRY_OBJ := $(BUILD_DIR)/asm/entry.o
 OBJS := $(filter-out $(ENTRY_OBJ), $(OBJS))
 OBJS := $(ENTRY_OBJ) $(OBJS) 
 
-CFLAGS += -D__DEBUG_SYS_EXEC
+# CFLAGS += -D__DEBUG_SYS_EXEC
 # CFLAGS += -D__DEBUG_NAMEX
 
 # CFLAGS += -D__DEBUG_KILL
