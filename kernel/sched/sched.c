@@ -148,7 +148,7 @@ void thread_scheduler(void) {
             continue;
         else 
 #ifdef __DEBUG_SCHED
-            printf("thread %d is ready to run\n", t->tid);
+        printf("thread %d is ready to run\n", t->tid);
 
         printf("try to get thread%d's lock\n",t->tid);
 #endif

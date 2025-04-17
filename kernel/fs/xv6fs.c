@@ -109,15 +109,15 @@ static struct {
 struct xv6fs_superblock*
 alloc_xv6fs_sb()
 {
-  struct xv6fs_superblock *sb;
+  struct xv6fs_superblock *xsb;
 
   acquire(&xv6fs_sb_pool.lock);
-  for (sb = &xv6fs_sb_pool.sb[0]; sb < &xv6fs_sb_pool.sb[MAXVFSSIZE]; sb++) {
-    if (sb->flags == XV6FS_SB_FREE) {
-      sb->flags |= XV6FS_SB_USED;
+  for (xsb = &xv6fs_sb_pool.sb[0]; xsb < &xv6fs_sb_pool.sb[MAXVFSSIZE]; xsb++) {
+    if (xsb->flags == XV6FS_SB_FREE) {
+      xsb->flags |= XV6FS_SB_USED;
       release(&xv6fs_sb_pool.lock);
 
-      return sb;
+      return xsb;
     }
   }
   release(&xv6fs_sb_pool.lock);
@@ -241,6 +241,7 @@ xv6fs_readsb(int dev, struct superblock *sb)
   xv6fs_fsops.brelse(bp);
 
   sb->fs_info = xsb;
+  sb->flags |= SB_LOADED;
 }
 
 struct inode*
@@ -261,8 +262,8 @@ xv6fs_ialloc(uint dev, short type)
       dip->type = type;
       log_write(bp);   // mark it allocated on the disk
       xv6fs_fsops.brelse(bp);
+      return xv6fs_iget(dev, inum);
     }
-    return xv6fs_iget(dev, inum);
     xv6fs_fsops.brelse(bp);
   }
   panic("ialloc: no inodes");

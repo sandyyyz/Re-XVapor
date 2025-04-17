@@ -111,7 +111,7 @@ bread(uint dev, uint blockno)
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }
-  return b;
+  return b; 
 }
 
 // Write b's contents to disk.  Must be locked.

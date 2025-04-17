@@ -403,15 +403,25 @@ void iinit() {
   }
 }
 
+
+// static void print_xsb(struct xv6fs_superblock *xsp) {
+//   printf("xv6fs: magic %x, size %d, nblocks %d, ninodes %d, nlog %d, logstart %d, inodestart %d, bmapstart %d\n",
+//           xsp->magic, xsp->size, xsp->nblocks, xsp->ninodes, xsp->nlog, xsp->logstart, xsp->inodestart, xsp->bmapstart);
+// }
 void fsinit(int dev) {
   
   rootfs->fs_t->fsops->readsb(dev, &sb[dev]);
   // TODO: how about other kind of fs?
-  if(rootfs->fs_t->type == VFS_TYPE_XV6FS)
-    initlog(dev,(struct xv6fs_superblock*)&sb[dev].fs_info);
+  if(rootfs->fs_t->type == VFS_TYPE_XV6FS) {
+    struct xv6fs_superblock *xsp = (struct xv6fs_superblock*)sb[dev].fs_info;
+    if(xsp->magic != FSMAGIC) {
+      panic("xv6fs: bad super block");
+    }
+    initlog(dev,xsp);
+  }
 }
 
-  
+
 // Find the inode with number inum on device dev
 // and return the in-memory copy. Does not lock
 // the inode and does not read it from disk.
@@ -612,5 +622,17 @@ namex(char *path, int nameiparent, char *name)
     iput(ip);
     return 0;
   }
+  struct xv6fs_inode *xip = ip->i_private;
+
+  #ifdef __DEBUG_NAMEX
+  Log("ip->dev = %d", ip->dev);
+  Log("ip->inum = %d", ip->inum);
+  Log("xip->type = %d", xip->type);
+  Log("xip->size = %d", xip->size);
+  Log("xip->nlink = %d", xip->nlink);
+  Log("xip->major = %d", xip->major);
+  Log("xip->minor = %d", xip->minor);
+  Log("xip->addrs[0] = %d", xip->addrs[0]);
+#endif  
   return ip;
 }

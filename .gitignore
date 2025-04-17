@@ -26,3 +26,5 @@ barrier
 .DS_Store
 .cache/
 compile_commands.json
+build/*
+*.prog

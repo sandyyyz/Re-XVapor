@@ -512,13 +512,6 @@ sys_exec(void)
   // come in like:
   // # exec(path, argv)
   // where path is stored in a0, argv in a1 
-#ifdef __DEBUG_SYS_EXEC
-  Log("do sys_exec");
-  print_trapframe(mythread()->trapframe);
-  vmprint(mythread()->p->mm.pagetable);
-
-  walk_va(mythread()->p->mm.pagetable, (uint64)THREAD_TRAPFRAME(mythread()->tidx));
-#endif
   char path[MAXPATH], *argv[MAXARG];
   int i;
   uint64 uargv, uarg;
@@ -528,6 +521,11 @@ sys_exec(void)
   if(argstr(0, path, MAXPATH) < 0) {
     return -1;
   }
+
+#ifdef __DEBUG_SYS_EXEC
+  Log("do sys_exec");
+  Log("path = %s", path);
+#endif
   memset(argv, 0, sizeof(argv));
   for(i=0;; i++){
     if(i >= NELEM(argv)){
@@ -555,7 +553,6 @@ sys_exec(void)
     kfree(argv[i]);
 #ifdef __DEBUG_SYS_EXEC
   Log("sys_exec done"); 
-  g_first_exec += 1;
 #endif
 
   return ret;

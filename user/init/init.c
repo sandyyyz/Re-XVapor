@@ -16,7 +16,7 @@ int
 main(void)
 {
   int pid, wpid;
-
+  printf("init: starting xv6fs init\n");
   if(open("console", O_RDWR) < 0){
     mknod("console", CONSOLE, 0);
     open("console", O_RDWR);

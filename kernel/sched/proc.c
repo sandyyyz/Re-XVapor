@@ -150,6 +150,7 @@ mycpu(void)
 {
   int id = cpuid();
   struct cpu *c = &cpus[id];
+  
   return c;
 }
 
