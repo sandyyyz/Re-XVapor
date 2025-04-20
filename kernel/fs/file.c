@@ -32,11 +32,23 @@ struct file*
 filealloc(void)
 {
   struct file *f;
-
+  struct vfs_filesystem *fs;
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
     if(f->ref == 0){
+      // TODO: maybe change to dynamicly get fs 
+#ifdef __USE_XV6FS
+      fs = getfs("xv6fs");
+#else
+      fs = getfs("ext4");
+#endif
+      if(!fs) {
+        release(&ftable.lock);
+        panic("filealloc: no fs");
+        return 0;
+      }
       f->ref = 1;
+      f->fops = fs->fops;
       release(&ftable.lock);
       return f;
     }
@@ -74,6 +86,12 @@ fileclose(struct file *f)
   f->ref = 0;
   f->flags = 0;
   f->type = FD_NONE;
+  f->fops = 0;
+  if(f->private_data) {
+    f->fops->close(f);
+    f->fops->cleansf(f);
+  }
+  f->private_data = 0;
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){

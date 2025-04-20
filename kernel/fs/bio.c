@@ -66,7 +66,7 @@ binit(void)
 // In either case, return locked buffer.
 // 并不会从硬盘读取数据块
 // 若未找到，则返回一个locked buffer(refcnt == 0)(不抹除数据块)
-static struct buf*
+struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;

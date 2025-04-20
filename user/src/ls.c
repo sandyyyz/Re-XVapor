@@ -34,7 +34,7 @@ void ls(char *path) {
     return;
   }
 
-  printf("open success\n");
+  // printf("open success\n");
   if (fstat(fd, &st) < 0) {
     fprintf(2, "ls: cannot stat %s\n", path);
     close(fd);

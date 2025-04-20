@@ -1,5 +1,7 @@
 #ifndef __BUF_H
 #define __BUF_H
+#include "sleeplock.h"
+#include "xv6fs.h"
 
 struct buf {
   int valid;   // has data been read from disk?
@@ -11,6 +13,7 @@ struct buf {
   struct buf *prev; // LRU cache list
   struct buf *next;
   uchar data[BSIZE];
+
 };
 
-#endif  
+#endif 

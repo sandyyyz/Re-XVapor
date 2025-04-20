@@ -1045,7 +1045,7 @@ void
 reparent2(char *s)
 {  
   // stuck();
-  for(int i = 0; i < 800; i++){
+  for(int i = 0; i < 10; i++){
     int pid1 = fork();
     if(pid1 < 0){
       printf("fork failed\n");
@@ -1058,7 +1058,7 @@ reparent2(char *s)
     }
     wait(0);
   }
-
+  printf("exit\n");
   exit(0);
 }
 

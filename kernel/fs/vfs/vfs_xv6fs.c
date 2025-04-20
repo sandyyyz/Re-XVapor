@@ -12,13 +12,6 @@ int vfs_xv6fs_readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n
 void vfs_xv6fs_iput(struct inode *ip);
 void vfs_xv6fs_fileclose(struct file *f);
 
-struct file_ops xv6fs_fops = {
-    .open = vfs_xv6fs_open,
-    .close = vfs_xv6fs_fileclose,
-    .read = vfs_xv6fs_fileread,
-    .write = vfs_xv6fs_filewrite,
-
-};
 
 struct inode_ops xv6fs_inode_ops = {
     .readi = vfs_xv6fs_readi,

@@ -824,3 +824,14 @@ inode 和 file 之间的关系
 - file 结构存储的是进程私有的数据
 
 - 每个进程都有自己的 f_pos，所以进程 A 读写文件 /foo/bar.txt 时，不会影响进程 B 读取相同的文件。
+
+
+## qemu mmio 
+https://blog.csdn.net/huang987246510/article/details/123101595  
+https://blog.csdn.net/qq_48458789/article/details/141124876  
+
+结合xv6的详解：
+https://blog.csdn.net/qq_45226456/article/details/133583975  
+
+virtio specification:  
+https://docs.oasis-open.org/virtio/virtio/v1.2/csd01/virtio-v1.2-csd01.pdf#page=1.24

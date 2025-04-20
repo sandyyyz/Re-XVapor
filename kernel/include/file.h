@@ -31,6 +31,7 @@ struct file {
 
   // support vfs
   struct file_ops *fops; // file operations
+  void *private_data; // filesystem-specific data; just used for ext4 right now , xv6fs donn't have fs-specific file structure, so don't use this
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)

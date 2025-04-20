@@ -38,6 +38,9 @@ OBJS := $(ENTRY_OBJ) $(OBJS)
 # CFLAGS += -D__DEBUG_MMAP_WRITEBACK
 # CFLAGS += -D__DEBUG_SCHED
 
+
+# CFLAGS += -D__USE_XV6FS
+
 .PHONY: all clean
 
 LDFLAGS = -z max-page-size=4096

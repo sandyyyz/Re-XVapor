@@ -46,3 +46,6 @@ typedef uint64 sig_t;
 // mm
 typedef uint64 paddr_t;
 #endif
+
+#define true 1
+#define false 0

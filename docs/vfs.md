@@ -43,3 +43,5 @@ https://www.kernel.org/doc/html/v6.13/filesystems/vfs.html
 
 There are three major structures to
 handle filesystem-independent information: `inode`, `superblock` and `filesystem_type`.
+
+当前vfs暂时只对iops和fsops进行了抽象。暂时不对fops做适配。

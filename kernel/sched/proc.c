@@ -441,8 +441,9 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
 
+#ifdef __USE_XV6FS
   p->cwd = namei("/"); 
-
+#endif
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
 
@@ -619,7 +620,8 @@ void proc_exit(int status)
   p->cwd = 0;
 
   acquire(&wait_lock);
-
+  
+  acquire(&p->lth_exitlock);
   // Give any children to init.
   reparent(p);
 
@@ -629,8 +631,6 @@ void proc_exit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
-  
-  acquire(&p->lth_exitlock);
 
   pcb_q_change_state(p, ZOMBIE);
   release(&wait_lock);

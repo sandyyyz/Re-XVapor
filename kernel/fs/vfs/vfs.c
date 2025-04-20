@@ -11,6 +11,8 @@
 #include "list.h"
 #include "device.h"
 #include "vfs_mount.h"
+#include "ext4_errno.h"
+#include "blockdev.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -404,12 +406,15 @@ void iinit() {
 }
 
 
+int ext4_init();
+
 // static void print_xsb(struct xv6fs_superblock *xsp) {
 //   printf("xv6fs: magic %x, size %d, nblocks %d, ninodes %d, nlog %d, logstart %d, inodestart %d, bmapstart %d\n",
 //           xsp->magic, xsp->size, xsp->nblocks, xsp->ninodes, xsp->nlog, xsp->logstart, xsp->inodestart, xsp->bmapstart);
 // }
 void fsinit(int dev) {
   
+  #ifdef __USE_XV6FS
   rootfs->fs_t->fsops->readsb(dev, &sb[dev]);
   // TODO: how about other kind of fs?
   if(rootfs->fs_t->type == VFS_TYPE_XV6FS) {
@@ -419,7 +424,11 @@ void fsinit(int dev) {
     }
     initlog(dev,xsp);
   }
+  #else 
+  ext4_init();
+  #endif
 }
+
 
 
 // Find the inode with number inum on device dev

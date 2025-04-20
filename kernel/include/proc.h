@@ -8,6 +8,7 @@
 #include "mm.h"
 #include "thread.h"
 #include "vfs.h"
+#include "ext4.h"
 
 struct thread_group;
 struct tcb;
@@ -75,6 +76,8 @@ struct proc {
   struct semaphore tlock;
 
   struct mm_struct mm;
+  
+  struct ext4_dir dir; // for ext4
 
 };
 

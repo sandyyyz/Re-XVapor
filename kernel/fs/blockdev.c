@@ -30,7 +30,17 @@
 #include <ext4_config.h>
 #include <ext4_blockdev.h>
 #include <ext4_errno.h>
+#include "types.h"
+#include "defs.h"
+#ifndef __USE_XV6FS
+#include "buf.h"
+#endif
+#include "param.h"
 
+
+#ifndef BSIZE
+#define BSIZE 1024
+#endif
 
 /**********************BLOCKDEV INTERFACE**************************************/
 static int blockdev_open(struct ext4_blockdev *bdev);
@@ -43,7 +53,7 @@ static int blockdev_lock(struct ext4_blockdev *bdev);
 static int blockdev_unlock(struct ext4_blockdev *bdev);
 
 /******************************************************************************/
-EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, 512, 0, blockdev_open,
+EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, BSIZE, (uint64)1 << 22, blockdev_open,
 			      blockdev_bread, blockdev_bwrite, blockdev_close,
 			      blockdev_lock, blockdev_unlock);
 
@@ -51,7 +61,7 @@ EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, 512, 0, blockdev_open,
 static int blockdev_open(struct ext4_blockdev *bdev)
 {
 	/*blockdev_open: skeleton*/
-	return EIO;
+	return EOK;
 }
 
 /******************************************************************************/
@@ -59,8 +69,16 @@ static int blockdev_open(struct ext4_blockdev *bdev)
 static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
 			 uint32_t blk_cnt)
 {
-	/*blockdev_bread: skeleton*/
-	return EIO;
+	uint64 bp = (uint64)buf;
+	// printf("blockdev_bread: %p %p %d %d\n", bdev, buf, blk_id, blk_cnt);
+	for(int i = 0; i < blk_cnt; i++) {
+		struct buf *b = bread(ROOTDEV, blk_id + i);
+		memmove((void*)bp, b->data, BSIZE);
+		bp += BSIZE;
+		brelse(b);
+	}
+
+	return EOK;
 }
 
 
@@ -68,26 +86,34 @@ static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id
 static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
 			  uint64_t blk_id, uint32_t blk_cnt)
 {
-	/*blockdev_bwrite: skeleton*/
-	return EIO;
+	uint64 bp = (uint64)buf;
+	for(int i = 0; i < blk_cnt; i++) {
+		struct buf *b = bget(ROOTDEV, blk_id + i);
+		memmove(b->data, (void*)bp, BSIZE);
+		bwrite(b);
+		bp += BSIZE;
+		brelse(b);
+	}
+		
+	return EOK;
 }
 /******************************************************************************/
 static int blockdev_close(struct ext4_blockdev *bdev)
 {
 	/*blockdev_close: skeleton*/
-	return EIO;
+	return EOK;
 }
 
 static int blockdev_lock(struct ext4_blockdev *bdev)
 {
 	/*blockdev_lock: skeleton*/
-	return EIO;
+	return EOK;
 }
 
 static int blockdev_unlock(struct ext4_blockdev *bdev)
 {
 	/*blockdev_unlock: skeleton*/
-	return EIO;
+	return EOK;
 }
 
 /******************************************************************************/

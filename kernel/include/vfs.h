@@ -9,6 +9,7 @@
 #include "param.h"
 #include "list.h"
 
+
 #ifndef VFS_MAXFS
 #define VFS_MAXFS 4
 #endif
@@ -120,7 +121,7 @@ struct file_ops {
     int             (*read)(struct file *f, void *buf, int count);
     int             (*write)(struct file *f, const void *buf, int count);
     int             (*filestat)(struct file *f, uint64 addr);
-
+    int             (*cleansf)(struct file* f);
 };
 
 struct fs_ops {

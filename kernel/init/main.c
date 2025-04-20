@@ -9,6 +9,7 @@
 #include "vfs_mount.h"
 #include "vfs.h"
 #include "device.h"
+#include "ext4fs.h"
 
 volatile static int started = 0;
 int init_finished = 0;
@@ -16,9 +17,21 @@ volatile static int cpunum = 4;
 // start() jumps here in supervisor mode on all CPUs.
 
 static void initfss() {
+  init_vfssw();   // init vfs switch list
+  init_vfsmlist();  // init mount list
+  mntinit();      //  init mount table 
+  bdev_table_init();  // init block device table
+
+#ifdef __USE_XV6FS
   if(init_xv6fs() < 0) {
     panic("xv6fs_init failed");
   }
+  #else 
+  if(init_ext4fs() < 0) {
+    panic("ext4fs_init failed");
+  }
+#endif
+  install_rootfs(); 
 }
 void
 main()
@@ -44,12 +57,7 @@ main()
     binit();         // buffer cache
     iinit();         // inode table
     fileinit();      // file table
-    init_vfssw();
-    init_vfsmlist();
-    mntinit();
-    bdev_table_init();
-    initfss();
-    install_rootfs();
+    initfss();      // init all filesystems
     virtio_disk_init(); // emulated hard disk
     userinit();      // first user process
     __sync_synchronize();

@@ -20,6 +20,7 @@ void            brelse(struct buf*);
 void            bwrite(struct buf*);
 void            bpin(struct buf*);
 void            bunpin(struct buf*);
+struct buf* bget(uint dev, uint blockno);
 
 // console.c
 void            consoleinit(void);
@@ -198,4 +199,5 @@ void            virtio_disk_intr(void);
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 #define N2ADDR(x) ((void*)(x))
 #define ADDR2N(x) ((uint64)(x))
+
 #endif // __DEFS_H__

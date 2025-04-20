@@ -49,7 +49,21 @@ int xv6fs_writei(struct inode *ip, int user_src, uint64 src, uint off, uint n);
 int xv6fs_unlink(struct inode *dp, uint off);
 int xv6fs_isdirempty(struct inode *dp);
 struct inode* xv6fs_iget(uint dev, uint inum);
+int xv6fs_open(const char *path, int flags);
+void xv6fs_close(struct file *f);
+int xv6fs_read(struct file *f, void *buf, int count);
+int xv6fs_write(struct file *f, const void *buf, int count);
+int xv6fs_filestat(struct file *f, uint64 addr);
+int xv6fs_cleansf(struct file *f);
 
+struct file_ops xv6fs_fops = {
+  .open = &xv6fs_open,
+  .close = &xv6fs_close,
+  .read = &xv6fs_read,
+  .write = &xv6fs_write,
+  .filestat = &xv6fs_filestat,
+  .cleansf = &xv6fs_cleansf
+};
 struct fs_ops xv6fs_fsops = {
   .fs_init = &xv6fs_init,
   .mount   = &xv6fs_mount,
@@ -86,7 +100,8 @@ struct vfs_filesystem xv6fs = {
   .type = VFS_TYPE_XV6FS,
   .name = "xv6fs",
   .fsops = &xv6fs_fsops,
-  .iops = &xv6fs_iops
+  .iops = &xv6fs_iops,
+  .fops = &xv6fs_fops,
 };
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -608,3 +623,23 @@ xv6fs_iget(uint dev, uint inum)
   return iget(dev, inum, &xv6fs_fill_inode);
 }
 
+
+int xv6fs_open(const char *path, int flags) {
+  return 0;
+}
+
+void xv6fs_close(struct file *f) {
+  return;
+}
+int xv6fs_read(struct file *f, void *buf, int count) {
+  return 0;
+}
+int xv6fs_write(struct file *f, const void *buf, int count) {
+  return 0;
+}
+int xv6fs_filestat(struct file *f, uint64 addr) {
+  return 0;
+}
+int xv6fs_cleansf(struct file* fp) {
+  return 0;
+}

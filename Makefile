@@ -10,9 +10,14 @@ CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -Iinclude 
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-
 QEMU = qemu-system-riscv64
 
+# FS_XV6FS = 1
+ifdef FS_XV6FS
+FSIMG := $(BUILD_DIR)/fs/fs.img
+else
+FSIMG := sdcard-rv.img
+endif
 UPROGS =
 
 test: $(UPROGS_TEST)
@@ -110,7 +115,7 @@ endif
 
 QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/kernel/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
-QEMUOPTS += -drive file=$(BUILD_DIR)/fs/fs.img,if=none,format=raw,id=x0
+QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 
@@ -120,7 +125,7 @@ qemu: user kernel fs.img
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: $(BUILD_DIR)/$(KERNEL_DIR)/kernel .gdbinit $(BUILD_DIR)/fs/fs.img
+qemu-gdb: $(BUILD_DIR)/$(KERNEL_DIR)/kernel .gdbinit $(FSIMG)
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 

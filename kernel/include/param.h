@@ -18,7 +18,13 @@
 #define MAXPATH      128   // maximum file path name
 #define MAXVFSSIZE   4  // size of file system in blocks
 #define MAXBDEV       4  // maximum numbers of block devices
+
+#ifdef __USE_XV6FS
 #define ROOTFSTYPE  "xv6fs"
+#else
+#define ROOTFSTYPE  "ext4"
+#endif
+
 #define NTHREADS_PER_PROC 2
 #define NTHREADS (NPROC * NTHREADS_PER_PROC)
 

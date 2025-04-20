@@ -180,13 +180,9 @@ free_desc(int i)
   disk.desc[i].flags = 0;
   disk.desc[i].next = 0;
   disk.free[i] = 1;
-#ifdef __DEBUG_FREE_DESC
-  Log("thread_wakeup_chan");
-#endif
+
   thread_wakeup_chan(&disk.free[0]);
-#ifdef __DEBUG_FREE_DESC
-  Log("thread_wakeup_chan end");
-#endif
+
 }
 
 // free a chain of descriptors.
@@ -224,17 +220,9 @@ alloc3_desc(int *idx)
 void
 virtio_disk_rw(struct buf *b, int write)
 {
-#ifdef __DEBUG_DISK_RW
-  Log("into disk_rw!");
-#endif
+
   uint64 sector = b->blockno * (BSIZE / 512);
-#ifdef __DEBUG_DISK_RW
-  Log("thread %d try to acquire disk.vdisk_lock", mythread()->tid);
-#endif
   acquire(&disk.vdisk_lock);
-#ifdef __DEBUG_DISK_RW
-  Log("thread %d has acquired disk.vdisk_lock", mythread()->tid);
-#endif
   // the spec's Section 5.2 says that legacy block operations use
   // three descriptors: one for type/reserved/sector, one for the
   // data, one for a 1-byte status result.
@@ -243,14 +231,8 @@ virtio_disk_rw(struct buf *b, int write)
   int idx[3];  
   while(1){
     if(alloc3_desc(idx) == 0) {
-#ifdef __DEBUG_DISK_RW
-      Log("alloc_desc break");
-#endif  
     break;
     }
-#ifdef __DEBUG_DISK_RW
-    Log("sleep &disk.free[0]");
-#endif    
     thread_sleep(&disk.free[0], &disk.vdisk_lock);
   }
 
@@ -292,13 +274,6 @@ virtio_disk_rw(struct buf *b, int write)
 
   // tell the device the first index in our chain of descriptors.
   disk.avail->ring[disk.avail->idx % NUM] = idx[0];
-#ifdef __DEBUG_DISK_RW
-  Log("reach sync1");
-#endif
-  __sync_synchronize();
-#ifdef __DEBUG_DISK_RW
-  Log("pass sync1");
-#endif
 
   // tell the device another avail ring entry is available.
   disk.avail->idx += 1; // not % NUM ...
@@ -307,37 +282,16 @@ virtio_disk_rw(struct buf *b, int write)
 
   __sync_synchronize();
 
-#ifdef __DEBUG_DISK_RW
-  Log("pass sync2");
-#endif
-
   *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // value is queue number
 
   // Wait for virtio_disk_intr() to say request has finished.
   while(b->disk == 1) {
-#ifdef __DEBUG_DISK_RW
-    Log("thread sleep %p", b);
-#endif
     thread_sleep(b, &disk.vdisk_lock);
-#ifdef __DEBUG_DISK_RW
-    Log("thread sleep end");
-#endif
   }
 
   disk.info[idx[0]].b = 0;
-#ifdef __DEBUG_DISK_RW
-  Log("free_chain");
-#endif
   free_chain(idx[0]);
-#ifdef __DEBUG_DISK_RW 
-  Log("free_chain end");
-  Log("thread %d try to release disk.vdisk_lock", mythread()->tid);
-#endif
   release(&disk.vdisk_lock);
-#ifdef __DEBUG_DISK_RW
-  Log("thread %d has released disk.vdisk_lock", mythread()->tid);
-  Log("disk_rw end");
-#endif
 
 }
 
