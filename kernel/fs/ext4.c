@@ -2104,7 +2104,7 @@ int ext4_raw_inode_fill(const char *path, uint32_t *ret_ino,
 
 	EXT4_MP_LOCK(mp);
 
-	r = ext4_generic_open2(&f, path, O_RDONLY, EXT4_DE_UNKNOWN, NULL, NULL);
+ 	r = ext4_generic_open2(&f, path, O_RDONLY, EXT4_DE_UNKNOWN, NULL, NULL);
 	if (r != EOK) {
 		EXT4_MP_UNLOCK(mp);
 		return r;

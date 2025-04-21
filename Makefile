@@ -16,7 +16,7 @@ QEMU = qemu-system-riscv64
 ifdef FS_XV6FS
 FSIMG := $(BUILD_DIR)/fs/fs.img
 else
-FSIMG := sdcard-rv.img
+FSIMG := sdcard.img
 endif
 UPROGS =
 

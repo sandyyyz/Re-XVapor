@@ -13,7 +13,6 @@
 struct thread_group;
 struct tcb;
 
-
 // Per-CPU state.
 struct cpu {
   // struct proc *proc;          // The process running on this cpu, or null.
@@ -54,6 +53,9 @@ struct proc {
   // struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
+
+  struct cwdinfo cinfo;
+
   char name[16];               // Process name (debugging)
 
   // used for sys_times
@@ -89,5 +91,6 @@ struct proc {
 #define nextsibling(p) (list_first_entry(&(p->sibling_list), struct proc, sibling_list))
 
 void freeproc(struct proc *p);
+struct proc* myproc(void);
 
 #endif

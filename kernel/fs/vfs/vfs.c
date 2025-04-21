@@ -13,12 +13,16 @@
 #include "vfs_mount.h"
 #include "ext4_errno.h"
 #include "blockdev.h"
+#include "ext4fs.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 extern struct file_ops ext4_fops;
 extern struct file_ops xv6fs_fops;
+
 static struct inode* namex(char *path, int nameiparent, char *name);
+
+
 struct superblock sb[NDEV];
 
 /*
@@ -429,8 +433,44 @@ void fsinit(int dev) {
   #endif
 }
 
+/**
+ * @brief find the inode with the given private data, and fill a potential empty inode 
+ * 
+ * @param pdata i_private
+ * @return struct inode* 
+ */
+struct inode *ifind_fempty(void *pdata) {
+  struct inode *ip = NULL;
+  struct inode *empty = NULL;
+  struct vfs_filesystem *fs = NULL;
+  acquire(&icache.lock);
+  for(ip = &icache.inode[0]; ip < &icache.inode[NINODE]; ip++) {
+    if (ip->ref > 0 && ip->i_private == pdata) {
+      ip->ref++;
+      release(&icache.lock);
+      return ip;
+    }
+    if(empty == 0 && ip->ref == 0) { // Remember empty slot.
+      empty = ip;
+    }
+  }
+  if(empty == 0){
+    panic("ifind_wempty: no inodes");}
 
+    fs = get_vfs_entry(BLOCKMAJOR, ROOTDEV)->fs_t;
 
+    ip = empty;
+    ip->dev = ROOTDEV;
+    ip->inum = 999999; // TODO
+    ip->ref = 1;
+    ip->valid = 0;
+    ip->fs = fs;
+    ip->iops = fs->iops;
+    ip->i_private = pdata;
+    release(&icache.lock);
+    return ip;
+
+}
 // Find the inode with number inum on device dev
 // and return the in-memory copy. Does not lock
 // the inode and does not read it from disk.
@@ -531,51 +571,17 @@ void iput(struct inode *ip) {
   release(&icache.lock);
 }
 
-  // Paths
-  
-  // Copy the next path element from path into name.
-  // Return a pointer to the element following the copied one.
-  // The returned path has no leading slashes,
-  // so the caller can check *path=='\0' to see if the name is the last one.
-  // If no name to remove, return 0.
-  //
-  // Examples:
-  //   skipelem("a/bb/c", name) = "bb/c", setting name = "a"
-  //   skipelem("///a//bb", name) = "bb", setting name = "a"
-  //   skipelem("a", name) = "", setting name = "a"
-  //   skipelem("", name) = skipelem("////", name) = 0
-  //
-  static char *skipelem(char *path, char *name) {
-    char *s;
-    int len;
-  
-    while (*path == '/')
-      path++;
-    if (*path == 0)
-      return 0;
-    s = path;
-    while (*path != '/' && *path != 0)
-      path++;
-    len = path - s;
-    if (len >= DIRSIZ)
-      memmove(name, s, DIRSIZ);
-    else {
-      memmove(name, s, len);
-      name[len] = 0;
-    }
-    while (*path == '/')
-      path++;
-    return path;
-  }
-  
+
   struct inode *namei(char *path) {
+    #ifdef __USE_XV6FS
     char name[DIRSIZ];
     return namex(path, 0, name);
+    #else
+    return ext4_namei(path);
+    #endif
   }
   
-  struct inode *nameiparent(char *path, char *name) {
-    return namex(path, 1, name);
-  }
+
   
   
 // Look up and return the inode for a path name.
@@ -643,10 +649,50 @@ void iput(struct inode *ip) {
 //   return ip;
 // }
 
+  // Paths
+  
+  // Copy the next path element from path into name.
+  // Return a pointer to the element following the copied one.
+  // The returned path has no leading slashes,
+  // so the caller can check *path=='\0' to see if the name is the last one.
+  // If no name to remove, return 0.
+  //
+  // Examples:
+  //   skipelem("a/bb/c", name) = "bb/c", setting name = "a"
+  //   skipelem("///a//bb", name) = "bb", setting name = "a"
+  //   skipelem("a", name) = "", setting name = "a"
+  //   skipelem("", name) = skipelem("////", name) = 0
+  //
+  static char *skipelem(char *path, char *name) {
+    char *s;
+    int len;
+  
+    while (*path == '/')
+      path++;
+    if (*path == 0)
+      return 0;
+    s = path;
+    while (*path != '/' && *path != 0)
+      path++;
+    len = path - s;
+    if (len >= DIRSIZ)
+      memmove(name, s, DIRSIZ);
+    else {
+      memmove(name, s, len);
+      name[len] = 0;
+    }
+    while (*path == '/')
+      path++;
+    return path;
+  }
+  struct inode *nameiparent(char *path, char *name) {
+    return namex(path, 1, name);
+  }
 // Look up and return the inode for a path name.
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
+
 static struct inode *namex(char *path, int nameiparent, char *name) {
   struct inode *ip, *next;
 

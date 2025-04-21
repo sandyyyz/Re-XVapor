@@ -56,6 +56,8 @@ struct inode {
   struct vfs_filesystem *fs; // Filesystem
   struct inode_ops *iops; // Inode operations
   void *i_private; // private data for the inode
+
+  int i_ino;
 };
 
 

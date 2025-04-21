@@ -23,6 +23,12 @@
 #define SB_LOADED 1
 #define SB_UNLOADED 0
 
+struct cwdinfo {
+    char path[MAXPATH]; // current working directory
+    struct vfs_filesystem *fs;
+    void *pdata; // private data for the filesystem
+};
+
 struct icache_t {
     // synchronize access for multiple processes
     struct spinlock lock;
@@ -160,5 +166,8 @@ void iinit();
 void install_rootfs(void);
 void init_vfssw(void);
 void init_vfsmlist(void);
+
+void get_absolute_path(const char *path, const char *cwd, char *absolute_path);
+struct inode *ifind_fempty(void *pdata);
 
 #endif

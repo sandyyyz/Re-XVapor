@@ -633,3 +633,50 @@ vma页可能因为还没被访问而未被分配和映射，所以加个判断
 ![ext4.1](image-111.png)
 
 导致后续``ext4_fs_init_inode_bitmap(struct ext4_block_group_ref *bg_ref)``函数中bitmap_block_addr是一个非常夸张大的数字，导致``ext4_trans_block_get_noread()``失败。事实上这个block_group的数据应该就是错的。checksum时已经抛出了warning
+
+这个函数
+```c 
+static int
+__ext4_fs_get_inode_ref(struct ext4_fs *fs, uint32_t index,
+			struct ext4_inode_ref *ref,
+			bool initialized)
+      ```
+    会调用函数
+    ```c
+    int ext4_fs_get_block_group_ref(struct ext4_fs *fs, uint32_t bgid,
+				struct ext4_block_group_ref *ref)
+  ```
+
+只要调用
+```c
+int ext4_fs_get_block_group_ref(struct ext4_fs *fs, uint32_t bgid,
+				struct ext4_block_group_ref *ref)
+        ```
+就会有问题
+
+``` c
+int ext4_block_get(struct ext4_blockdev *bdev, struct ext4_block *b,
+		   uint64_t lba)
+{
+	int r = ext4_block_get_noread(bdev, b, lba);
+
+  ```
+
+  最后居然发现是
+  ```c
+  void *kalloc(void) {
+  struct run *r;
+
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  if (r)
+    kmem.freelist = r->next;
+  release(&kmem.lock);
+
+  if (r)
+    memset((char *)r, 0, PGSIZE); // fill with junk
+  return (void *)r;
+}
+```
+塞的junk的问题哈哈哈:(
+
