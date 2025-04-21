@@ -53,7 +53,7 @@ static int blockdev_lock(struct ext4_blockdev *bdev);
 static int blockdev_unlock(struct ext4_blockdev *bdev);
 
 /******************************************************************************/
-EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, BSIZE, (uint64)1 << 22, blockdev_open,
+EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, BSIZE, (uint64)1 << 32, blockdev_open,
 			      blockdev_bread, blockdev_bwrite, blockdev_close,
 			      blockdev_lock, blockdev_unlock);
 
@@ -70,7 +70,6 @@ static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id
 			 uint32_t blk_cnt)
 {
 	uint64 bp = (uint64)buf;
-	// printf("blockdev_bread: %p %p %d %d\n", bdev, buf, blk_id, blk_cnt);
 	for(int i = 0; i < blk_cnt; i++) {
 		struct buf *b = bread(ROOTDEV, blk_id + i);
 		memmove((void*)bp, b->data, BSIZE);

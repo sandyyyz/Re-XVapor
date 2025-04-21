@@ -168,7 +168,7 @@ main(int argc, char *argv[])
         shortname[len - 5] = '\0'; 
     }
 
-    printf("shortname %s\n", shortname);
+    // printf("shortname %s\n", shortname);
 
     inum = ialloc(T_FILE);
 

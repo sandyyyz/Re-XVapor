@@ -576,8 +576,9 @@ int ext4_fs_get_block_group_ref(struct ext4_fs *fs, uint32_t bgid,
 	/* Block group descriptor table starts at the next block after
 	 * superblock */
 	uint64_t block_id = ext4_fs_get_descriptor_block(&fs->sb, bgid, dsc_cnt);
-
 	uint32_t offset = (bgid % dsc_cnt) * ext4_sb_get_desc_size(&fs->sb);
+	printf("block_id: %d\n", block_id);
+	printf("offset: %d\n", offset);
 
 	int rc = ext4_trans_block_get(fs->bdev, &ref->block, block_id);
 	if (rc != EOK)

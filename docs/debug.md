@@ -624,3 +624,12 @@ test not-mapped unmap
 panic: uvmunmap: not mapped
 
 vma页可能因为还没被访问而未被分配和映射，所以加个判断
+
+
+## ext4
+
+### ext4.1
+奇怪的block_group
+![ext4.1](image-111.png)
+
+导致后续``ext4_fs_init_inode_bitmap(struct ext4_block_group_ref *bg_ref)``函数中bitmap_block_addr是一个非常夸张大的数字，导致``ext4_trans_block_get_noread()``失败。事实上这个block_group的数据应该就是错的。checksum时已经抛出了warning
