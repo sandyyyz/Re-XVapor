@@ -114,20 +114,31 @@ void usertrap(void) {
       readi(fp->ip, 1, va, offset, PGSIZE);
       iunlock(fp->ip);
       release(&p->mm.lock);
-    }
-    else if (which_dev == 4){
+    } else if (which_dev == 4) {
       uint64 va = PGROUNDDOWN(r_stval());
       uint64 newmem = (uint64)kzalloc();
-      if (newmem == 0)
-      {
+      if (newmem == 0) {
         // TODO
+        printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
+        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+        printf("scause=%p\n", r_scause());
+        printf("sstatus=%p\n", r_sstatus());
+        printf("satp=%p\n", r_satp());
+        panic("usertrap: kalloc");
       }
-      if(mappages(p->mm.pagetable, va, PGSIZE, newmem, PTE_W|PTE_R|PTE_X|PTE_U) != 0){
-        kfree((void*)newmem);
+      if (mappages(p->mm.pagetable, va, PGSIZE, newmem,
+                   PTE_W | PTE_R | PTE_X | PTE_U) != 0) {
+        kfree((void *)newmem);
         // TODO
       }
 
+    } else if (which_dev == 5) {
+      // 可以重构
+      if (walkaddr_with_cow(p->mm.pagetable, PGROUNDDOWN(r_stval())) == -1) {
+        panic("usertrap: walkaddr_with_cow");
+      }
     }
+
   } else {
 
 #ifdef __DEBUG_UTRAP
@@ -347,9 +358,15 @@ int devintr() {
     // read /write page fault
     struct proc *p = myproc();
     uint64 va = PGROUNDDOWN(r_stval());
-    if (va <= p->sz && va >= mythread()->trapframe->sp && !(find_vma(p, va))) {
+    pte_t *pte = walk(p->mm.pagetable, va, 0);
+    if ((pte == 0 || !(*pte & PTE_V)) && !find_vma(p, va)) {
       return 4;
     }
+
+    if (*pte & PTE_COW) {
+      return 5;
+    }
+
     return 3;
   }
 
