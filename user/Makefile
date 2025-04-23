@@ -14,6 +14,7 @@ ULIBSRC = $(wildcard *.c) $(foreach dir, $(ULIB_DIR), $(wildcard $(dir)/*.c))
 ULIB = $(patsubst %.c, $(BUILD_DIR)/%.o, $(ULIBSRC))
 CFLAGS += -I$(KERNEL_DIR)/include 
 ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
+OBJCOPY = $(TOOLPREFIX)objcopy
 # $(info src : $(SRC))
 # $(info obj : $(OBJ))
 # $(info uprogs : $(UPROGS))r
@@ -35,7 +36,7 @@ MKDIR: $(SUBDIR_PATHS)
 $(SUBDIR_PATHS):
 	mkdir -p $@
 
-user: MKDIR $(BUILD_DIR)/initcode $(OBJ) $(ULIB) $(UPROGS) uprogs-list.mk
+user: MKDIR $(BUILD_DIR)/initcode $(OBJ) $(ULIB) $(UPROGS) uprogs-list.mk $(BUILD_DIR)/initcode.h
 
 $(BUILD_DIR)/%.prog: %.o $(ULIB) | $(BUILD_DIR)
 	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
@@ -58,7 +59,13 @@ $(BUILD_DIR)/initcode.out: $(BUILD_DIR)/initcode.o
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $@ $<
 
 $(BUILD_DIR)/initcode: $(BUILD_DIR)/initcode.out
-	@cp $< $@
+	$(OBJCOPY) -S -O binary $(BUILD_DIR)/initcode.out $(BUILD_DIR)/initcode
+
+$(BUILD_DIR)/initcode.h: $(BUILD_DIR)/initcode
+	xxd -i $< | \
+	sed 's/unsigned char .*\[\]/unsigned char initcode[]/' | \
+	sed 's/unsigned int .*_len/unsigned int initcode_len/' > $@
+
 
 $(BUILD_DIR)/$(ULIB_DIR)/usys.S : $U/usys.pl
 	perl $< > $@

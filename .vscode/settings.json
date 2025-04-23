@@ -111,7 +111,8 @@
         "cstdbool": "c",
         "buf.h": "c",
         "ext4.h": "c",
-        "ext4_fs.h": "c"
+        "ext4_fs.h": "c",
+        "initcode.h": "c"
     },
 
     "multiCommand.commands": [

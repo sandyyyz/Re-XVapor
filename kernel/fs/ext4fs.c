@@ -8,17 +8,50 @@
 #include "ext4fs.h"
 #include "list.h"
 
+void ext4_ilock(struct inode *ip);
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
+int ext4_vfopen(struct file *fp, const char *path, uint32_t flags);
+
+struct {
+    struct ext4_mfile fpool[NFILE];
+    spinlock_t lock;
+} ext4_fpool;
+
 struct {
     struct ext4_minode ipool[NINODE];
     spinlock_t lock;
 } ext4_ipool;
 
+struct inode_ops ext4_inode_ops = {
+    .ilock = ext4_ilock,
+    .iunlock = generic_iunlock,
+    .stati = generic_stati,
+
+};
+
+struct file_ops ext4_file_ops = {
+
+};
+
+struct fs_ops ext4_fs_ops = {
+};
+
 struct vfs_filesystem ext4_fs = {
     .name = "ext4",
     .type = VFS_TYPE_EXT4,
+    .iops = &ext4_inode_ops,
 };
 
 
+void init_ext4_fpool() {
+    memset(&ext4_fpool, 0, sizeof(ext4_fpool));
+    initlock(&ext4_fpool.lock, "ext4_fpool");
+}
+
+void init_ext4_ipool() {
+    memset(&ext4_ipool, 0, sizeof(ext4_ipool));
+    initlock(&ext4_ipool.lock, "ext4_ipool");
+}
 
 int ext4_init()
 {
@@ -74,6 +107,36 @@ void ext4_ipool_init() {
     initlock(&ext4_ipool.lock, "ext4_ipool");
 }
 
+struct ext4_file *ext4_falloc() {
+    struct ext4_file *fp = NULL;
+    acquire(&ext4_fpool.lock);
+    for (int i = 0; i < NFILE; i++) {
+        if (ext4_fpool.fpool[i].ref == 0) {
+            ext4_fpool.fpool[i].ref++;
+            fp = &ext4_fpool.fpool[i].ext4_fentry;
+            break;
+        }
+    }
+    release(&ext4_fpool.lock);
+    return fp;
+}
+
+inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
+    return container_of(efp, struct ext4_mfile, ext4_fentry);
+}
+int recycle_efile(struct ext4_file *efp) {
+    acquire(&ext4_fpool.lock);
+    struct ext4_mfile *fp = parent_mfile(efp);
+    if (fp->ref > 0) {
+        fp->ref--;
+    }
+    if (fp->ref == 0) {
+        memset(fp, 0, sizeof(struct ext4_mfile));
+    }
+    release(&ext4_fpool.lock);
+    return 0;
+}
+
 struct ext4_inode *ext4_ialloc() {
     struct ext4_inode *ip = NULL;
     acquire(&ext4_ipool.lock);
@@ -88,7 +151,7 @@ struct ext4_inode *ext4_ialloc() {
     return ip;
 }
 
-struct ext4_minode inline *parent_minode(struct ext4_inode *eip) {
+inline struct ext4_minode *parent_minode(struct ext4_inode *eip) {
     return container_of(eip, struct ext4_minode, ext4_ientry);
 }
 
@@ -135,3 +198,124 @@ struct inode *ext4_namei(char *rel_path) {
     return inode;
 
 }
+
+void ext4_ilock(struct inode *ip) {
+    if(ip == 0 || ip->ref < 1)
+        panic("ilock");
+    acquiresleep(&ip->lock);
+}
+
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    char *kbuf = NULL;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return EINVAL;
+    }
+    if((r = ext4_fseek(efp, off, SEEK_SET)) != EOK) {
+        printf("[ext4] ext4_fseek error! r=%d\n", r);
+        return r;
+    }
+    if(user_dst) {
+        kbuf = (char *)kmalloc(size);
+        if(!kbuf) {
+            printf("[ext4] kmalloc error!\n");
+            return ENOMEM;
+        }
+    } else {
+        kbuf = (char *)dst;
+    }
+    if((r = ext4_fread(efp, kbuf, size, (size_t*) rcnt)) != EOK) {
+        printf("[ext4] ext4_fread error! r=%d\n", r);
+        if(user_dst) {
+            kfree(kbuf);
+        }
+        return r;
+    }
+    if(user_dst) {
+        if((r = copyout(myproc()->mm.pagetable, dst, kbuf, *rcnt)) != EOK) {
+            printf("[ext4] copyout error! r=%d\n", r);
+            kfree(kbuf);
+            return r;
+        }
+        kfree(kbuf);
+    }
+    return r;
+}
+
+int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    char *kbuf = NULL;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return EINVAL;
+    }
+    if((r = ext4_fseek(efp, off, SEEK_SET)) != EOK) {
+        printf("[ext4] ext4_fseek error! r=%d\n", r);
+        return r;
+    }
+    if(user_src) {
+        kbuf = (char *)kmalloc(size);
+        if(!kbuf) {
+            printf("[ext4] kmalloc error!\n");
+            return ENOMEM;
+        }
+        if((r = copyin(myproc()->mm.pagetable, kbuf, src, size)) != EOK) {
+            printf("[ext4] copyin error! r=%d\n", r);
+            kfree(kbuf);
+            return r;
+        }
+    } else {
+        kbuf = (char *)src;
+    }
+    if((r = ext4_fwrite(efp, kbuf, size, (size_t*)wcnt)) != EOK) {
+        printf("[ext4] ext4_fwrite error! r=%d\n", r);
+        if(user_src) {
+            kfree(kbuf);
+        }
+        return r;
+    }
+    if(user_src) {
+        kfree(kbuf);
+    }
+    return r;
+}
+
+int ext4_vfopen(struct file *fp, const char *path, uint32_t flags) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    if(efp) {
+        printf("[ext4] efp is not NULL!\n");
+        return EINVAL;
+    }
+    if((efp = ext4_falloc()) == NULL) {
+        printf("[ext4] ext4_falloc error!\n");
+        return ENOMEM;
+    }
+    if((r = ext4_fopen2(efp, path, flags)) != EOK) {
+        printf("[ext4] ext4_fopen2 error! r=%d\n", r);
+        recycle_efile(efp);
+        return r;
+    }
+    fp->private_data = efp;
+    return r;
+}
+
+int ext4_vfclose(struct file *fp) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return EINVAL;
+    }
+    if((r = ext4_fclose(efp)) != EOK) {
+        printf("[ext4] ext4_fclose error! r=%d\n", r);
+        return r;
+    }
+    recycle_efile(efp);
+    fp->private_data = NULL;
+    return r;
+}
+

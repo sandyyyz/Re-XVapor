@@ -400,6 +400,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf)
   uvmfree(pagetable, sz);
 }
 
+#ifdef __USE_XV6FS
 // a user program that calls exec("/init")
 // assembled from ../user/initcode.S
 // od -t xC ../user/initcode
@@ -412,6 +413,12 @@ uchar initcode[] = {
   0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00
 };
+
+unsigned int initcode_len = sizeof(initcode);
+
+#else 
+#include "../../build/user/initcode.h"
+#endif
 
 // Set up first user process.
 void
@@ -430,7 +437,7 @@ userinit(void)
 
   // allocate one user page and copy initcode's instructions
   // and data into it.
-  uvmfirst(p->mm.pagetable, initcode, sizeof(initcode));
+  uvmfirst(p->mm.pagetable, initcode, initcode_len);
   p->sz = PGSIZE; // TODO: how large?? maybe bug here
 
   // prepare for the very first "return" from kernel to user.

@@ -127,7 +127,11 @@ static void recover_from_log(void) {
 
 // called at the start of each FS system call.
 // wait untile log could be done
+// do nothing when __USE_XV6FS is not defined
 void begin_op(void) {
+#ifndef __USE_XV6FS
+  return;
+#endif
   acquire(&log.lock);
   while (1) {
     if (log.committing) {
@@ -145,7 +149,11 @@ void begin_op(void) {
 
 // called at the end of each FS system call.
 // commits if this was the last outstanding operation.
+// do nothing when __USE_XV6FS is not defined
 void end_op(void) {
+#ifndef __USE_XV6FS
+  return;
+#endif
   int do_commit = 0;
 
   acquire(&log.lock);

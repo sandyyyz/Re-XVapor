@@ -8,8 +8,17 @@ struct ext4_minode {
     struct ext4_inode ext4_ientry;
 };
 
+struct ext4_mfile {
+    int ref;
+    struct ext4_file ext4_fentry;
+};
+
 int ext4_init();
 int init_ext4fs();
 struct inode *ext4_namei(char *rel_path);
+void ext4_ilock(struct inode *ip);
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
+int ext4_vfopen(struct file *fp, const char *path, uint32_t flags);
+int ext4_vfclose(struct file *fp);
 
 #endif
