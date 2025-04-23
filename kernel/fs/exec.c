@@ -105,8 +105,8 @@ int exec(char *path, char **argv)
       goto bad;
     if(ph.vaddr + ph.memsz < ph.vaddr)
       goto bad;
-    if(ph.vaddr % PGSIZE != 0)
-      goto bad;
+    // if(ph.vaddr % PGSIZE != 0)
+    //   goto bad;
     uint64 sz1;
     // allocate and map memory for the segment into process' pagetable
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
@@ -117,7 +117,7 @@ int exec(char *path, char **argv)
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
     #else 
-    if(floadseg(pagetable, f, ph.vaddr, ph.off, ph.filesz) < 0)
+    if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
     #endif
     
@@ -405,7 +405,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
   return 0;
 }
 
-static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offset, uint sz) {
+static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offset, uint sz){
   uint i, n;
   int r = 0, rcnt = 0;
   uint64 pa;
