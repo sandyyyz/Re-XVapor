@@ -24,8 +24,6 @@ main(void)
   dup(0);  // stdout
   dup(0);  // stderr
 
-
-
   for(;;){
     printf("init: starting sh\n");
     pid = fork();
@@ -34,15 +32,8 @@ main(void)
       exit(1);
     }
 
-#ifdef __DEBUG_INIT
-    printf("init fork finished!\n");
-#endif
-
     if(pid == 0){
     // child process
-#ifdef __DEBUG_INIT
-      printf("exec sh!\n");
-#endif
       exec("sh", argv);
       printf("init: exec sh failed\n");
       exit(1);
@@ -51,9 +42,6 @@ main(void)
   for(;;){
       // this call to wait() returns if the shell exits,
       // or if a parentless process exits.
-#ifdef __DEBUG_INIT
-      printf("init process waiting..,\n");
-#endif
       wpid = wait((int *) 0);
       if(wpid == pid){
         // the shell exited; restart it.

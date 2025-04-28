@@ -12,8 +12,8 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC))
 UPROGS = $(patsubst $(BUILD_DIR)/%.o, $(BUILD_DIR)/%.prog,$(OBJ))
 ULIBSRC = $(wildcard *.c) $(foreach dir, $(ULIB_DIR), $(wildcard $(dir)/*.c))
 ULIB = $(patsubst %.c, $(BUILD_DIR)/%.o, $(ULIBSRC))
-CFLAGS += -I$(KERNEL_DIR)/include 
 ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
+CFLAGS += -I$(KERNEL_DIR)/include 
 OBJCOPY = $(TOOLPREFIX)objcopy
 # $(info src : $(SRC))
 # $(info obj : $(OBJ))
