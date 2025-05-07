@@ -1,4 +1,5 @@
 BUILD_DIR=../build/user
+INITDIR=$(BUILD_DIR)/init
 INCLUDE_DIR=include
 KERNEL_DIR=../kernel
 U=.
@@ -15,11 +16,11 @@ ULIB = $(patsubst %.c, $(BUILD_DIR)/%.o, $(ULIBSRC))
 ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
 CFLAGS += -I$(KERNEL_DIR)/include 
 OBJCOPY = $(TOOLPREFIX)objcopy
+OBJDUMP = $(TOOLPREFIX)objdump
 # $(info src : $(SRC))
 # $(info obj : $(OBJ))
 # $(info uprogs : $(UPROGS))r
-# $(info ulib : $(ULIB))
-default: all
+# $(info ulib : $(ULIB))default: all
 .PHONY: clean all
 
 
@@ -52,20 +53,26 @@ $(BUILD_DIR)%.o: $(U)%.c
 	$(CC) $(CFLAGS) -I$(KERNEL_DIR)/include -c $< -o $@
 
 $(BUILD_DIR)/initcode.o: $(U)/asm/initcode.S | $(BUILD_DIR)
-	@echo "Building $@"
 	$(CC) $(CFLAGS) -march=rv64g -nostdinc -I./include -I../kernel/include -c $< -o $@
 
-$(BUILD_DIR)/initcode.out: $(BUILD_DIR)/initcode.o
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $@ $<
+# $(BUILD_DIR)/initcode.out: $(INITDIR)/init.o $(ULIB)
+# 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $< $(ULIB)
 
-$(BUILD_DIR)/initcode: $(BUILD_DIR)/initcode.out
+# $(BUILD_DIR)/initcode.out: $(BUILD_DIR)/initcode.o
+# 	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $@ $<
+
+$(BUILD_DIR)/initcode: $(INITDIR)/init.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $(BUILD_DIR)/initcode.out $^
 	$(OBJCOPY) -S -O binary $(BUILD_DIR)/initcode.out $(BUILD_DIR)/initcode
+	$(OBJDUMP) -S $(BUILD_DIR)/initcode.out > $(BUILD_DIR)/initcode.dump
+# $(BUILD_DIR)/initcode: $(BUILD_DIR)/initcode.out
+# 	$(OBJCOPY) -S -O binary $(BUILD_DIR)/initcode.out $(BUILD_DIR)/initcode
 
 $(BUILD_DIR)/initcode.h: $(BUILD_DIR)/initcode
 	xxd -i $< | \
 	sed 's/unsigned char .*\[\]/unsigned char initcode[]/' | \
 	sed 's/unsigned int .*_len/unsigned int initcode_len/' > $@
-
+      
 
 $(BUILD_DIR)/$(ULIB_DIR)/usys.S : $U/usys.pl
 	perl $< > $@

@@ -10,6 +10,13 @@
 #include "debug.h"
 #include "vm.h"
 #include "ext4fs.h"
+
+//动态链接器所需要的一些辅助信息数组（Auxiliary Vector)
+// type: 类型 val:类型对应的值
+#define ADD_AUXV(type, val) \
+    aux[index++] = type;    \
+    aux[index++] = val;
+
 static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offset, uint sz);
 static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
 
@@ -36,11 +43,11 @@ int flags2perm(int flags)
 int exec(char *path, char **argv)
 {
 #ifdef __DEBUG_EXEC
-  Log("do exec");
+  Log("exec path: %s", path);
 #endif
 
   char *s, *last;
-  int i, off;
+  int i, off, index = 0;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
   struct elfhdr elf;
   int r = 0, rcnt = 0;
@@ -99,8 +106,13 @@ int exec(char *path, char **argv)
       goto bad;
 #endif
 
-    if(ph.type != ELF_PROG_LOAD)
+    if(ph.type == ELF_PROG_INTERP)
+      printf("ELF_PROG_INTERP not supported\n");
+    if(ph.type != ELF_PROG_LOAD) {
+      printf("ph.type == 0x%x\n", ph.type);
       continue;
+    }
+
     if(ph.memsz < ph.filesz)
       goto bad;
     if(ph.vaddr + ph.memsz < ph.vaddr)
@@ -137,12 +149,12 @@ int exec(char *path, char **argv)
   // Use the second as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + 32 * PGSIZE, PTE_W)) == 0)
     goto bad;
   sz = sz1;
-  uvmclear(pagetable, sz-2*PGSIZE);
+  uvmclear(pagetable, sz - 32 * PGSIZE);
   sp = sz;
-  stackbase = sp - PGSIZE;
+  stackbase = sp - 31 * PGSIZE;
   
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
@@ -158,6 +170,31 @@ int exec(char *path, char **argv)
   }
   ustack[argc] = 0;
 
+  // Load AUX vectors
+  sp -= 16;
+  uint64 aux[MAX_AT * 2];
+
+  ADD_AUXV(AT_HWCAP, 0);
+  ADD_AUXV(AT_PAGESZ, PGSIZE);
+  ADD_AUXV(AT_PHDR, elf.phoff);
+  ADD_AUXV(AT_PHENT, elf.phentsize);
+  ADD_AUXV(AT_PHNUM, elf.phnum);
+  ADD_AUXV(AT_BASE, 0);
+  ADD_AUXV(AT_ENTRY, elf.entry);
+  ADD_AUXV(AT_UID, 0);
+  ADD_AUXV(AT_EUID, 0);
+  ADD_AUXV(AT_GID, 0);
+  ADD_AUXV(AT_EGID, 0);
+  ADD_AUXV(AT_SECURE, 0);
+  ADD_AUXV(AT_RANDOM, sp);
+  ADD_AUXV(AT_NULL, 0);
+
+  //三个向量的压栈顺序：AUX -> envp -> argv,argc
+  // 1. AUX vector, 已经16字节对齐
+  sp -= sizeof(aux);
+  if (copyout(pagetable, sp, (char *)aux, sizeof(aux)) < 0)
+      goto bad;
+
   // push the array of argv[] pointers.
   sp -= (argc+1) * sizeof(uint64);
   sp -= sp % 16;
@@ -170,9 +207,7 @@ int exec(char *path, char **argv)
   free_allother_threads_group(t);
   // and transfer trapframe
   transfer_trapframe(t, pagetable,0);
-#ifdef __DEBUG_EXEC
-  walk_va(pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
-#endif
+
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
@@ -190,10 +225,10 @@ int exec(char *path, char **argv)
   p->sz = sz;
   t->trapframe->epc = elf.entry;  // initial program counter = main
   t->trapframe->sp = sp; // initial stack pointer
-#ifdef __DEBUG_EXEC
-  Log("check elf.entry = %p", elf.entry);
-  walk_va(pagetable, elf.entry);
-#endif
+// #ifdef __DEBUG_EXEC
+//   Log("check elf.entry = %p", elf.entry);
+//   walk_va(pagetable, elf.entry);
+// #endif
   proc_freepagetable(oldpagetable, oldsz, 1);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
@@ -221,7 +256,7 @@ int execve(char *path, char **argv, char **envp)
 
   char *s, *last;
   int i, off;
-  uint64 argc, envc, sz = 0, sp, ustack[MAXARG],estack[MAXENV + 1], stackbase;
+  uint64 argc, envc, sz = 0, sp, ustack[MAXARG], estack[MAXENV + 1], stackbase;
   struct elfhdr elf;
   struct inode *ip;
   struct proghdr ph;
@@ -361,10 +396,10 @@ int execve(char *path, char **argv, char **envp)
   p->sz = sz;
   t->trapframe->epc = elf.entry;  // initial program counter = main
   t->trapframe->sp = sp; // initial stack pointer
-#ifdef __DEBUG_EXEC
-  Log("check elf.entry = %p", elf.entry);
-  walk_va(pagetable, elf.entry);
-#endif
+// #ifdef __DEBUG_EXEC
+//   Log("check elf.entry = %p", elf.entry);
+//   walk_va(pagetable, elf.entry);
+// #endif
   proc_freepagetable(oldpagetable, oldsz, 1);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
@@ -426,6 +461,9 @@ static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offse
         return -1;
   }
 
+#ifdef __DEBUG_FLOADSEG
+  Log("floadseg: va %p, offset %p, sz %d", va, offset, sz);
+#endif
   return 0;
 
 } 
