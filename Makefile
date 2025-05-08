@@ -66,13 +66,22 @@ export UPROGS
 .PHONY: all user kernel qemu qemu-gdb clean
 .default: kernel
 
-all: kernel user fs.img
+all: kernel user fs.img syscall_gen
 
-kernel:	user
+SYSTBL=scripts/syscall.tbl
+SYSDECL=kernel/include/sysdecl.h
+SYSNUM=kernel/include/sysnum.h
+SYSFUNC=kernel/include/sysfunc.h
+USYSPL=user/usys.pl
+syscall_gen:
+	@echo "Generating syscall files..."
+	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL)
+	@echo "Generating syscall files done."
+kernel:	user syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
 	$(MAKE) -C $(KERNEL_DIR)
 
-user:
+user: syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
 	$(MAKE) -C $(USER_DIR)
 

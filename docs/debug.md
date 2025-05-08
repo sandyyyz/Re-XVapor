@@ -696,3 +696,5 @@ http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
 
 ![busybox.2.1](image-119.png)
 ![busybox.2.2](image-118.png)
+
+__libc_setup_tls尝试syscall 214, 即 SYS_brk

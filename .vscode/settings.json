@@ -112,7 +112,10 @@
         "buf.h": "c",
         "ext4.h": "c",
         "ext4_fs.h": "c",
-        "initcode.h": "c"
+        "initcode.h": "c",
+        "syscall_def.h": "c",
+        "syscall_func.h": "c",
+        "sysnum.h": "c"
     },
 
     "multiCommand.commands": [
