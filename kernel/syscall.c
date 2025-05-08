@@ -121,6 +121,7 @@ extern uint64 sys_clone(void);
 extern uint64 sys_getppid(void);
 extern uint64 sys_wait4(void);
 extern uint64 sys_execve(void);
+extern uint64 sys_dev(void);
 // 函数指针数组
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -159,6 +160,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_getppid] sys_getppid,
 [SYS_mmap]   sys_mmap,
 [SYS_munmap] sys_munmap,
+[SYS_dev] sys_dev,
 };
 
 void

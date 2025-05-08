@@ -48,3 +48,4 @@ entry("wait4");
 entry("execve");
 entry("mmap");
 entry("munmap");
+entry("dev");

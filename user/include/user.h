@@ -28,7 +28,7 @@ int uptime(void);
 int nanosleep(struct timespec *req, struct timespec *rem);
 uint64 mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, uint64 offset);
 int munmap(uint64 addr, int len);
-
+int dev(int, short, short);
 // proc related
 int wait4(pid_t pid, uint64 status, int options);
 

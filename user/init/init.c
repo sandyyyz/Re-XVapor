@@ -12,11 +12,25 @@
 
 char *argv[] = { "sh", 0 };
 char path[] = "/glibc/busybox_unstripped";
+char *envp[] = {0};
 int
 main(void)
 {
-  printf("init: starting xv6fs init\n");
-  exec(path, argv);
+  dev(O_RDWR, CONSOLE, 0);
+  dup(0); // stdout
+  dup(0); // stderr
+  printf("======================== init: starting xv6fs init ========================\n");
+  execve(path, argv, envp);
+  // int pid = fork();
+  // if (pid == 0)
+  // {
+  //     execve(path,argv, envp);
+  // }
+  // else
+  // {
+  //     wait(0);
+  // }
+
   while(1);
   return 0;
 }

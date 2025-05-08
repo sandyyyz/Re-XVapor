@@ -61,3 +61,9 @@ interpreter file’s segments. That is, instead of using the original executable
 control from the system and provide an environment for the application program.*  
 
 When building an executable file that uses dynamic linking, the link editor adds a program header element of type PT_INTERP to an executable file, telling the system to invoke the dynamic linker as the program interpreter.
+
+# libc_start_main
+
+https://refspecs.linuxbase.org/LSB_3.1.0/LSB-generic/LSB-generic/baselib---libc-start-main-.html  
+https://stackoverflow.com/questions/62709030/what-is-libc-start-main-and-start  
+http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html

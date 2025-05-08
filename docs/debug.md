@@ -686,3 +686,13 @@ int ext4_block_get(struct ext4_blockdev *bdev, struct ext4_block *b,
 ![busybox.1.1](image-112.png)
 
 ![busybox.1.2](image-113.png)
+
+修改栈布局：  
+https://refspecs.linuxbase.org/LSB_3.1.0/LSB-generic/LSB-generic/baselib---libc-start-main-.html  
+https://stackoverflow.com/questions/62709030/what-is-libc-start-main-and-start  
+http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
+
+### busybox.2
+
+![busybox.2.1](image-119.png)
+![busybox.2.2](image-118.png)

@@ -455,7 +455,8 @@ struct inode *ifind_fempty(void *pdata) {
     }
   }
   if(empty == 0){
-    panic("ifind_wempty: no inodes");}
+    panic("ifind_wempty: no inodes");
+  }
 
     fs = get_vfs_entry(BLOCKMAJOR, ROOTDEV)->fs_t;
 

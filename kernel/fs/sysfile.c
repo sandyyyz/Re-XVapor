@@ -434,7 +434,7 @@ uint64 sys_execve(void){
 // where path is stored in a0, argv in a1 and envp in a2
 char path[MAXPATH], *argv[MAXARG], *envp[MAXENV];
 int i;
-uint64 uargv, uarg, uenvp, uenv;
+uint64 uargv, uarg, uenvp, uenv = 0;
 
 // copy path and argv from user space to kernel space
 argaddr(1, &uargv);
@@ -447,9 +447,10 @@ for(i=0;; i++){
   if(i >= NELEM(envp)){
     goto badenv;
   }
-  if(fetchaddr(uenvp+sizeof(uint64)*i, (uint64*)&uenv) < 0){
-    goto badenv;
-  }
+  if(uenvp)
+    if(fetchaddr(uenvp+sizeof(uint64)*i, (uint64*)&uenv) < 0){
+      goto badenv;
+    }
   if(uenv == 0){
     envp[i] = 0;
     break;
@@ -477,7 +478,7 @@ for(i=0;; i++){
   argv[i] = kalloc();
   if(argv[i] == 0)
     goto bad;
-  if(fetchstr(uarg, argv[i], PGSIZE) < 0)
+  if(fetchstr(uarg, argv[i], PGSIZE) < 0) 
     goto bad;
 }
 
@@ -680,4 +681,42 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    devi->iops->iunlock(devi);
  
    return 0;
+}
+
+// To open console device.
+uint64
+sys_dev(void)
+{
+    int fd, omode;
+    int major, minor;
+    struct file *f;
+
+    argint(0, &omode);
+    argint(1, &major);
+    argint(2, &minor);
+
+    if (omode & O_CREAT)
+    {
+      panic("dev file on FAT");
+    }
+
+    if (major < 0 || major >= NDEV)
+        return -1;
+
+    if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0)
+    {
+        if (f)
+            fileclose(f);
+        return -1;
+    }
+
+    f->type = FD_DEVICE;
+    f->off = 0;
+    f->major = major;
+    if(!(omode & O_WRONLY) )
+    SET_READABLE(f->flags);
+    if((omode & O_WRONLY) || (omode & O_RDWR))
+    SET_WRITABLE(f->flags);
+    myproc()->ofile[fd] = f;
+    return fd;
 }
