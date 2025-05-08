@@ -107,7 +107,6 @@ pid_t waitpid(pid_t pid, uint64 wstatus, int options);
 
 void thread_sleep(void*, struct spinlock*);
 void thread_wakeup_chan(void *chan);
-void thread_wakeup_chan_atomic(void *chan);
 void thread_yield(void);
 
 // swtch.S

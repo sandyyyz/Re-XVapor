@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "ext4fs.h"
 #include "list.h"
+#include "debug.h"
 
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);

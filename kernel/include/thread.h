@@ -150,6 +150,12 @@ struct tcb {
 
     // exit state
     int xstate;
+
+    /* CLONE_CHILD_SETTID: */
+    uint64 set_child_tid;
+    /* CLONE_CHILD_CLEARTID: */
+    uint64 clear_child_tid;    
+    
 };
 typedef struct tcb tcb_t;
 

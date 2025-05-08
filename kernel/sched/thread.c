@@ -252,6 +252,10 @@ void thread_exit(int status) {
 
     if( t->state == TCB_SLEEPING) 
         thread_wakeup_specific(t);
+    
+    if(t->set_child_tid) {
+    thread_wakeup_chan((void*)t->set_child_tid);
+    }
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
 

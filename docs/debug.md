@@ -697,4 +697,11 @@ http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
 ![busybox.2.1](image-119.png)
 ![busybox.2.2](image-118.png)
 
-__libc_setup_tls尝试syscall 214, 即 SYS_brk
+__libc_setup_tls尝试syscall 214, 即 SYS_brk,添加对应syscall即可
+
+### busybox.3
+
+![busybox.3.1](image-120.png)
+![busybox.3.2](image-121.png)
+brk后最终调用了syscall 17，然后卡死。（在这之前还有很多的syscall也失败了)  
+一个个修吧=-=

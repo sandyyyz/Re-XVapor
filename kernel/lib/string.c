@@ -69,15 +69,15 @@ strncmp(const char *p, const char *q, uint n)
 }
 
 char*
-strncpy(char *s, const char *t, int n)
+strncpy(char *des, const char *src, int n)
 {
   char *os;
 
-  os = s;
-  while(n-- > 0 && (*s++ = *t++) != 0)
+  os = des;
+  while(n-- > 0 && (*des++ = *src++) != 0)
     ;
   while(n-- > 0)
-    *s++ = 0;
+    *des++ = 0;
   return os;
 }
 
@@ -114,12 +114,12 @@ strlen(const char *s)
 }
 
 char *
-strcpy(char *s, const char *t)
+strcpy(char *des, const char *src)
 {
     char *os;
 
-    os = s;
-    while ((*s++ = *t++) != 0)
+    os = des;
+    while ((*des++ = *src++) != 0)
         ;
     return os;
 }

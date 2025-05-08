@@ -181,16 +181,6 @@ allocproc(void)
 {
   struct proc *p;
 
-  // for(p = proc; p < &proc[NPROC]; p++) {
-  //   acquire(&p->lock);
-  //   if(p->state == UNUSED) {
-  //     goto found;
-  //   } else {
-  //     release(&p->lock);
-  //   }
-  // }
-  // return 0;
-
   if((p = (struct proc*)queue_pop_atomic(&unused_p_q, 1)) == NULL)
     return NULL;
 
@@ -211,32 +201,10 @@ allocproc(void)
   // timer
   p->utime = 0;
   p->ktime = 0;
-
+  
+  strcpy(p->cinfo.path, "/");
   // state
   pcb_q_change_state(p, USED);
-
-/// we don't need a trapframe in process anymorem,caz we use thread to replace process 
-
-  // Allocate a trapframe page.
-  // if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-  //   freeproc(p);
-  //   release(&p->lock);
-  //   return 0;
-  // }
-
-  // An empty user page table.
-  // p->pagetable = proc_pagetable(p);
-  // if(p->pagetable == 0){
-  //   freeproc(p);
-  //   release(&p->lock);
-  //   return 0;
-  // }
-
-  // Set up new context to start executing at forkret,
-  // which returns to user space.
-  // memset(&p->context, 0, sizeof(p->context));
-  // p->context.ra = (uint64)forkret;
-  // p->context.sp = p->kstack + PGSIZE;
 
   // mm_struct
   initlock(&p->mm.lock, "mm_lock");

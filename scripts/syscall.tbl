@@ -35,3 +35,7 @@
 260 wait4       sys_wait4
 222 mmap        sys_mmap
 215 munmap      sys_munmap
+214 brk         sys_brk
+
+96 set_tid_address sys_set_tid_address
+

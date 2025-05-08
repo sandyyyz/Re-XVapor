@@ -8,6 +8,7 @@
 #include "defs.h"
 #include "thread.h"
 #include "mmap.h"
+#include "debug.h"
 
 struct timespec;
 
@@ -104,7 +105,10 @@ syscall(void)
   struct tcb *t = mythread();
 
   num = t->trapframe->a7; // call number
-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+#ifdef __DEBUG_SYSCALL
+  Log("thread %d syscall %d", t->tid, num);
+#endif
+    if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     t->trapframe->a0 = syscalls[num]();

@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "timer.h"
+#include "debug.h"
 
 
 uint64
@@ -107,6 +108,31 @@ sys_sbrk(void)
   return addr;
 }
 
+uint64 sys_brk(void) {
+  uint64 addr;
+  uint64 oldsz;
+
+  argaddr(0, &addr);
+  Log("[sys_brk] %p", addr);
+  if(addr >= MAXVA || addr >= BRKTOP) {
+    Warn("brk %p failed\n", addr);
+    return -1;
+  }
+  oldsz = myproc()->sz;
+
+  if(addr == 0) {
+    return oldsz;
+  }
+  if(addr > oldsz) {
+    if (growproc(addr - oldsz) < 0)
+      return -1;
+    else
+      return myproc()->sz;
+  } 
+  return oldsz;
+  
+}
+
 uint64
 sys_sleep(void)
 {
@@ -151,3 +177,13 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+uint64 sys_set_tid_address(void) {
+  // printf("sys_set_tid_address\n");
+  uint64 addr;
+  argaddr(0, &addr);
+  struct tcb *t = mythread();
+  t->set_child_tid = addr;
+  return (uint64)t->tid;
+} 

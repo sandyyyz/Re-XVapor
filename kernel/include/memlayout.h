@@ -68,3 +68,5 @@
 // thread-exclusive
 #define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx)*PGSIZE)
 #define MAX_THREAD 8 // max thread number in a process
+
+#define BRKTOP (TRAMPOLINE - (MAX_THREAD + 1) * PGSIZE)

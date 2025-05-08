@@ -288,6 +288,9 @@ int execve(char *path, char **argv, char **envp)
   struct file *f;
   if((f = filealloc()) == 0)
     return -1;
+#ifdef __DEBUG_EXEC
+  Log("cwd = %s", myproc()->cinfo.path);
+#endif
   get_absolute_path(path, myproc()->cinfo.path, abs_path);
   if((r = ext4_vfopen(f, abs_path, O_RDONLY)) != EOK) {
     Log("ext4_fopen2 failed %d", r);
