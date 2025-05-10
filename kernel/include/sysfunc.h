@@ -20,6 +20,7 @@
 [SYS_write] sys_write,
 [SYS_exit] sys_exit,
 [SYS_set_tid_address] sys_set_tid_address,
+[SYS_set_robust_list] sys_set_robust_list,
 [SYS_nanosleep] sys_nanosleep,
 [SYS_sched_yield] sys_sched_yield,
 [SYS_times] sys_times,
@@ -33,3 +34,4 @@
 [SYS_execve] sys_execve,
 [SYS_mmap] sys_mmap,
 [SYS_wait4] sys_wait4,
+[SYS_prlimit64] sys_prlimit64,

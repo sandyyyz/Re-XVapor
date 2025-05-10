@@ -473,7 +473,7 @@ int execve(char *path, char **argv, char **envp)
   oldpagetable = p->mm.pagetable;
   p->mm.pagetable = pagetable;
   p->sz = sz;
-  Log("exec: %s, sz = %p", p->name, sz);
+  // Log("exec: %s, sz = %p", p->name, sz);
   t->trapframe->epc = elf.entry;  // initial program counter = main
   t->trapframe->sp = sp; // initial stack pointer
 // #ifdef __DEBUG_EXEC

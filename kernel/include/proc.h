@@ -9,6 +9,7 @@
 #include "thread.h"
 #include "vfs.h"
 #include "ext4.h"
+#include "rc.h"
 
 struct thread_group;
 struct tcb;
@@ -24,7 +25,6 @@ struct cpu {
 };
 
 extern struct cpu cpus[NCPU];
-
 
 
 // enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE, PROC_STATEMAX };
@@ -80,6 +80,8 @@ struct proc {
   struct mm_struct mm;
   
   struct ext4_dir dir; // for ext4
+
+  struct rlimit rlim[RLIM_NLIMITS];
 
 };
 

@@ -20,6 +20,7 @@
 #define SYS_write 64
 #define SYS_exit 93
 #define SYS_set_tid_address 96
+#define SYS_set_robust_list 99
 #define SYS_nanosleep 101
 #define SYS_sched_yield 124
 #define SYS_times 153
@@ -33,3 +34,4 @@
 #define SYS_execve 221
 #define SYS_mmap 222
 #define SYS_wait4 260
+#define SYS_prlimit64 261

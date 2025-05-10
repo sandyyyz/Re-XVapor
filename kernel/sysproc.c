@@ -7,7 +7,7 @@
 #include "proc.h"
 #include "timer.h"
 #include "debug.h"
-
+#include "rc.h"
 
 uint64
 sys_nanosleep(void)
@@ -113,7 +113,7 @@ uint64 sys_brk(void) {
   uint64 oldsz;
 
   argaddr(0, &addr);
-  Log("[sys_brk] %p", addr);
+  // Log("[sys_brk] %p", addr);
   if(addr >= MAXVA || addr >= BRKTOP) {
     Warn("brk %p failed\n", addr);
     return -1;
@@ -187,3 +187,108 @@ uint64 sys_set_tid_address(void) {
   t->set_child_tid = addr;
   return (uint64)t->tid;
 } 
+
+extern struct proc proc[NPROC];
+// TODO: implement this
+uint64 sys_set_robust_list(void) {
+  return 0;
+}
+
+static inline int rlim64_is_infinity(__u64 rlim64) { return rlim64 == RLIM64_INFINITY; }
+
+static void rlim64_to_rlim(const struct rlimit64 *rlim64, struct rlimit *rlim) {
+  if (rlim64_is_infinity(rlim64->rlim_cur))
+      rlim->rlim_cur = RLIM_INFINITY;
+  else
+      rlim->rlim_cur = (unsigned long) rlim64->rlim_cur;
+  if (rlim64_is_infinity(rlim64->rlim_max))
+      rlim->rlim_max = RLIM_INFINITY;
+  else
+      rlim->rlim_max = (unsigned long) rlim64->rlim_max;
+}
+
+static void rlim_to_rlim64(const struct rlimit *rlim, struct rlimit64 *rlim64) {  
+  if (rlim->rlim_cur == RLIM_INFINITY)
+      rlim64->rlim_cur = RLIM64_INFINITY;
+  else
+      rlim64->rlim_cur = rlim->rlim_cur;
+  if (rlim->rlim_max == RLIM_INFINITY)
+      rlim64->rlim_max = RLIM64_INFINITY;
+  else
+      rlim64->rlim_max = rlim->rlim_max;
+}
+
+// RLIMIT_NOFILE and RLIMIT_STACK
+static int do_prlimit(struct proc *p, uint32 resource, struct rlimit *new_rlim, struct rlimit *old_rlim) {
+  int retval = 0;
+
+  if (resource >= RLIM_NLIMITS)
+      return -EINVAL;
+
+  struct rlimit *rlim = p->rlim + resource;
+  if (!retval) {
+      if (old_rlim)
+          *old_rlim = *rlim;
+      if (new_rlim) {
+          *rlim = *new_rlim;
+      }
+  }
+  return retval;
+}
+
+// int prlimit(pid_t pid, int resource, const struct rlimit *new_limit, struct rlimit *old_limit);
+uint64 sys_prlimit64(void) {
+  pid_t pid;
+  int resource;
+  uint64 new_limit_addr;
+  uint64 old_limit_addr;
+  struct rlimit new_limit;
+  struct rlimit old_limit;
+  struct rlimit64 new_limit64;
+  struct rlimit64 old_limit64;
+  struct proc *p = NULL;
+  int ret = 0;
+
+  argint(0, &pid);
+  argint(1, &resource);
+  argaddr(2, &new_limit_addr);
+  argaddr(3, &old_limit_addr);
+  // printf("[sys_prlimit64] pid: %d, resource: %d, new_limit_addr: %p, old_limit_addr: %p\n", pid, resource, new_limit_addr, old_limit_addr);
+
+  if(new_limit_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&new_limit64, new_limit_addr, sizeof(struct rlimit)) < 0) {
+      printf("[sys_prlimit64] copyin new_limit failed\n");
+      return -1;
+    }
+    rlim64_to_rlim(&new_limit64, &new_limit);
+  }
+
+  if (pid) {
+    for (int i = 0; i < NPROC; i++) {
+        if (proc[i].pid == pid) {
+            p = &proc[i];
+            break;
+        }
+    }
+  } else {
+    p = myproc();
+  }
+
+  if (!p) {
+    panic("proc get error\n");
+  }
+  acquire(&p->lock);
+
+  ret = do_prlimit(p, resource, new_limit_addr ? &new_limit : NULL, old_limit_addr ? &old_limit : NULL);
+
+  if (!ret && old_limit_addr) {
+    rlim_to_rlim64(&old_limit, &old_limit64);
+    if (copyout(myproc()->mm.pagetable, old_limit_addr, (char *) &old_limit64, sizeof(old_limit64)) < 0) {
+        ret = -EFAULT;
+    }
+  }
+
+  release(&p->lock);
+  return ret;
+
+}

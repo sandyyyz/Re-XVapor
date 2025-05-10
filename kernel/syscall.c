@@ -106,7 +106,7 @@ syscall(void)
 
   num = t->trapframe->a7; // call number
 #ifdef __DEBUG_SYSCALL
-  Log("thread %d syscall %d", t->tid, num);
+  printf("thread %d syscall %d\n", t->tid, num);
 #endif
     if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
@@ -115,5 +115,6 @@ syscall(void)
     // printf("%d %s: syscall %d\n", p->pid, p->name, num);
   } else {
     t->trapframe->a0 = -1;
+    Log("thread %d syscall %d: unknown", t->tid, num);
   }
 }
