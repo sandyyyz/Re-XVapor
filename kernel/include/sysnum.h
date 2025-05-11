@@ -17,6 +17,7 @@
 #define SYS_link 19
 #define SYS_mkdir 20
 #define SYS_close 21
+#define SYS_openat 56
 #define SYS_write 64
 #define SYS_exit 93
 #define SYS_set_tid_address 96

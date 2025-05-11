@@ -17,6 +17,7 @@
 [SYS_link] sys_link,
 [SYS_mkdir] sys_mkdir,
 [SYS_close] sys_close,
+[SYS_openat] sys_openat,
 [SYS_write] sys_write,
 [SYS_exit] sys_exit,
 [SYS_set_tid_address] sys_set_tid_address,

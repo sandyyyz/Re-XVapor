@@ -459,15 +459,9 @@ fork(void)
   struct tcb  *t = mythread();
   // Allocate process.
   // return with np->lock held
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, before allocproc\n", p->pid);
-#endif //__DEBUG_FORK
   if((np = allocproc()) == 0){
     return -1;
   }
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, child %d, after allocproc\n", p->pid, np->pid);
-#endif //__DEBUG_FORK
   if((t = alloc_thread(thread_forkret)) == 0) {
     freeproc(np);
     return -1;
@@ -476,18 +470,6 @@ fork(void)
   // make the allocated thread be the group leader
   proc_join_thread(np, t, NULL);
 
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, child %d, after proc_join_thread\n", p->pid, np->pid);
-#endif //__DEBUG_FORK
-  // proc_join_thread(np, t, NULL);?
-
-  // Copy user memory from parent to child.
-#ifdef __DEBUG_FORK
-  printf("old pagetable pid %d :\n", p->pid);
-  vmprint(p->mm.pagetable);
-  printf("new pagetable: pid %d \n", np->pid);
-  vmprint(np->mm.pagetable);
-#endif
   if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
@@ -540,9 +522,7 @@ fork(void)
   release(&np->tg.group_leader->lock);
   release(&np->tg.lock);
   release(&np->lock);
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, child %d, child->leader_thread id: %d\n", p->pid, np->pid, np->tg.group_leader->tid);
-#endif //__DEBUG_FORK
+  
   return pid;
 }
 

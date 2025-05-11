@@ -17,6 +17,7 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
+extern uint64 sys_openat(void);
 extern uint64 sys_write(void);
 extern uint64 sys_exit(void);
 extern uint64 sys_set_tid_address(void);

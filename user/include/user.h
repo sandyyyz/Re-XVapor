@@ -55,3 +55,4 @@ int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 
+int openat(int dirfd, const char *pathname, int flags, mode_t mode);

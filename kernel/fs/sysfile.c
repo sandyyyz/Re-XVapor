@@ -19,6 +19,7 @@
 #include "vm.h"
 #include "memlayout.h"
 #include "device.h"
+#include "ext4fs.h"
 
 // for debug
 int g_first_exec = 0;
@@ -719,4 +720,50 @@ sys_dev(void)
     SET_WRITABLE(f->flags);
     myproc()->ofile[fd] = f;
     return fd;
+}
+
+
+uint64 sys_openat(void) {
+// int openat(int dirfd, const char *pathname, int flags, mode_t mode);
+  char path[MAXPATH];
+  int dirfd, flags, omode;
+  struct file *f;
+  struct proc *p = myproc();
+  int fd;
+  
+  argint(0, &dirfd);
+  if(argstr(1, path, MAXPATH) < 0)
+    return -1;
+  argint(2, &flags);
+  argint(3, &omode);
+
+  printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
+
+  struct vfs_filesystem *fs = getfs(ROOTFSTYPE);
+  if (fs == NULL) {
+    printf("FS type not found\n");
+    return -1;
+  }
+  
+  if(fs->type == VFS_TYPE_EXT4) {
+    const char *dirpath = dirfd == AT_FDCWD ? p->cinfo.path : p->ofile[dirfd]->info.path;
+    char abs_path[MAXPATH] = {0};
+    get_absolute_path(path, dirpath, abs_path);
+    printf("[sys_openat] abs_path = %s\n", abs_path);
+    if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
+      if(f)
+        fileclose(f);
+      return -1;
+    }
+    f->flags |= flags;
+    f->omode = omode;
+    strcpy(f->info.path, path);
+  
+    if(ext4_vfopen(f, path, flags) < 0) {
+      fileclose(f);
+      return -1;
+    }
+    return fd;
+  }
+  return -1;
 }

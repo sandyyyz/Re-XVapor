@@ -49,6 +49,10 @@ filealloc(void)
       }
       f->ref = 1;
       f->fops = fs->fops;
+      f->private_data = 0;
+      f->flags = 0;
+      f->omode = 0;
+      f->info.fs = fs;
       release(&ftable.lock);
       return f;
     }
@@ -85,6 +89,7 @@ fileclose(struct file *f)
   ff = *f;
   f->ref = 0;
   f->flags = 0;
+  f->omode = 0;
   f->type = FD_NONE;
   f->fops = 0;
   if(f->private_data) {

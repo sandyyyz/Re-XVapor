@@ -18,12 +18,19 @@
 #define UNSET_WRITABLE(x) ((x) &= ~WRITABLE)
 #define UNSET_READABLE_WRITABLE(x) ((x) &= ~(READABLE | WRITABLE))
 
+struct file_info {
+  char path[MAXPATH]; // full path of the file
+  struct vfs_filesystem *fs; // file system
+  void *data; // file-specific data
+};
+
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
   int ref; // reference count
   // char readable;
   // char writable;
   int flags;
+  int omode;
   struct pipe *pipe; // FD_PIPE
   struct inode *ip;  // FD_INODE and FD_DEVICE
   uint off;          // FD_INODE
@@ -32,6 +39,7 @@ struct file {
   // support vfs
   struct file_ops *fops; // file operations
   void *private_data; // filesystem-specific data; just used for ext4 right now , xv6fs donn't have fs-specific file structure, so don't use this
+  struct file_info info;
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)

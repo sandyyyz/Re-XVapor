@@ -30,6 +30,7 @@ entry("unlink");
 entry("link");
 entry("mkdir");
 entry("close");
+entry("openat");
 entry("write");
 entry("exit");
 entry("set_tid_address");

@@ -219,7 +219,7 @@ int execve(const char *pathname, char *const _Nullable argv[],
 
 ## 如何添加一个系统调用？
 
-1. user.h中添加对应的用户函数声明
+1. user.h中添加对应的用户函数声明(optional)
 2. syscall.tbl添加对应信息
 3. 内核中添加对应实现
 
