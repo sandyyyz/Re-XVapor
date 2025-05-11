@@ -19,6 +19,7 @@
 #define SYS_close 21
 #define SYS_openat 56
 #define SYS_write 64
+#define SYS_readlinkat 78
 #define SYS_exit 93
 #define SYS_set_tid_address 96
 #define SYS_set_robust_list 99
@@ -36,3 +37,4 @@
 #define SYS_mmap 222
 #define SYS_wait4 260
 #define SYS_prlimit64 261
+#define SYS_getrandom 278

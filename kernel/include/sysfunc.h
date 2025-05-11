@@ -19,6 +19,7 @@
 [SYS_close] sys_close,
 [SYS_openat] sys_openat,
 [SYS_write] sys_write,
+[SYS_readlinkat] sys_readlinkat,
 [SYS_exit] sys_exit,
 [SYS_set_tid_address] sys_set_tid_address,
 [SYS_set_robust_list] sys_set_robust_list,
@@ -36,3 +37,4 @@
 [SYS_mmap] sys_mmap,
 [SYS_wait4] sys_wait4,
 [SYS_prlimit64] sys_prlimit64,
+[SYS_getrandom] sys_getrandom,

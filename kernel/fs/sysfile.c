@@ -767,3 +767,16 @@ uint64 sys_openat(void) {
   }
   return -1;
 }
+
+
+
+/**
+ * 
+ * @brief  places the contents of the symbolic link path in the buffer buf, which has size bufsiz. TODO!!
+ * 
+ * @return On success, it returns the number of bytes placed in buf. On error, -1 is returned and errno is set to indicate the error.
+ */
+uint64 sys_readlinkat() {
+//  int readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz);
+  return 0;
+}

@@ -4,6 +4,7 @@
 #include "types.h"
 #include "sleeplock.h"
 #include "xv6fs.h"
+#include "param.h"
 
 #define READABLE 0X1
 #define WRITABLE 0X2

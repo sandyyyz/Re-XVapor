@@ -76,3 +76,69 @@ sys_gettimeofday(void)
     return 0;
 }
 
+
+static // from FreeBSD.
+int
+do_rand_kernel(unsigned long *ctx)
+{
+/*
+ * Compute x = (7^5 * x) mod (2^31 - 1)
+ * without overflowing 31 bits:
+ *      (2^31 - 1) = 127773 * (7^5) + 2836
+ * From "Random number generators: good ones are hard to find",
+ * Park and Miller, Communications of the ACM, vol. 31, no. 10,
+ * October 1988, p. 1195.
+ */
+    long hi, lo, x;
+
+    /* Transform to [1, 0x7ffffffe] range. */
+    x = (*ctx % 0x7ffffffe) + 1;
+    hi = x / 127773;
+    lo = x % 127773;
+    x = 16807 * lo - 2836 * hi;
+    if (x < 0)
+        x += 0x7fffffff;
+    /* Transform to [0, 0x7ffffffd] range. */
+    x--;
+    *ctx = x;
+    return (x);
+}
+
+
+unsigned long rand_next_kernel = 1;
+
+static int randkernel(void)
+{
+    return (do_rand_kernel(&rand_next_kernel));
+}
+
+/**
+ * @brief getrandom() - get random bytes
+ * 
+ * @return  On success, getrandom() returns the number of bytes that were
+       copied to the buffer buf.  This may be less than the number of
+       bytes requested via buflen if either GRND_RANDOM was specified in
+       flags and insufficient entropy was present in the random source or
+       the system call was interrupted by a signal.
+
+       On error, -1 is returned, and errno is set to indicate the error.
+ */
+uint64 sys_getrandom(void)
+{
+//        ssize_t getrandom(void buf[.buflen], size_t buflen, unsigned int flags);
+    uint64 addr;
+    uint64 buflen;
+    argaddr(0, &addr);
+    argaddr(1, &buflen);
+    if (buflen > 4096)
+        return -1;
+    char *buf = (char *)kmalloc(buflen);
+    if (buf == NULL)
+        return -1;
+    for (uint64 i = 0; i < buflen; i++)
+        buf[i] = randkernel();
+    if (copyout(myproc()->mm.pagetable, addr, buf, buflen) < 0)
+        return -1;
+    kfree(buf);
+    return buflen;
+}

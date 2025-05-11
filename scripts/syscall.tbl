@@ -41,3 +41,5 @@
 99 set_robust_list sys_set_robust_list 
 261 prlimit64 sys_prlimit64
 56 openat sys_openat
+78 readlinkat sys_readlinkat
+278 getrandom sys_getrandom
