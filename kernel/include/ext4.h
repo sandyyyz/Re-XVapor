@@ -50,7 +50,8 @@ extern "C" {
 #include <ext4_errno.h>
 #include <ext4_oflags.h>
 #include <ext4_debug.h>
-
+#include <ext4_journal.h>
+#include <ext4_fs.h>
 #include <ext4_blockdev.h>
 
 /********************************OS LOCK INFERFACE***************************/
@@ -63,6 +64,31 @@ struct ext4_lock {
 
 	/**@brief   Unlock access to mount point.*/
 	void (*unlock)(void);
+};
+
+/**@brief   Mount point descriptor.*/
+struct ext4_mountpoint {
+
+	/**@brief   Mount done flag.*/
+	bool mounted;
+
+	/**@brief   Mount point name (@ref ext4_mount)*/
+	char name[CONFIG_EXT4_MAX_MP_NAME + 1];
+
+	/**@brief   OS dependent lock/unlock functions.*/
+	const struct ext4_lock *os_locks;
+
+	/**@brief   Ext4 filesystem internals.*/
+	struct ext4_fs fs;
+
+	/**@brief   JBD fs.*/
+	struct jbd_fs jbd_fs;
+
+	/**@brief   Journal.*/
+	struct jbd_journal jbd_journal;
+
+	/**@brief   Block cache.*/
+	struct ext4_bcache bc;
 };
 
 /********************************FILE DESCRIPTOR*****************************/

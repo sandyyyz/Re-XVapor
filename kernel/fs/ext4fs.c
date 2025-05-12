@@ -8,7 +8,9 @@
 #include "ext4fs.h"
 #include "list.h"
 #include "debug.h"
-
+#include "ext4_inode.h"
+#include "ext4_fs.h"
+#include "ext4.h"
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, uint32_t flags);
@@ -320,3 +322,80 @@ int ext4_vfclose(struct file *fp) {
     return r;
 }
 
+int ext4_vstat(char *path, struct kstat *st) {
+    int r;
+    char *stat_path;
+    struct ext4_inode inode;
+    uint32_t ino = 0;
+
+    stat_path = path;
+
+    /* Don't open file or dir, just get info from inode */
+    r = ext4_raw_inode_fill(stat_path, &ino, &inode);
+    if (r != EOK) {
+        return -r;
+    }
+
+    struct ext4_sblock *sb = NULL;
+    r = ext4_get_sblock(stat_path, &sb);
+    if (r != EOK) {
+        return -r;
+    }
+
+    st->st_dev = ext4_inode_get_dev(&inode);
+    st->st_ino = ino;
+    st->st_mode = ext4_inode_get_mode(sb, &inode);
+    st->st_nlink = ext4_inode_get_links_cnt(&inode);
+    st->st_uid = ext4_inode_get_uid(&inode);
+    st->st_gid = ext4_inode_get_gid(&inode);
+    st->st_rdev = 0;
+    st->st_size = (off_t) inode.size_lo;
+    st->st_atime_sec = 0;
+    st->st_atime_nsec = 0;
+    st->st_mtime_sec = 0;
+    st->st_mtime_nsec = 0;
+    st->st_ctime_sec = 0;
+    st->st_ctime_nsec = 0;
+
+    if (r == 0) {
+        struct ext4_mount_stats s;
+        r = ext4_mount_point_stats(stat_path, &s);
+        if (r == 0) {
+            st->st_blksize = s.block_size;
+            st->st_blocks = (st->st_size + s.block_size) / s.block_size;
+        }
+    }
+
+    return -r;
+}
+
+int ext4_vfstat(struct file *f, struct kstat *st) {
+    struct ext4_file *file = (struct ext4_file *) f->private_data;
+    if (file == NULL) {
+        panic("can't get file");
+    }
+    struct ext4_inode_ref ref;
+
+    int r = ext4_fs_get_inode_ref(&file->mp->fs, file->inode, &ref);
+    if (r != EOK) {
+        return -r;
+    }
+
+    st->st_dev = 0;
+    st->st_ino = ref.index;
+    st->st_mode = ref.inode->mode;
+    st->st_nlink = ref.inode->size_lo;
+    st->st_uid = 0;
+    st->st_gid = 0;
+    st->st_rdev = 0;
+    st->st_size = ref.inode->size_lo;
+    st->st_blksize = ref.inode->size_lo / ref.inode->blocks_count_lo;
+    st->st_blocks = (uint64) ref.inode->blocks_count_lo;
+
+    st->st_atime_sec = ext4_inode_get_access_time(ref.inode);
+    st->st_ctime_sec = ext4_inode_get_change_inode_time(ref.inode);
+    st->st_mtime_sec = ext4_inode_get_modif_time(ref.inode);
+
+
+    return EOK;
+}

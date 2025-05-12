@@ -49,3 +49,13 @@ typedef uint64 paddr_t;
 
 #define true 1
 #define false 0
+
+typedef uint64 dev_t;
+typedef uint64 ino_t;
+typedef unsigned int mode_t;
+typedef uint32 nlink_t;
+typedef uint32 uid_t;
+typedef uint32 gid_t;
+typedef uint32 blksize_t;
+typedef uint64 blkcnt_t;
+typedef uint64 time_t;

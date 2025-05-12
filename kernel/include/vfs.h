@@ -149,7 +149,8 @@ struct fs_ops {
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);
 struct vfs_filesystem *vfs_getfs_bydev(int dev);
 struct vfs_filesystem *vfs_getfs_byname(const char *name);
-struct vfs_filesystem *vfs_getfs_bypath(const char *path);
+struct vfs_filesystem * vfs_resolve_fs(const char* path);
+
 void generic_iunlock(struct inode *ip);
 void generic_stati(struct inode *ip, struct stat *st);
 int generic_dirlink(struct inode *dp, char *name, uint inum);

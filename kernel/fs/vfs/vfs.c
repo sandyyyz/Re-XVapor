@@ -339,11 +339,7 @@ void generic_iunlock(struct inode *ip)
 
 void generic_stati(struct inode *ip, struct stat *st)
 {
-  st->dev = ip->dev;
-  st->ino = ip->inum;
-  st->type = ip->type;
-  st->nlink = ip->nlink;
-  st->size = ip->size;
+  return;
 }
 
 int generic_dirlink(struct inode *dp, char *name, uint inum)

@@ -57,3 +57,4 @@ void *memcpy(void *, const void *, uint);
 
 int openat(int dirfd, const char *pathname, int flags, int mode);
 int readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz);
+int fstatat(int dirfd, const char *pathname, struct stat *buf,int flags);

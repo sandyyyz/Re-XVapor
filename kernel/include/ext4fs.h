@@ -20,5 +20,7 @@ void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, uint32_t flags);
 int ext4_vfclose(struct file *fp);
+int ext4_vfstat(struct file *f, struct kstat *st);
+int ext4_vstat(char *path, struct kstat *st);
 
 #endif

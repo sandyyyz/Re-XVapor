@@ -142,3 +142,25 @@ uint64 sys_getrandom(void)
     kfree(buf);
     return buflen;
 }
+
+//TODO
+
+uint64 sys_getuid() {
+    return 0;
+}
+
+uint64 sys_setuid() {
+    return 0;
+}
+
+uint64 sys_getgid() {
+    return 0;
+}
+
+uint64 sys_setgid() {
+    return 0;
+}
+
+uint64 sys_sigaction() {
+    return 0;
+}

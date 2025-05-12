@@ -70,30 +70,6 @@
 			(_m)->os_locks->unlock();                              \
 	} while (0)
 
-/**@brief   Mount point descriptor.*/
-struct ext4_mountpoint {
-
-	/**@brief   Mount done flag.*/
-	bool mounted;
-
-	/**@brief   Mount point name (@ref ext4_mount)*/
-	char name[CONFIG_EXT4_MAX_MP_NAME + 1];
-
-	/**@brief   OS dependent lock/unlock functions.*/
-	const struct ext4_lock *os_locks;
-
-	/**@brief   Ext4 filesystem internals.*/
-	struct ext4_fs fs;
-
-	/**@brief   JBD fs.*/
-	struct jbd_fs jbd_fs;
-
-	/**@brief   Journal.*/
-	struct jbd_journal jbd_journal;
-
-	/**@brief   Block cache.*/
-	struct ext4_bcache bc;
-};
 
 /**@brief   Block devices descriptor.*/
 struct ext4_block_devices {

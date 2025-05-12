@@ -20,6 +20,7 @@
 #include "memlayout.h"
 #include "device.h"
 #include "ext4fs.h"
+#include "vfs.h"
 
 // for debug
 int g_first_exec = 0;
@@ -779,4 +780,52 @@ uint64 sys_openat(void) {
 uint64 sys_readlinkat() {
 //  int readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz);
   return 0;
+}
+
+/**
+ * @brief These functions return information about a file.
+ * @param dirfd The file descriptor of the directory in which the file is located.
+ * @param pathname The name of the file.
+ * @param buf A pointer to a stat structure where the information will be stored.
+ * @param flags The flags that control the behavior of the function. The only flag that is currently defined is AT_SYMLINK_NOFOLLOW, which prevents following symbolic links.
+ * @attention If the pathname given in pathname is relative, then it is interpreted relative to the directory referred to by the file descriptor dirfd (rather than relative to the current working directory of the calling process
+ * 
+ * 
+ * @return On success, fstatat() returns 0. On error, -1 is returned and errno is set to indicate the error. 
+ */
+uint64 sys_fstatat() {
+  // int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags);
+
+  char pathname[MAXPATH];
+  int dirfd, flags;
+  uint64 statbuf;
+  argint(0, &dirfd);
+  if (argstr(1, pathname, MAXPATH) < 0) {
+      return -1;
+  }
+  argaddr(2, &statbuf);
+  argint(3, &flags);
+
+  struct vfs_filesystem *fs = vfs_resolve_fs(pathname);
+  if (fs == NULL) {
+      printf("FS type not found\n");
+      return -1;
+  }
+
+  if(fs->type == VFS_TYPE_EXT4) {
+    struct kstat kstat;
+    char * dirfd_path = dirfd == AT_FDCWD ? myproc()->cinfo.path : myproc()->ofile[dirfd]->info.path;
+    char abs_path[MAXPATH] = {0};
+    get_absolute_path(pathname, dirfd_path, abs_path);
+    printf("[sys_fstatat] abs_path = %s\n", abs_path);
+    if (ext4_vstat(abs_path, &kstat) < 0) {
+      return -1;
+    }
+    if (copyout(myproc()->mm.pagetable, statbuf, (char *)&kstat, sizeof(kstat)) < 0) {
+      return -1;
+    }
+    return 0;
+  }
+  printf("sys_fstatat: fs type not supported, type: %d\n", fs->type);
+  return -1;
 }
