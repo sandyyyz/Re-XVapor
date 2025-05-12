@@ -16,7 +16,7 @@
 14  uptime      sys_uptime
 15  open        sys_open
 64  write       sys_write
-17  mknod       sys_mknod
+17  getcwd      sys_getcwd
 18  unlink      sys_unlink
 19  link        sys_link
 20  mkdir       sys_mkdir

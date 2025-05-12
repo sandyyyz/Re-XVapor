@@ -829,3 +829,25 @@ uint64 sys_fstatat() {
   printf("sys_fstatat: fs type not supported, type: %d\n", fs->type);
   return -1;
 }
+
+/**
+ * @brief getcwd - get current working directory
+ * 
+ * @return        On success, these functions return a pointer to a string
+       containing the pathname of the current working directory.  In the
+       case of getcwd() and getwd() this is the same value as buf.
+
+       On failure, these functions return NULL, and errno is set to
+       indicate the error.  The contents of the array pointed to by buf
+       are undefined on error.
+ */
+uint64 sys_getcwd() {
+  // char *getcwd(char *buf, size_t size);
+  uint64 addr;
+  argaddr(0, &addr);
+  printf("[sys_getcwd] cinfo.path = %s\n", myproc()->cinfo.path);
+  if (copyout(myproc()->mm.pagetable, addr, myproc()->cinfo.path, MAXPATH) < 0) {
+    return 0;
+  }
+  return addr;
+}

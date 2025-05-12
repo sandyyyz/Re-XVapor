@@ -25,7 +25,7 @@ entry("sbrk");
 entry("sleep");
 entry("uptime");
 entry("open");
-entry("mknod");
+entry("getcwd");
 entry("unlink");
 entry("link");
 entry("mkdir");

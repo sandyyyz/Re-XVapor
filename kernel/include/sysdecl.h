@@ -12,7 +12,7 @@ extern uint64 sys_sbrk(void);
 extern uint64 sys_sleep(void);
 extern uint64 sys_uptime(void);
 extern uint64 sys_open(void);
-extern uint64 sys_mknod(void);
+extern uint64 sys_getcwd(void);
 extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
