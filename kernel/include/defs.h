@@ -142,6 +142,7 @@ int substr_cmp(const char *p, const char *q);
 char *strcat(char *dest, const char *src);
 
 // syscall.c
+void            arglong(int, uint64*);
 void            argint(int, int*);
 int             argstr(int, char*, int);
 void            argaddr(int, uint64 *);

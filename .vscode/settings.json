@@ -115,7 +115,10 @@
         "initcode.h": "c",
         "syscall_def.h": "c",
         "syscall_func.h": "c",
-        "sysnum.h": "c"
+        "sysnum.h": "c",
+        "ioctl.h": "c",
+        "termios.h": "c",
+        "ext4_inode.h": "c"
     },
 
     "multiCommand.commands": [

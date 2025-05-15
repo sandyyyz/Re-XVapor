@@ -21,6 +21,8 @@
 #include "device.h"
 #include "ext4fs.h"
 #include "vfs.h"
+#include "ioctl.h"
+#include "ext4_errno.h"
 
 // for debug
 int g_first_exec = 0;
@@ -31,7 +33,7 @@ int argfd(int n, int *pfd, struct file **pf)
   int fd;
   struct file *f;
 
-  argint(n, &fd);
+   argint(n, &fd);
   if(fd < 0 || fd >= NOFILE || (f=myproc()->ofile[fd]) == 0)
     return -1;
   if(pfd)
@@ -760,7 +762,7 @@ uint64 sys_openat(void) {
     f->omode = omode;
     strcpy(f->info.path, path);
   
-    if(ext4_vfopen(f, path, flags) < 0) {
+    if(ext4_vfopen(f, path, flags) != EOK) {
       fileclose(f);
       return -1;
     }
@@ -807,9 +809,10 @@ uint64 sys_fstatat() {
   argint(3, &flags);
 
   struct vfs_filesystem *fs = vfs_resolve_fs(pathname);
+  printf("pathname = %s\n", pathname);
   if (fs == NULL) {
       printf("FS type not found\n");
-      return -1;
+      return ENOENT;
   }
 
   if(fs->type == VFS_TYPE_EXT4) {
@@ -817,7 +820,7 @@ uint64 sys_fstatat() {
     char * dirfd_path = dirfd == AT_FDCWD ? myproc()->cinfo.path : myproc()->ofile[dirfd]->info.path;
     char abs_path[MAXPATH] = {0};
     get_absolute_path(pathname, dirfd_path, abs_path);
-    printf("[sys_fstatat] abs_path = %s\n", abs_path);
+    // printf("[sys_fstatat] abs_path = %s\n", abs_path);
     if (ext4_vstat(abs_path, &kstat) < 0) {
       return -1;
     }
@@ -844,10 +847,69 @@ uint64 sys_fstatat() {
 uint64 sys_getcwd() {
   // char *getcwd(char *buf, size_t size);
   uint64 addr;
+  int size;
   argaddr(0, &addr);
-  printf("[sys_getcwd] cinfo.path = %s\n", myproc()->cinfo.path);
+  argint(1, &size);
+  // printf("[sys_getcwd] cinfo.path = %s\n", myproc()->cinfo.path);
+  if(size < 0 || size > MAXPATH || size < strlen(myproc()->cinfo.path)) {
+    return 0;
+  }
   if (copyout(myproc()->mm.pagetable, addr, myproc()->cinfo.path, MAXPATH) < 0) {
     return 0;
   }
   return addr;
+}
+
+/**
+ * @brief    The ioctl() system call manipulates the underlying device
+       parameters of special files.  In particular, many operating
+       characteristics of character special files (e.g., terminals) may
+       be controlled with ioctl() operations.  The argument fd must be an
+       open file descriptor.
+
+       The second argument is a device-dependent operation code.  The
+       third argument is an untyped pointer to memory.  It's
+       traditionally char *argp (from the days before void * was valid
+       C), and will be so named for this discussion.
+
+       An ioctl() op has encoded in it whether the argument is an in
+       parameter or out parameter, and the size of the argument argp in
+       bytes.  Macros and defines used in specifying an ioctl() op are
+       located in the file <sys/ioctl.h>. 
+ * 
+ * @return  Usually, on success zero is returned.  A few ioctl() operations
+       use the return value as an output parameter and return a
+       nonnegative value on success.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_ioctl(void) {
+  // int ioctl(int fd, unsigned long op, ...);  /* glibc, BSD */
+  // int ioctl(int fd, int op, ...);            /* musl, other UNIX */
+  struct file *f;
+  int fd;
+  uint64 op;
+  uint64 arg;
+  if (argfd(0, &fd, &f) < 0) {
+      return -1;
+  }
+  arglong(1, &op);
+  arglong(2, &arg);
+  printf("[sys_ioctl] fd = %d, op = 0x%x, arg = 0x%x\n", fd, op, arg);
+  return do_ioctl(f, op, arg);
+  // return -1;
+}
+
+uint64 sys_fcntl(void) {
+  // int fcntl(int fd, int cmd, ... /* arg */ );
+  struct file *f;
+  int fd;
+  uint64 cmd;
+  uint64 arg;
+  if (argfd(0, &fd, &f) < 0) {
+      return -1;
+  }
+  arglong(1, &cmd);
+  arglong(2, &arg);
+  printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
+  return do_fcntl(f, cmd, arg);
 }

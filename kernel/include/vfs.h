@@ -170,5 +170,8 @@ void init_vfsmlist(void);
 
 void get_absolute_path(const char *path, const char *cwd, char *absolute_path);
 struct inode *ifind_fempty(void *pdata);
+void init_vfs_mtable();
+int vfs_mount(struct vfs_filesystem *fs, char *path);
+int addfs(struct vfs_filesystem *fs);
 
 #endif

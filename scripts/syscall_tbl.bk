@@ -14,6 +14,7 @@
 13  sleep       sys_sleep
 14  uptime      sys_uptime
 15  open        sys_open
+64  write       sys_write
 17  getcwd      sys_getcwd
 18  unlink      sys_unlink
 19  link        sys_link
@@ -51,5 +52,5 @@
 57 close sys_close
 175 geteuid sys_geteuid
 63 read sys_read
-64 write sys_write
 73 ppoll sys_ppoll
+94 exit_group sys_exit_group

@@ -2,7 +2,6 @@
 #define SYS_dev 2
 #define SYS_wait 3
 #define SYS_pipe 4
-#define SYS_read 5
 #define SYS_kill 6
 #define SYS_exec 7
 #define SYS_fstat 8
@@ -16,9 +15,13 @@
 #define SYS_unlink 18
 #define SYS_link 19
 #define SYS_mkdir 20
-#define SYS_close 21
+#define SYS_fcntl 25
+#define SYS_ioctl 29
 #define SYS_openat 56
+#define SYS_close 57
+#define SYS_read 63
 #define SYS_write 64
+#define SYS_ppoll 73
 #define SYS_readlinkat 78
 #define SYS_fstatat 79
 #define SYS_exit 93
@@ -35,6 +38,7 @@
 #define SYS_getpid 172
 #define SYS_getppid 173
 #define SYS_getuid 174
+#define SYS_geteuid 175
 #define SYS_getgid 176
 #define SYS_brk 214
 #define SYS_munmap 215

@@ -19,9 +19,10 @@ volatile static int cpunum = 4;
 static void initfss() {
   init_vfssw();   // init vfs switch list
   init_vfsmlist();  // init mount list
-  mntinit();      //  init mount table 
+  mntinit();      //  init mount table , maybe duplicate with vfs_mount_table
   bdev_table_init();  // init block device table
-
+  init_vfs_mtable(); // init vfs mount table
+  
 #ifdef __USE_XV6FS
   if(init_xv6fs() < 0) {
     panic("xv6fs_init failed");

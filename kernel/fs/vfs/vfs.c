@@ -81,6 +81,17 @@ allocvfs()
   return 0;
 }
 
+void init_vfs_mtable() {
+  memset(&vfs_mount_table, 0, sizeof(vfs_mount_table));
+  initlock(&vfs_mount_table.lock, "vfs_mount_table");
+  for (int i = 0; i < MAX_MOUNTS; i++) {
+    vfs_mount_table.mount_points[i].mp = NULL;
+    vfs_mount_table.mount_points[i].dev = -1;
+    vfs_mount_table.mount_points[i].type = VFS_TYPE_UNKNOWN;
+  }
+}
+
+
 // Add rootvfs on the list
 void
 install_rootfs(void)
@@ -93,6 +104,8 @@ install_rootfs(void)
   rootfs->minor = ROOTDEV;
 
   struct vfs_filesystem *fst = getfs(ROOTFSTYPE);
+  // printf("fst = %s\n", fst->name);
+  // printf("fst = %d\n", fst->type);
   if (fst == 0) {
     panic("The root fs type is not supported");
   }
@@ -102,6 +115,15 @@ install_rootfs(void)
   acquire(&vfsmlist.lock);
   list_add_tail(&(rootfs->fs_next), &(vfsmlist.fs_list));
   release(&vfsmlist.lock);
+  
+  // mount the rootfs to the root directory
+  if(vfs_mount(fst, "/") < 0) {
+    panic("Failed to mount rootfs");
+  }
+  // add the rootfs to the vfs table
+  if(addfs(fst) < 0) {
+    panic("Failed to add rootfs to the vfs table");
+  }
 }
 
 void
@@ -180,6 +202,9 @@ struct vfs_filesystem* getfs(const char *fs_name)
  * @return struct vfs_filesystem* pointer to the filesystem structure , null if not found
  */
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type) {
+  if(type == VFS_TYPE_UNKNOWN) {
+    return NULL;
+  }
     for (int i = 0; i < VFS_MAXFS; i++) {
         if (vfs_fs[i] && vfs_fs[i]->type == type) {
             return vfs_fs[i];
@@ -208,13 +233,17 @@ struct vfs_filesystem *vfs_getfs_byname(const char *name) {
 struct vfs_filesystem * vfs_resolve_fs(const char* path) {
     vfs_type_t selected = VFS_TYPE_UNKNOWN;
     int longest_match_len = -1;
+    char abs_path[MAXPATH] = {0};
+    get_absolute_path(path, "/", abs_path);
+    // printf("vfs_resolve_fs: abs_path = %s\n", abs_path);
 
     acquire(&vfs_mount_table.lock);
     for (int i = 0; i < MAX_MOUNTS; i++) {
         const char* mp = vfs_mount_table.mount_points[i].mp;
+        if(!mp) continue;
         int len = strlen(mp);
 
-        if (strncmp(path, mp, len) == 0 &&
+        if (strncmp(abs_path, mp, len) == 0 &&
             (path[len] == '/' || path[len] == '\0')) {
             if (len > longest_match_len) {
                 longest_match_len = len;
@@ -424,7 +453,7 @@ void fsinit(int dev) {
     }
     initlog(dev,xsp);
   }
-  #else 
+  #else
   ext4_init();
   #endif
 }
@@ -731,4 +760,26 @@ static struct inode *namex(char *path, int nameiparent, char *name) {
   Log("ip->addrs[0] = %d", ip->addrs[0]);
 #endif  
   return ip;
+}
+
+
+int vfs_mount(struct vfs_filesystem *fs, char *path) {
+  for(int i = 0; i < MAX_MOUNTS; i++) {
+    if (vfs_mount_table.mount_points[i].mp == NULL) {
+      vfs_mount_table.mount_points[i].mp = path;
+      vfs_mount_table.mount_points[i].type = fs->type;
+      return 0;
+    }
+  }
+  return -1;
+}
+
+int addfs(struct vfs_filesystem *fs) {
+  for (int i = 0; i < VFS_MAXFS; i++) {
+    if (vfs_fs[i] == NULL) {
+      vfs_fs[i] = fs;
+      return 0;
+    }
+  }
+  return -1;
 }

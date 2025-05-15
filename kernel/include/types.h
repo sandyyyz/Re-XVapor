@@ -59,3 +59,7 @@ typedef uint32 gid_t;
 typedef uint32 blksize_t;
 typedef uint64 blkcnt_t;
 typedef uint64 time_t;
+
+typedef unsigned char	cc_t;
+typedef unsigned int	speed_t;
+typedef unsigned int	tcflag_t;

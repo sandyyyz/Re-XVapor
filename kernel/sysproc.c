@@ -113,7 +113,11 @@ uint64 sys_brk(void) {
   uint64 oldsz;
 
   argaddr(0, &addr);
-  // Log("[sys_brk] %p", addr);
+  #ifdef __DEBUG_BRK
+  Log("[sys_brk] %p", addr);
+  Log("[sys_brk] oldsize %p", myproc()->sz);
+  #endif
+  
   if(addr >= MAXVA || addr >= BRKTOP) {
     Warn("brk %p failed\n", addr);
     return -1;

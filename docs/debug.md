@@ -705,3 +705,8 @@ __libc_setup_tls尝试syscall 214, 即 SYS_brk,添加对应syscall即可
 ![busybox.3.2](image-121.png)
 brk后最终调用了syscall 17，然后卡死。（在这之前还有很多的syscall也失败了)  
 一个个修吧=-=
+
+### busybox.4
+![busybox.4.1](image-122.png)
+![busybox.4.2](image-123.png)
+居然写了一个代码段的地址？？

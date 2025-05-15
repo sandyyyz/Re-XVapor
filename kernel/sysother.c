@@ -150,7 +150,7 @@ uint64 sys_getuid() {
 }
 
 uint64 sys_setuid() {
-    return 0;
+    return 0; 
 }
 
 uint64 sys_getgid() {
@@ -162,5 +162,13 @@ uint64 sys_setgid() {
 }
 
 uint64 sys_sigaction() {
+    return 0;
+}
+
+uint64 sys_geteuid() {
+    return 0;
+}
+
+uint64 sys_ppoll() {
     return 0;
 }
