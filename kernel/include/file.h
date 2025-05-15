@@ -26,7 +26,7 @@ struct file_info {
 };
 
 struct file {
-  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
+  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE, FD_SOFTLINK, FD_SOCKET } type;
   int ref; // reference count
   // char readable;
   // char writable;
@@ -41,6 +41,7 @@ struct file {
   struct file_ops *fops; // file operations
   void *private_data; // filesystem-specific data; just used for ext4 right now , xv6fs donn't have fs-specific file structure, so don't use this
   struct file_info info;
+  uint64 fpos; // file position
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)

@@ -14,6 +14,7 @@
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, uint32_t flags);
+int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -33,7 +34,8 @@ struct inode_ops ext4_inode_ops = {
 };
 
 struct file_ops ext4_file_ops = {
-
+    .read = ext4_vfread,
+    .write = ext4_vwrite,
 };
 
 struct fs_ops ext4_fs_ops = {
@@ -127,6 +129,15 @@ struct ext4_file *ext4_falloc() {
 inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
     return container_of(efp, struct ext4_mfile, ext4_fentry);
 }
+/**
+ * @brief recycle ext4 file
+ * 
+ * @attention manage references of ext4 file, meaning that will recycle the fp * only when ref == 0
+ * 
+ * if ref > 0, just set ref--, and don't recycle the fp
+ * @param efp pointer to ext4 file
+ * @return return 0 on success, -1 on error
+ */
 int recycle_efile(struct ext4_file *efp) {
     acquire(&ext4_fpool.lock);
     struct ext4_mfile *fp = parent_mfile(efp);
@@ -220,6 +231,7 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
+    fp->fpos = efp->fpos;
     if(user_dst) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
@@ -244,6 +256,7 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
         }
         kfree(kbuf);
     }
+
     return r;
 }
 
@@ -259,6 +272,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
+    fp->fpos = efp->fpos;
     if(user_src) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
@@ -280,6 +294,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
         }
         return r;
     }
+    fp->fpos = efp->fpos;
     if(user_src) {
         kfree(kbuf);
     }
@@ -289,6 +304,10 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
 int ext4_vfopen(struct file *fp, const char *path, uint32_t flags) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
+    struct ext4_inode inode;
+    struct ext4_sblock *sb = NULL;
+    uint32_t ino = 0;
+    int eftype = 0;
     if(efp) {
         printf("[ext4] efp is not NULL!\n");
         return EINVAL;
@@ -303,6 +322,58 @@ int ext4_vfopen(struct file *fp, const char *path, uint32_t flags) {
         return r;
     }
     fp->private_data = efp;
+
+    // to get the file type
+    if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
+        printf("[ext4] ext4_raw_inode_fill error!\n");
+        recycle_efile(efp);
+        return EINVAL;
+    }
+
+    if(ext4_get_sblock(path, &sb) != EOK) {
+        printf("[ext4] ext4_get_sblock error!\n");
+        recycle_efile(efp);
+        return EINVAL;
+    }
+    eftype = ext4_inode_type(sb, &inode);
+    /*
+    #define EXT4_INODE_MODE_FIFO 0x1000
+    #define EXT4_INODE_MODE_CHARDEV 0x2000
+    #define EXT4_INODE_MODE_DIRECTORY 0x4000
+    #define EXT4_INODE_MODE_BLOCKDEV 0x6000
+    #define EXT4_INODE_MODE_FILE 0x8000
+    #define EXT4_INODE_MODE_SOFTLINK 0xA000
+    #define EXT4_INODE_MODE_SOCKET 0xC000
+    #define EXT4_INODE_MODE_TYPE_MASK 0xF000
+    */
+    switch(eftype) {
+        case EXT4_INODE_MODE_FIFO:
+            fp->type = FD_PIPE;
+            break;
+        case EXT4_INODE_MODE_CHARDEV:
+            fp->type = FD_DEVICE;
+            break;
+        case EXT4_INODE_MODE_DIRECTORY:
+            fp->type = FD_INODE;
+            break;
+        case EXT4_INODE_MODE_BLOCKDEV:
+            fp->type = FD_DEVICE;
+            break;
+        case EXT4_INODE_MODE_FILE:
+            fp->type = FD_INODE;
+            break;
+        case EXT4_INODE_MODE_SOFTLINK:
+            fp->type = FD_SOFTLINK;
+            break;
+        case EXT4_INODE_MODE_SOCKET:
+            fp->type = FD_SOCKET;
+            break;
+        default:
+            printf("[ext4] unknown file type! eftype=%d\n", eftype);
+            recycle_efile(efp);
+            return EINVAL;
+    }
+        
     return r;
 }
 

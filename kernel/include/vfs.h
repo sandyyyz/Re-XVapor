@@ -124,8 +124,8 @@ struct file_ops {
 
     int             (*open)(const char *path, int flags);
     void            (*close)(struct file *f);
-    int             (*read)(struct file *f, void *buf, int count);
-    int             (*write)(struct file *f, const void *buf, int count);
+    int             (*read)(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
+    int             (*write)(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
     int             (*filestat)(struct file *f, uint64 addr);
     int             (*cleansf)(struct file* f);
 };

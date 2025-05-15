@@ -74,8 +74,26 @@ sys_dup(void)
   return fd;
 }
 
-uint64
-sys_read(void)
+/**
+ * @brief ssize_t read(int fd, void buf[.count], size_t count);  
+ * 
+ * read() attempts to read up to count bytes from file descriptor fd
+       into the buffer starting at buf.
+ * 
+ * @return  On success, the number of bytes read is returned (zero indicates
+       end of file), and the file position is advanced by this number.
+       It is not an error if this number is smaller than the number of
+       bytes requested; this may happen for example because fewer bytes
+       are actually available right now (maybe because we were close to
+       end-of-file, or because we are reading from a pipe, or from a
+       terminal), or because read() was interrupted by a signal.  See
+       also NOTES.
+
+       On error, -1 is returned, and errno is set to indicate the error.
+       In this case, it is left unspecified whether the file position (if
+       any) changes.
+ */
+uint64 sys_read(void)
 {
   struct file *f;
   int n;
@@ -764,6 +782,7 @@ uint64 sys_openat(void) {
   
     if(ext4_vfopen(f, path, flags) != EOK) {
       fileclose(f);
+      myproc()->ofile[fd] = 0;
       return -1;
     }
     return fd;

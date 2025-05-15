@@ -53,6 +53,7 @@ filealloc(void)
       f->flags = 0;
       f->omode = 0;
       f->info.fs = fs;
+      f->fpos = 0;
       release(&ftable.lock);
       return f;
     }
@@ -92,6 +93,7 @@ fileclose(struct file *f)
   f->omode = 0;
   f->type = FD_NONE;
   f->fops = 0;
+  f->fpos = 0;
   if(f->private_data) {
     f->fops->close(f);
     f->fops->cleansf(f);
@@ -144,10 +146,7 @@ fileread(struct file *f, uint64 addr, int n)
       return -1;
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
-    f->ip->iops->ilock(f->ip);
-    if((r = f->ip->iops->readi(f->ip, 1, addr, f->off, n)) > 0)
-      f->off += r;
-    f->ip->iops->iunlock(f->ip);
+    f->fops->read(f, 1, addr, f->fpos, n, &r);
   } else {
     panic("fileread");
   }
@@ -165,10 +164,6 @@ fileread(struct file *f, uint64 addr, int n)
  */
 int filewrite(struct file *f, uint64 addr, int n)
 {
-#ifdef __DEBUG_FILEWRITE
-  printf("thread %d file write\n", mythread()->tid);
-#endif
-
   int r, ret = 0;
 
   if(!(IS_WRITABLE(f->flags)))
@@ -181,40 +176,14 @@ int filewrite(struct file *f, uint64 addr, int n)
       return -1;
     ret = devsw[f->major].write(1, addr, n);
   } else if(f->type == FD_INODE){
-    // write a few blocks at a time to avoid exceeding
-    // the maximum log transaction size, including
-    // i-node, indirect block, allocation blocks,
-    // and 2 blocks of slop for non-aligned writes.
-    // this really belongs lower down, since writei()
-    // might be writing a device like the console.
-    int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
-    int i = 0;
-    while(i < n){
-      int n1 = n - i;
-      if(n1 > max)
-        n1 = max;
-
-      begin_op();
-      f->ip->iops->ilock(f->ip);
-      if ((r = f->ip->iops->writei(f->ip, 1, addr + i, f->off, n1)) > 0)
-        f->off += r;
-      f->ip->iops->iunlock(f->ip);
-      end_op();
-
-      if(r != n1){
-        // error from writei
-        break;
-      }
-      i += r;
-    }
-    ret = (i == n ? n : -1);
+    f->fops->write(f, 1, addr, f->fpos, n, &r);
+    if(r > 0)
+      ret = r;
+    else
+      ret = -1;
   } else {
     panic("filewrite");
   }
-#ifdef __DEBUG_FILEWRITE
-  if(ret != 1)
-    Info("thread %d filewrite: ret %d\n", mythread()->tid, ret);
-#endif
   return ret;
 }
 

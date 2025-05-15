@@ -298,7 +298,7 @@ int execve(char *path, char **argv, char **envp)
   }
   if(((r = ext4_vfread(f, 0, (uint64) &elf, 0, sizeof(elf), &rcnt)) != EOK) || 
      (rcnt != sizeof(elf))) {
-    Log("ext4_fread failed %d", r);
+    Log("ext4_fread failed %d, rcnt = %d, size of elf == %d", r, rcnt, sizeof(elf));
     ext4_vfclose(f);
     return -1;
   }
