@@ -66,9 +66,17 @@ sys_getpid(void)
 }
 
 uint64 sys_clone(void) {
-  //TODO
-  return fork();
+    int flags;
+    uint64 stack, tls, ctid;
+    pid_t ptid;
+    argint(0, &flags);
+    argaddr(1, &stack);
+    argint(2, &ptid);
+    argaddr(3, &tls);
+    argaddr(4, &ctid);
+    return do_clone(flags, stack, ptid, tls, (pid_t *) ctid);
 }
+
 uint64
 sys_fork(void)
 {

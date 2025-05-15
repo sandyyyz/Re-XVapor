@@ -567,6 +567,86 @@ fork(void)
   return pid;
 }
 
+
+int do_clone(int flags, uint64 stack, pid_t p_tid, uint64 tls, const pid_t *c_tid)
+{
+  int i, pid;
+  struct proc *np;
+  struct proc *p = myproc();
+  struct tcb  *t = mythread();
+  // Allocate process.
+  // return with np->lock held
+
+  if((np = allocproc()) == 0){
+    return -1;
+  }
+  if((t = alloc_thread(thread_forkret)) == 0) {
+    freeproc(np);
+    return -1;
+  }
+
+  // make the allocated thread be the group leader
+  proc_join_thread(np, t, NULL);
+  // Copy user memory from parent to child.
+
+  if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+  np->sz = p->sz;
+  
+  // copy vma
+  acquire(&p->mm.lock);
+  acquire(&np->mm.lock);
+  proc_copy_vma(p, np);
+  release(&np->mm.lock);
+  release(&p->mm.lock);
+
+  // TODO: let's just copy the leader thread right now
+  // copy saved user registers.
+  *(np->tg.group_leader->trapframe) = *(p->tg.group_leader->trapframe);
+
+  // Cause fork to return 0 in the child.
+  np->tg.group_leader->trapframe->a0 = 0;
+
+  if (stack) {
+    t->trapframe->sp = stack;
+  }
+  // increment reference counts on open file descriptors.
+  // child process "open" the files
+  for(i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      np->ofile[i] = filedup(p->ofile[i]);
+  np->cwd = idup(p->cwd);
+
+  safestrcpy(np->name, p->name, sizeof(p->name));
+
+  pid = np->pid;
+  
+  release(&np->tg.group_leader->lock);
+  release(&np->lock);
+
+  acquire(&wait_lock);
+  np->parent = p;
+  release(&wait_lock);
+
+  acquire(&p->lock);
+  append_child(p, np);
+  release(&p->lock);
+  
+  acquire(&np->lock);
+  // np->state = RUNNABLE;
+  // change the leader thread's state
+  acquire(&np->tg.lock);
+  acquire(&np->tg.group_leader->lock);
+  tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
+  release(&np->tg.group_leader->lock);
+  release(&np->tg.lock);
+  release(&np->lock);
+
+  return pid;
+}
 // initproc接管即将退出的父进程的所有子进程
 // 将p所有子进程的父进程修改为initproc,并wakeup(initproc)
 // Pass p's abandoned children to init.
