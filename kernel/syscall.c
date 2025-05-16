@@ -73,6 +73,13 @@ argint(int n, int *ip)
 void arglong(int n, uint64 *lip) {
   *lip = (long) argraw(n); 
 }
+void arguint32(int n, uint32 *lip) {
+  *lip = (uint32) argraw(n); 
+}
+void arguint64(int n, uint64 *lip) {
+  *lip = (uint64) argraw(n); 
+}
+
 // Retrieve an argument as a pointer.
 // Doesn't check for legality, since
 // copyin/copyout will do that.

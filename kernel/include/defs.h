@@ -145,6 +145,8 @@ char *strcat(char *dest, const char *src);
 void            arglong(int, uint64*);
 void            argint(int, int*);
 int             argstr(int, char*, int);
+void arguint32(int n, uint32 *lip);
+void arguint64(int n, uint64 *lip);
 void            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);

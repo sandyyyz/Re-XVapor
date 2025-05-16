@@ -50,7 +50,7 @@ typedef uint64 paddr_t;
 #define true 1
 #define false 0
 
-typedef uint64 dev_t;
+typedef uint32 dev_t;
 typedef uint64 ino_t;
 typedef unsigned int mode_t;
 typedef uint32 nlink_t;
@@ -63,3 +63,6 @@ typedef uint64 time_t;
 typedef unsigned char	cc_t;
 typedef unsigned int	speed_t;
 typedef unsigned int	tcflag_t;
+
+
+// typedef uint32 dev_t;

@@ -60,6 +60,13 @@ fdalloc(struct file *f)
   return -1;
 }
 
+
+static void get_abpath_from_dirfd(const char* path, int dirfd, char* abs_path) {
+  struct proc *p = myproc();
+  const char *dirpath = dirfd == AT_FDCWD ? p->cinfo.path : p->ofile[dirfd]->info.path;
+  get_absolute_path(path, dirpath, abs_path);
+}
+
 uint64
 sys_dup(void)
 {
@@ -313,84 +320,6 @@ create(char *path, short type, short major, short minor)
 }
 
 uint64
-sys_open(void)
-{
-  char path[MAXPATH];
-  int fd, omode;
-  struct file *f;
-  struct inode *ip;
-  int n;
-#ifdef __DEBUG_SYS_OPEN
-  Log("do sys_open");
-  // while(1);
-#endif
-  argint(1, &omode);
-  if((n = argstr(0, path, MAXPATH)) < 0)
-    return -1;
-
-  begin_op();
-
-  if(omode & O_CREATE){
-    ip = create(path, T_FILE, 0, 0);
-    if(ip == 0){
-      end_op();
-      return -1;
-    }
-  } else {
-    if((ip = namei(path)) == 0){
-      end_op();
-      return -1;
-    }
-    ip->iops->ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
-      iunlockput(ip);
-      end_op();
-      return -1;
-    }
-  }
-
-  if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
-    iunlockput(ip);
-    end_op();
-    return -1;
-  }
-
-  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
-    if(f)
-      fileclose(f);
-    iunlockput(ip);
-    end_op();
-    return -1;
-  }
-
-  if(ip->type == T_DEVICE){
-    f->type = FD_DEVICE;
-    f->major = ip->major;
-  } else {
-    f->type = FD_INODE;
-    f->off = 0;
-  }
-  f->ip = ip;
-  // f->readable = !(omode & O_WRONLY);
-  // printf("flags %d\n", f->flags);
-  if(!(omode & O_WRONLY) )
-    SET_READABLE(f->flags);
-  // f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
-  if((omode & O_WRONLY) || (omode & O_RDWR))
-    SET_WRITABLE(f->flags);
-
-  if((omode & O_TRUNC) && ip->type == T_FILE){
-    ip->iops->itrunc(ip);
-  }
-
-
-  ip->iops->iunlock(ip);
-  end_op();
-
-  return fd;
-}
-
-uint64
 sys_mkdir(void)
 {
   char path[MAXPATH];
@@ -406,24 +335,83 @@ sys_mkdir(void)
   return 0;
 }
 
-uint64
-sys_mknod(void)
-{
-  struct inode *ip;
-  char path[MAXPATH];
-  int major, minor;
 
-  begin_op();
-  argint(1, &major);
-  argint(2, &minor);
-  if((argstr(0, path, MAXPATH)) < 0 ||
-     (ip = create(path, T_DEVICE, major, minor)) == 0){
-    end_op();
+
+/**
+ * @brief generic_mknod - create a filesystem node
+ * 
+ * @param path absolute path to the file to be created
+ * @param mode the file type and permissions
+ * @param dev device number, including major and minor numbers
+ * @return 0 on success, -1 on error
+ */
+static uint64 generic_mknod(char *path, mode_t mode, dev_t dev) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(path);
+  if (fs == NULL) {
+    printf("sys_mknod: vfs_resolve_fs failed\n");
     return -1;
   }
-  iunlockput(ip);
-  end_op();
+  if(fs->fsops->mknod == NULL) {
+    printf("sys_mknod: fsops->mknod is NULL\n");
+    return -1;
+  }
+  if (fs->fsops->mknod(path, mode, dev) < 0) {
+    printf("sys_mknod: fsops->mknod failed\n");
+    return -1;
+  }
   return 0;
+}
+/**
+ * @brief  The system call mknod() creates a filesystem node (file, device
+       special file, or named pipe) named pathname, with attributes
+       specified by mode and dev.
+ * 
+ * @property int mknod(const char *pathname, mode_t mode, dev_t dev);
+ * @param pathname the path to the file to be created
+ * @param mode the file type and permissions
+ * @param dev the device number, including major and minor numbers
+ * @return mknod() and mknodat() return zero on success.  On error, -1 is
+       returned and errno is set to indicate the error.
+ */
+uint64 sys_mknod(void)
+{
+
+  mode_t mode;
+  dev_t dev;
+  char path[MAXPATH];
+  arguint32(1, &mode);
+  arguint32(2, &dev);
+  if(argstr(0, path, MAXPATH) < 0) {
+    printf("sys_mknod: argstr failed\n");
+    return -1;
+  }
+  return generic_mknod(path, mode, dev);
+}
+
+/**
+ * @brief create a filesystem node
+ * 
+ * @property int mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev);
+ * @return return 0 on success, -1 on error
+ */
+uint64 sys_mknodat(void) {
+  int dirfd;
+  char path[MAXPATH];
+  mode_t mode;
+  dev_t dev;
+  char abs_path[MAXPATH];
+
+  argint(0, &dirfd);
+  arguint32(2, &mode);
+  arguint32(3, &dev);
+  if(argstr(1, path, MAXPATH) < 0) {
+    printf("sys_mknodat: argstr failed\n");
+    return -1;
+  }
+  get_abpath_from_dirfd(path, dirfd, abs_path);
+  printf("sys_mknodat: abs_path = %s\n", abs_path);
+
+  return generic_mknod(abs_path, mode, dev);
 }
 
 uint64
@@ -531,7 +519,6 @@ return -1;
 uint64
 sys_exec(void)
 {
-
   // come in like:
   // # exec(path, argv)
   // where path is stored in a0, argv in a1 
@@ -744,14 +731,51 @@ sys_dev(void)
 }
 
 
+/**
+ * @brief generic_open - open a file in the filesystem
+ * 
+ * @param path absolute path to the file to be opened
+ * @param flags flags for opening the file
+ * @param omode open mode
+ * @return file descriptor on success, -1 on error
+ */
+static uint64 generic_open(char *path, int flags, int omode) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(path);
+  struct file *f;
+  int fd;
+  int r = -1;
+  if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
+    if(f)
+      fileclose(f);
+    return -1;
+  }
+  r = fd;
+  if (fs == NULL) {
+    printf("FS type not found\n");
+    return -1;
+  }
+  if(fs->fops->open == NULL) {
+    printf("fsops->open is NULL\n");
+    return -1;
+  }
+  
+  f->flags |= flags;
+  f->omode = omode;
+  strcpy(f->info.path, path);
+  if (fs->fops->open(f, path, flags) < 0) {
+    fileclose(f);
+    myproc()->ofile[fd] = 0;
+    printf("fsops->open failed\n");
+    return -1;
+  }
+  return r;
+}
 uint64 sys_openat(void) {
 // int openat(int dirfd, const char *pathname, int flags, mode_t mode);
   char path[MAXPATH];
+  char abs_path[MAXPATH];
   int dirfd, flags, omode;
-  struct file *f;
-  struct proc *p = myproc();
-  int fd;
-  
+  int r;
   argint(0, &dirfd);
   if(argstr(1, path, MAXPATH) < 0)
     return -1;
@@ -759,37 +783,31 @@ uint64 sys_openat(void) {
   argint(3, &omode);
 
   printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
-
-  struct vfs_filesystem *fs = getfs(ROOTFSTYPE);
-  if (fs == NULL) {
-    printf("FS type not found\n");
+  get_abpath_from_dirfd(path, dirfd, abs_path);
+  printf("[sys_openat] abs_path = %s\n", abs_path);
+  if((r = generic_open(abs_path, flags, omode)) < 0) {
     return -1;
   }
-  
-  if(fs->type == VFS_TYPE_EXT4) {
-    const char *dirpath = dirfd == AT_FDCWD ? p->cinfo.path : p->ofile[dirfd]->info.path;
-    char abs_path[MAXPATH] = {0};
-    get_absolute_path(path, dirpath, abs_path);
-    printf("[sys_openat] abs_path = %s\n", abs_path);
-    if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
-      if(f)
-        fileclose(f);
-      return -1;
-    }
-    f->flags |= flags;
-    f->omode = omode;
-    strcpy(f->info.path, path);
-  
-    if(ext4_vfopen(f, path, flags) != EOK) {
-      fileclose(f);
-      myproc()->ofile[fd] = 0;
-      return -1;
-    }
-    return fd;
-  }
-  return -1;
+  return r;
 }
 
+uint64
+sys_open(void)
+{
+  char path[MAXPATH];
+  int flags, omode;
+  int r;
+
+  if(argstr(0, path, MAXPATH) < 0)
+    return -1;
+  argint(1, &flags);
+  argint(2, &omode);
+  printf("[sys_open] path = %s, flags = %d, omode = %d\n", path, flags, omode);
+  if((r = generic_open(path, flags, omode)) < 0) {
+    return -1;
+  }
+  return r;
+}
 
 
 /**

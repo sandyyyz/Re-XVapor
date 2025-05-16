@@ -8,7 +8,7 @@
 #include "stat.h"
 #include "param.h"
 #include "list.h"
-
+#include "types.h"
 
 #ifndef VFS_MAXFS
 #define VFS_MAXFS 4
@@ -122,8 +122,8 @@ struct inode_ops {
 
 struct file_ops {
 
-    int             (*open)(const char *path, int flags);
-    void            (*close)(struct file *f);
+    int             (*open)(struct file *f, const char *path, int flags);
+    int             (*close)(struct file *f);
     int             (*read)(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
     int             (*write)(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
     int             (*filestat)(struct file *f, uint64 addr);
@@ -144,6 +144,7 @@ struct fs_ops {
     void            (*bwrite)(struct buf *b);
     struct buf*     (*bread)(uint dev, uint blockno);
     int             (*namecmp)(const char *s, const char *t);
+    int             (*mknod)(const char *pathname, mode_t mode, dev_t dev);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

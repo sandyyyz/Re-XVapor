@@ -8,8 +8,43 @@
 
 #include "timer.h"
 
+#define S_IFMT  00170000    /* bit mask for file type */
+#define S_IFSOCK 0140000    /* socket */
+#define S_IFLNK	 0120000    /* symbolic link */
+#define S_IFREG  0100000    /* regular file */
+#define S_IFBLK  0060000    /* block device */
+#define S_IFDIR  0040000    /* directory */
+#define S_IFCHR  0020000    /* character device */
+#define S_IFIFO  0010000    /* FIFO */
+#define S_ISUID  0004000    /* set-user-ID bit */
+#define S_ISGID  0002000    /* set-group-ID bit */
+#define S_ISVTX  0001000    /* sticky bit */
+
+#define S_ISLNK(m)	(((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)	(((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
+
+#define S_IRWXU 00700   /* owner has read, write, and execute permission */
+#define S_IRUSR 00400   /* owner has read permission */
+#define S_IWUSR 00200   /* owner has write permission */
+#define S_IXUSR 00100   /* owner has execute permission */
+
+#define S_IRWXG 00070   /* group has read, write, and execute permission */
+#define S_IRGRP 00040   /* group has read permission */
+#define S_IWGRP 00020   /* group has write permission */
+#define S_IXGRP 00010   /* group has execute permission */
+
+#define S_IRWXO 00007   /* other has read, write, and execute permission */
+#define S_IROTH 00004   /* other has read permission */
+#define S_IWOTH 00002   /* other has write permission */
+#define S_IXOTH 00001   /* other has execute permission */
+
 struct kstat {
-  dev_t     st_dev;     /* ID of device containing file */
+  uint64     st_dev;     /* ID of device containing file */
   ino_t     st_ino;     /* inode number */
   mode_t    st_mode;    /* protection */
   nlink_t   st_nlink;   /* number of hard links */

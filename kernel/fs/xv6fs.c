@@ -57,10 +57,7 @@ int xv6fs_filestat(struct file *f, uint64 addr);
 int xv6fs_cleansf(struct file *f);
 
 struct file_ops xv6fs_fops = {
-  .open = &xv6fs_open,
   .close = &xv6fs_close,
-  .read = &xv6fs_read,
-  .write = &xv6fs_write,
   .filestat = &xv6fs_filestat,
   .cleansf = &xv6fs_cleansf
 };

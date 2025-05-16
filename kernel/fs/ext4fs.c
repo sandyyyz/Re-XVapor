@@ -13,8 +13,9 @@
 #include "ext4.h"
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
-int ext4_vfopen(struct file *fp, const char *path, uint32_t flags);
+int ext4_vfopen(struct file *fp, const char *path, int flags);
 int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
+int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -36,9 +37,12 @@ struct inode_ops ext4_inode_ops = {
 struct file_ops ext4_file_ops = {
     .read = ext4_vfread,
     .write = ext4_vwrite,
+    .open = ext4_vfopen,
+    .close = ext4_vfclose,
 };
 
 struct fs_ops ext4_fs_ops = {
+    .mknod = ext4_vmknod,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -301,7 +305,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
     return r;
 }
 
-int ext4_vfopen(struct file *fp, const char *path, uint32_t flags) {
+int ext4_vfopen(struct file *fp, const char *path, int flags) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     struct ext4_inode inode;
@@ -468,5 +472,63 @@ int ext4_vfstat(struct file *f, struct kstat *st) {
     st->st_mtime_sec = ext4_inode_get_modif_time(ref.inode);
 
 
+    return EOK;
+}
+
+/**
+ * @brief Convert mode to ext4 type.
+ * 
+ * @param mode given mode
+ * @return ext4 filetype
+ * @note  *  ext4 Directory entry types.
+ *  enum { EXT4_DE_UNKNOWN = 0, 
+ *  EXT4_DE_REG_FILE,
+ *  EXT4_DE_DIR,
+ *  EXT4_DE_CHRDEV,
+ *  EXT4_DE_BLKDEV,
+ *  EXT4_DE_FIFO,
+ *  EXT4_DE_SOCK,
+ *  EXT4_DE_SYMLINK };
+ */
+static int mode2ext4type(mode_t mode) {
+
+    int filetype = EXT4_DE_UNKNOWN;
+    if (S_ISREG(mode)) {
+        filetype = EXT4_DE_REG_FILE;
+    } else if (S_ISDIR(mode)) {
+        filetype = EXT4_DE_DIR;
+    } else if (S_ISCHR(mode)) {
+        filetype = EXT4_DE_CHRDEV;
+    } else if (S_ISBLK(mode)) {
+        filetype = EXT4_DE_BLKDEV;
+    } else if (S_ISFIFO(mode)) {
+        filetype = EXT4_DE_FIFO;
+    } else if (S_ISSOCK(mode)) {
+        filetype = EXT4_DE_SOCK;
+    } else if (S_ISLNK(mode)) {
+        filetype = EXT4_DE_SYMLINK;
+    }
+    return filetype;
+}
+
+/**
+ * @brief Create a file with the given mode and device.
+ * 
+ * @param pathname path to the file
+ * @param mode file mode
+ * @param dev device id
+ * @return int 0 on success, -1 on error
+ */
+int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev) {
+    int filetype;
+    filetype = mode2ext4type(mode);
+    if(filetype == EXT4_DE_UNKNOWN) {
+        printf("[ext4] ext4_vmknod error! filetype=%d\n", filetype);
+        return EINVAL;
+    }
+    if(ext4_mknod(pathname, filetype, dev) != EOK) {
+        printf("[ext4] ext4_mknod error!\n");
+        return EINVAL;
+    }
     return EOK;
 }

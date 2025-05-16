@@ -27,9 +27,12 @@ fileinit(void)
   initlock(&ftable.lock, "ftable");
 }
 
-// Allocate a file structure.
-struct file*
-filealloc(void)
+/**
+ * @brief allocate a file structure, not including the underlay filesystem-specific file structure
+ * 
+ * @return struct file* 
+ */
+struct file* filealloc(void)
 {
   struct file *f;
   struct vfs_filesystem *fs;
@@ -166,6 +169,7 @@ int filewrite(struct file *f, uint64 addr, int n)
 {
   int r, ret = 0;
 
+  Log("file path = %s", f->info.path);
   if(!(IS_WRITABLE(f->flags)))
     return -1;
 

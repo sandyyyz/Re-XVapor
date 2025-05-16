@@ -67,7 +67,7 @@ struct inode {
   struct inode_ops *iops; // Inode operations
   void *i_private; // private data for the inode
 
-  int i_ino;
+  int i_ino; // inode number of ext4 inode 
 };
 
 

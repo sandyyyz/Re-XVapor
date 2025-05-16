@@ -53,3 +53,6 @@
 63 read sys_read
 64 write sys_write
 73 ppoll sys_ppoll
+94 exit_group sys_exit_group
+33 mknodat sys_mknodat
+34 mkdirat sys_mkdirat

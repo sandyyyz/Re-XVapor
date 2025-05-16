@@ -3,10 +3,6 @@
 #include "vfs_ext4.h"
 
 struct file_ops ext4_fops = {
-    .open = vfs_ext4_open,
-    .close = vfs_ext4_close,
-    .read = vfs_ext4_read,
-    .write = vfs_ext4_write,
 };
 
 int vfs_ext4_open(const char *path, int flags) {

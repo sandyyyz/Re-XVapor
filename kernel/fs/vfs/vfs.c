@@ -230,6 +230,12 @@ struct vfs_filesystem *vfs_getfs_byname(const char *name) {
     return NULL;
 }
 
+/**
+ * @brief Resolve the filesystem type of a given path
+ * 
+ * @param path path to resolve
+ * @return struct vfs_filesystem* pointer to the filesystem structure
+ */
 struct vfs_filesystem * vfs_resolve_fs(const char* path) {
     vfs_type_t selected = VFS_TYPE_UNKNOWN;
     int longest_match_len = -1;

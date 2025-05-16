@@ -17,6 +17,8 @@
 #define SYS_mkdir 20
 #define SYS_fcntl 25
 #define SYS_ioctl 29
+#define SYS_mknodat 33
+#define SYS_mkdirat 34
 #define SYS_openat 56
 #define SYS_close 57
 #define SYS_read 63
@@ -25,6 +27,7 @@
 #define SYS_readlinkat 78
 #define SYS_fstatat 79
 #define SYS_exit 93
+#define SYS_exit_group 94
 #define SYS_set_tid_address 96
 #define SYS_set_robust_list 99
 #define SYS_nanosleep 101

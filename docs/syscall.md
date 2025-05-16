@@ -160,7 +160,14 @@ don't need rusage
 ![flags](image-34.png)
 
 
-## sys_execve
+### sys_mknod
+
+#### file type and mode
+
+![mode.1](image-124.png)
+![mode.2](image-125.png)
+
+### sys_execve
 
 ``` c
 int execve(const char *pathname, char *const _Nullable argv[],
@@ -234,3 +241,4 @@ int execve(const char *pathname, char *const _Nullable argv[],
 ## set_tid_address
 
 https://man7.org/linux/man-pages/man2/set_tid_address.2.html  
+

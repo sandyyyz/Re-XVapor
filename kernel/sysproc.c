@@ -60,6 +60,24 @@ sys_exit(void)
   return 0;  // not reached
 }
 
+/**
+ * @brief This system call terminates all threads in the calling process's
+       thread group.
+ * 
+ * @return this function will not return
+ */
+uint64 sys_exit_group(void) {
+  int n;
+  argint(0, &n);
+  struct tcb *t = mythread();
+  if (t->tg->group_leader == t) {
+    free_allother_threads_group(t);
+    thread_exit(n);
+  } else {
+    thread_exit(n);
+  }
+  return 0; // not reached
+}
 uint64
 sys_getpid(void)
 {
