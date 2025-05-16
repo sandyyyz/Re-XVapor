@@ -7,6 +7,7 @@
 [SYS_fstat] sys_fstat,
 [SYS_chdir] sys_chdir,
 [SYS_dup] sys_dup,
+[SYS_mknod] sys_mknod,
 [SYS_sbrk] sys_sbrk,
 [SYS_sleep] sys_sleep,
 [SYS_uptime] sys_uptime,

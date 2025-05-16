@@ -231,36 +231,39 @@ struct vfs_filesystem *vfs_getfs_byname(const char *name) {
 }
 
 /**
- * @brief Resolve the filesystem type of a given path
+ * @brief Resolve the filesystem instance of a given path by longest mount point prefix match
  * 
  * @param path path to resolve
- * @return struct vfs_filesystem* pointer to the filesystem structure
+ * @return struct vfs_filesystem* pointer to the filesystem instance
  */
 struct vfs_filesystem * vfs_resolve_fs(const char* path) {
-    vfs_type_t selected = VFS_TYPE_UNKNOWN;
-    int longest_match_len = -1;
-    char abs_path[MAXPATH] = {0};
-    get_absolute_path(path, "/", abs_path);
-    // printf("vfs_resolve_fs: abs_path = %s\n", abs_path);
+  struct vfs_filesystem *selected_fs = NULL;
+  int longest_match_len = -1;
+  char abs_path[MAXPATH] = {0};
 
-    acquire(&vfs_mount_table.lock);
-    for (int i = 0; i < MAX_MOUNTS; i++) {
-        const char* mp = vfs_mount_table.mount_points[i].mp;
-        if(!mp) continue;
-        int len = strlen(mp);
+  get_absolute_path(path, "/", abs_path);
+  // printf("vfs_resolve_fs: abs_path = %s\n", abs_path);
 
-        if (strncmp(abs_path, mp, len) == 0 &&
-            (path[len] == '/' || path[len] == '\0')) {
-            if (len > longest_match_len) {
-                longest_match_len = len;
-                selected = vfs_mount_table.mount_points[i].type;
-            }
-        }
-    }
-    release(&vfs_mount_table.lock);
+  acquire(&vfs_mount_table.lock);
+  for (int i = 0; i < MAX_MOUNTS; i++) {
+      const char* mp = vfs_mount_table.mount_points[i].mp;
+      struct vfs_filesystem* fs = vfs_getfs_bytype(vfs_mount_table.mount_points[i].type);
+      if (!mp || !fs) continue;
 
-    return vfs_getfs_bytype(selected);
+      int len = strlen(mp);
+
+      if (substr_cmp(mp, abs_path) == 0) {
+          if (len > longest_match_len) {
+              longest_match_len = len;
+              selected_fs = fs;
+          }
+      }
+  }
+  release(&vfs_mount_table.lock);
+
+  return selected_fs;
 }
+
 
 /**
  * @brief Get the absolute path of a file

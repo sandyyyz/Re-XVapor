@@ -53,6 +53,8 @@ struct vfs_filesystem ext4_fs = {
     .name = "ext4",
     .type = VFS_TYPE_EXT4,
     .iops = &ext4_inode_ops,
+    .fops = &ext4_file_ops,
+    .fsops = &ext4_fs_ops,
 };
 
 
@@ -322,16 +324,16 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
     int eftype = 0;
     if(efp) {
         printf("[ext4] efp is not NULL!\n");
-        return EINVAL;
+        return -EINVAL;
     }
     if((efp = ext4_falloc()) == NULL) {
         printf("[ext4] ext4_falloc error!\n");
-        return ENOMEM;
+        return -ENOMEM;
     }
     if((r = ext4_fopen2(efp, path, flags)) != EOK) {
         printf("[ext4] ext4_fopen2 error! r=%d\n", r);
         recycle_efile(efp);
-        return r;
+        return -r;
     }
     fp->private_data = efp;
 
@@ -339,13 +341,13 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
     if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
         printf("[ext4] ext4_raw_inode_fill error!\n");
         recycle_efile(efp);
-        return EINVAL;
+        return -EINVAL;
     }
 
     if(ext4_get_sblock(path, &sb) != EOK) {
         printf("[ext4] ext4_get_sblock error!\n");
         recycle_efile(efp);
-        return EINVAL;
+        return -EINVAL;
     }
     eftype = ext4_inode_type(sb, &inode);
     /*
@@ -383,7 +385,7 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
         default:
             printf("[ext4] unknown file type! eftype=%d\n", eftype);
             recycle_efile(efp);
-            return EINVAL;
+            return -EINVAL;
     }
         
     return r;

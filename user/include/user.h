@@ -1,3 +1,8 @@
+#ifndef __USER_H
+#define __USER_H
+
+#include "types.h"
+
 struct stat;
 struct tms;
 struct utsname;
@@ -14,7 +19,6 @@ int kill(int);
 int exec(char*, char**);
 int execve(char *path, char **argv, char **envp);
 int open(const char*, int);
-int mknod(const char*, short, short);
 int unlink(const char*);
 int fstat(int fd, struct stat*);
 int link(const char*, const char*);
@@ -58,3 +62,6 @@ void *memcpy(void *, const void *, uint);
 int openat(int dirfd, const char *pathname, int flags, int mode);
 int readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz);
 int fstatat(int dirfd, const char *pathname, struct stat *buf,int flags);
+int mknod(const char *pathname, mode_t mode, dev_t dev);
+
+#endif

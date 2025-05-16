@@ -169,7 +169,8 @@ int filewrite(struct file *f, uint64 addr, int n)
 {
   int r, ret = 0;
 
-  Log("file path = %s", f->info.path);
+  // Log("file path = %s", f->info.path);
+  // Log("file type = %d", f->type);
   if(!(IS_WRITABLE(f->flags)))
     return -1;
 

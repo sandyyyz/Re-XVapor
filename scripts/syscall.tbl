@@ -56,3 +56,4 @@
 94 exit_group sys_exit_group
 33 mknodat sys_mknodat
 34 mkdirat sys_mkdirat
+11 mknod sys_mknod

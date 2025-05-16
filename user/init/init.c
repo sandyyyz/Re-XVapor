@@ -19,6 +19,11 @@ int main(void)
   dup(0); // stdout
   dup(0); // stderr
   printf("======================== init: starting rexvapor init !!! ========================\n");
+
+  if(openat(AT_FDCWD, "/dev/tty", O_RDWR, 0) < 0) {
+    mknod("/dev/tty", S_IFCHR | S_IRUSR | S_IWUSR, 0);
+  }
+  
   int pid = fork();
   if(pid == 0) {
     printf("init: child process, pid = %d\n", getpid());
@@ -26,17 +31,6 @@ int main(void)
   } else {
     wait(0);
   }
-
-  // int pid = fork();
-  // if (pid == 0)
-  // {
-  //     execve(path,argv, envp);
-  // }
-  // else
-  // {
-  //     wait(0);
-  // }
-
   while(1);
   return 0;
 }

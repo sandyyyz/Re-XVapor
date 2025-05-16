@@ -20,6 +20,7 @@ entry("exec");
 entry("fstat");
 entry("chdir");
 entry("dup");
+entry("mknod");
 entry("sbrk");
 entry("sleep");
 entry("uptime");

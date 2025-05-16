@@ -7,6 +7,7 @@ extern uint64 sys_exec(void);
 extern uint64 sys_fstat(void);
 extern uint64 sys_chdir(void);
 extern uint64 sys_dup(void);
+extern uint64 sys_mknod(void);
 extern uint64 sys_sbrk(void);
 extern uint64 sys_sleep(void);
 extern uint64 sys_uptime(void);
