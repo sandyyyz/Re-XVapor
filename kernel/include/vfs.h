@@ -145,6 +145,7 @@ struct fs_ops {
     struct buf*     (*bread)(uint dev, uint blockno);
     int             (*namecmp)(const char *s, const char *t);
     int             (*mknod)(const char *pathname, mode_t mode, dev_t dev);
+    int             (*mkdir)(const char *pathname, mode_t mode);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

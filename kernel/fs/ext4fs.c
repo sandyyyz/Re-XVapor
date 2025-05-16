@@ -16,6 +16,8 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
 int ext4_vfopen(struct file *fp, const char *path, int flags);
 int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
 int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev);
+int ext4_vcleansf(struct file *fp);
+int ext4_vmkdir(const char *pathname, mode_t mode);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -39,10 +41,12 @@ struct file_ops ext4_file_ops = {
     .write = ext4_vwrite,
     .open = ext4_vfopen,
     .close = ext4_vfclose,
+    .cleansf = ext4_vcleansf,
 };
 
 struct fs_ops ext4_fs_ops = {
     .mknod = ext4_vmknod,
+    .mkdir = ext4_vmkdir,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -186,6 +190,10 @@ int recycle_einode(struct ext4_inode *eip) {
     return 0;
 }
 
+int ext4_vcleansf(struct file *fp) {
+    struct ext4_file *efp = (ext4_file*) fp->private_data;
+    return recycle_efile(efp);
+}
 
 struct inode *ext4_namei(char *rel_path) {
     struct inode *inode = NULL;
@@ -531,4 +539,18 @@ int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev) {
         return EINVAL;
     }
     return EOK;
+}
+
+int ext4_vmkdir(const char *pathname, mode_t mode) {
+    int r = ext4_dir_mk(pathname);
+    if (r != EOK) {
+        printf("[ext4] ext4_vmkdir error! r=%d\n", r);
+        return r;
+    }
+    r = ext4_mode_set(pathname, mode);
+    if (r != EOK) {
+        printf("[ext4] ext4_mode_set error! r=%d\n", r);
+        return r;
+    }
+    return r;
 }

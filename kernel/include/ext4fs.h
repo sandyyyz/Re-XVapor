@@ -22,5 +22,6 @@ int ext4_vfopen(struct file *fp, const char *path, int flags);
 int ext4_vfclose(struct file *fp);
 int ext4_vfstat(struct file *f, struct kstat *st);
 int ext4_vstat(char *path, struct kstat *st);
+int ext4_vcleansf(struct file *fp);
 
 #endif

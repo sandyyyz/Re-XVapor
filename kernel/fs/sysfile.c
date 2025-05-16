@@ -260,81 +260,67 @@ bad:
   return -1;
 }
 
-static struct inode*
-create(char *path, short type, short major, short minor)
-{
-  struct inode *ip, *dp;
-  char name[DIRSIZ];
-
-  if((dp = nameiparent(path, name)) == 0)
-    return 0;
-
-  dp->iops->ilock(dp);
-
-  if((ip = dp->iops->dirlookup(dp, name, 0)) != 0){
-    iunlockput(dp);
-    ip->iops->ilock(ip);
-    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
-      return ip;
-    iunlockput(ip);
-    return 0;
-  }
-
-  if((ip = dp->fs->fsops->ialloc(dp->dev, type)) == 0){
-    iunlockput(dp);
-    return 0;
-  }
-
-  ip->iops->ilock(ip);
-  ip->major = major;
-  ip->minor = minor;
-  ip->nlink = 1;
-  ip->iops->iupdate(ip);
-
-  if(type == T_DIR){  // Create . and .. entries.
-    // No ip->nlink++ for ".": avoid cyclic ref count.
-    if(dp->iops->dirlink(ip, ".", ip->inum) < 0 || dp->iops->dirlink(ip, "..", dp->inum) < 0)
-      goto fail;
-  }
-
-  if(dp->iops->dirlink(dp, name, ip->inum) < 0)
-    goto fail;
-
-  if(type == T_DIR){
-    // now that success is guaranteed:
-    dp->nlink++;  // for ".."
-    dp->iops->iupdate(dp);
-  }
-
-  iunlockput(dp);
-
-  return ip;
-
- fail:
-  // something went wrong. de-allocate ip.
-  ip->nlink = 0;
-  ip->iops->iupdate(ip);
-  iunlockput(ip);
-  iunlockput(dp);
-  return 0;
-}
-
-uint64
-sys_mkdir(void)
-{
-  char path[MAXPATH];
-  struct inode *ip;
-
-  begin_op();
-  if(argstr(0, path, MAXPATH) < 0 || (ip = create(path, T_DIR, 0, 0)) == 0){
-    end_op();
+static int generic_mkdir(char *path, mode_t mode) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(path);
+  if (fs == NULL) {
+    printf("sys_mkdir: vfs_resolve_fs failed\n");
     return -1;
   }
-  iunlockput(ip);
-  end_op();
+  if(fs->fsops->mkdir == NULL) {
+    printf("sys_mkdir: fsops->mkdir is NULL\n");
+    return -1;
+  }
+  if (fs->fsops->mkdir(path, mode) < 0) {
+    printf("sys_mkdir: fsops->mkdir failed\n");
+    return -1;
+  }
   return 0;
 }
+/**
+ * @brief make a directory. The argument mode specifies the mode for the new directory (see
+       inode(7)).  It is modified by the process's umask in the usual
+       way: in the absence of a default ACL, the mode of the created
+       directory is (mode & ~umask & 0777)
+  
+  @property int mkdir(const char *pathname, mode_t mode);
+ * 
+ * @return return 0 on success, -1 on error
+ */
+uint64 sys_mkdir(void)
+{
+  char path[MAXPATH];
+  mode_t mode;
 
+  if(argstr(0, path, MAXPATH) < 0) {
+    printf("sys_mkdir: argstr failed\n");
+    return -1;
+  }
+  arguint32(1, &mode);
+  return generic_mkdir(path, mode);
+}
+
+/**
+ * @brief create a directory
+ * 
+ * @property int mkdirat(int dirfd, const char *pathname, mode_t mode);
+ * @return return 0 on success, -1 on error
+ */
+uint64 sys_mkdirat(void) {
+  char path[MAXPATH];
+  char abs_path[MAXPATH];
+  int dirfd;
+  mode_t mode;
+
+  if(argstr(1, path, MAXPATH) < 0) {
+    printf("sys_mkdirat: argstr failed\n");
+    return -1;
+  }
+  argint(0, &dirfd);
+  arguint32(2, &mode);
+  get_abpath_from_dirfd(path, dirfd, abs_path);
+  printf("sys_mkdirat: abs_path = %s\n", abs_path);
+  return generic_mkdir(abs_path, mode);
+}
 
 
 /**
