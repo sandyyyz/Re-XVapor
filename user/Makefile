@@ -21,7 +21,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 # $(info obj : $(OBJ))
 # $(info uprogs : $(UPROGS))r
 # $(info ulib : $(ULIB))default: all
-.PHONY: clean all
+.PHONY: clean all MKDIR
 
 
 all: user

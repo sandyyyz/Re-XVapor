@@ -23,5 +23,6 @@ int ext4_vfclose(struct file *fp);
 int ext4_vfstat(struct file *f, struct kstat *st);
 int ext4_vstat(char *path, struct kstat *st);
 int ext4_vcleansf(struct file *fp);
+int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_dirp, int count);
 
 #endif

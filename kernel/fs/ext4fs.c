@@ -11,6 +11,9 @@
 #include "ext4_inode.h"
 #include "ext4_fs.h"
 #include "ext4.h"
+#include "dirent.h"
+#include "stat.h"
+
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, int flags);
@@ -18,6 +21,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
 int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev);
 int ext4_vcleansf(struct file *fp);
 int ext4_vmkdir(const char *pathname, mode_t mode);
+int ext4_vgetdents(struct file *fp, struct linux_dirent64 *dirp, int count);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -42,11 +46,13 @@ struct file_ops ext4_file_ops = {
     .open = ext4_vfopen,
     .close = ext4_vfclose,
     .cleansf = ext4_vcleansf,
+    .getdents = ext4_vgetdents,
 };
 
 struct fs_ops ext4_fs_ops = {
     .mknod = ext4_vmknod,
     .mkdir = ext4_vmkdir,
+    .fstat = ext4_vstat,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -109,7 +115,7 @@ int ext4_init()
         return -1;
     }
 
-    printf("[ext4] ext4 filesystem initialized successfully!\n");
+    // printf("[ext4] ext4 filesystem initialized successfully!\n");
     return 0;
 }
 
@@ -140,7 +146,7 @@ inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
     return container_of(efp, struct ext4_mfile, ext4_fentry);
 }
 /**
- * @brief recycle ext4 file
+ * @brief recycle ext4 file. check null pointer inside
  * 
  * @attention manage references of ext4 file, meaning that will recycle the fp * only when ref == 0
  * 
@@ -149,6 +155,8 @@ inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
  * @return return 0 on success, -1 on error
  */
 int recycle_efile(struct ext4_file *efp) {
+    if(!efp) 
+        return 0;
     acquire(&ext4_fpool.lock);
     struct ext4_mfile *fp = parent_mfile(efp);
     if (fp->ref > 0) {
@@ -322,6 +330,9 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
     struct ext4_sblock *sb = NULL;
     uint32_t ino = 0;
     int eftype = 0;
+    if((r = ext4_dir_open(&fp->dir, path)) == EOK) {
+        goto isdir;
+    }
     if(efp) {
         printf("[ext4] efp is not NULL!\n");
         return -EINVAL;
@@ -337,6 +348,7 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
     }
     fp->private_data = efp;
 
+isdir:
     // to get the file type
     if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
         printf("[ext4] ext4_raw_inode_fill error!\n");
@@ -366,6 +378,7 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
             break;
         case EXT4_INODE_MODE_CHARDEV:
             fp->type = FD_DEVICE;
+            fp->major = ext4_inode_get_dev(&inode);
             break;
         case EXT4_INODE_MODE_DIRECTORY:
             fp->type = FD_INODE;
@@ -527,18 +540,18 @@ static int mode2ext4type(mode_t mode) {
  * @param pathname path to the file
  * @param mode file mode
  * @param dev device id
- * @return int 0 on success, -1 on error
+ * @return int 0 on success, error code on error
  */
 int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev) {
     int filetype;
     filetype = mode2ext4type(mode);
     if(filetype == EXT4_DE_UNKNOWN) {
         printf("[ext4] ext4_vmknod error! filetype=%d\n", filetype);
-        return EINVAL;
+        return -EINVAL;
     }
     if(ext4_mknod(pathname, filetype, dev) != EOK) {
         printf("[ext4] ext4_mknod error!\n");
-        return EINVAL;
+        return -EINVAL;
     }
     return EOK;
 }
@@ -555,4 +568,193 @@ int ext4_vmkdir(const char *pathname, mode_t mode) {
         return r;
     }
     return r;
+}
+
+
+/**
+ * @brief temporary function to get directory entries when cannot allocator a large kernel buffer
+ * 
+ * @attention copy data to user buffer directly, reuse a kernel buffer
+ * @param fp file pointer
+ * @param u_dirp pointer to the user space buffer
+ * @param count size of the buffer
+ * @return read bytes on success, -1 on error
+ */
+int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_dirp, int count) {
+    struct ext4_dir dir = fp->dir;
+    struct linux_dirent64 *d;
+    struct linux_dirent64 *dirp;
+    const ext4_direntry *de;
+    int totlen = 0;
+    int reclen = 0;
+    int index = 1;
+    if(count <= 0) {
+        printf("[ext4] count <= 0!\n");
+        return -1;
+    }
+
+    dirp = kalloc();
+    if(dirp == NULL) {
+        printf("[ext4] dirp is NULL!\n");
+        return -1;
+    }
+
+    d = dirp;
+    while(1) {
+        de = ext4_dir_entry_next(&dir);
+        if(de == NULL) {
+            break;
+        }
+        if(de->entry_length <= 0) {
+            printf("[ext4] de->rec_len <= 0!\n");
+            return -1;
+        }
+        reclen = sizeof(struct linux_dirent64) + de->name_length + 1;
+        if(totlen + reclen > count) {
+            break;
+        }
+        strncpy(d->d_name, (const char*)de->name, de->name_length);
+        d->d_name[de->name_length] = '\0';
+        d->d_reclen = reclen;
+        d->d_ino = de->inode;
+        d->d_off = index++;
+        /**@brief   Directory entry types. */
+        /*
+        enum { EXT4_DE_UNKNOWN = 0,
+            EXT4_DE_REG_FILE,
+            EXT4_DE_DIR,
+            EXT4_DE_CHRDEV,
+            EXT4_DE_BLKDEV,
+            EXT4_DE_FIFO,
+            EXT4_DE_SOCK,
+            EXT4_DE_SYMLINK };
+        */        
+        switch(de->inode_type) {
+            case EXT4_DE_UNKNOWN:
+                d->d_type = T_UNKNOWN;
+                break;
+            case EXT4_DE_REG_FILE:
+                d->d_type = T_REG;
+                break;
+            case EXT4_DE_DIR:
+                d->d_type = T_DIR;
+                break;
+            case EXT4_DE_CHRDEV:
+                d->d_type = T_CHR;
+                break;
+            case EXT4_DE_BLKDEV:
+                d->d_type = T_BLK;
+                break;
+            case EXT4_DE_FIFO:
+                d->d_type = T_FIFO;
+                break;
+            case EXT4_DE_SOCK:
+                d->d_type = T_SOCK;
+                break;
+            case EXT4_DE_SYMLINK:
+                d->d_type = T_LNK;
+                break;
+            default:
+                d->d_type = T_UNKNOWN;
+                break;
+        }
+        totlen += reclen;
+        // d = (struct linux_dirent64 *)((char *)d + reclen);
+        copyout(myproc()->mm.pagetable, (uint64)u_dirp, (char*)d, reclen);
+        u_dirp = (struct linux_dirent64 *)((char *)u_dirp + reclen);
+    }
+    kfree(dirp);
+    Log("[ext4] ext4_temp_vgentdents: totlen=%d\n", totlen);
+    return totlen;
+}
+/**
+ * @brief get directory entries
+ * 
+ * @param fp file pointer
+ * @param dirp buffer to store directory entries
+ * @param count buffer size
+ * @return number of bytes read on success, -1 on error
+ */
+int ext4_vgetdents(struct file *fp, __kernel_space struct linux_dirent64 *dirp, int count) {
+    struct ext4_dir dir = fp->dir;
+    struct linux_dirent64 *d;
+    const ext4_direntry *de;
+    int totlen = 0;
+    int reclen = 0;
+    int index = 1;
+    if(count <= 0) {
+        printf("[ext4] count <= 0!\n");
+        return -1;
+    }
+    if(dirp == NULL) {
+        printf("[ext4] dirp is NULL!\n");
+        return -1;
+    }
+
+    d = dirp;
+    while(1) {
+        de = ext4_dir_entry_next(&dir);
+        if(de->inode == 0) {
+            continue;
+        }
+        if(de == NULL) {
+            break;
+        }
+        if(de->entry_length <= 0) {
+            printf("[ext4] de->rec_len <= 0!\n");
+            return -1;
+        }
+        reclen = sizeof(struct linux_dirent64) + de->name_length + 1;
+        if(totlen + reclen > count) {
+            break;
+        }
+        strncpy(d->d_name, (const char*)de->name, de->name_length);
+        d->d_name[de->name_length] = '\0';
+        d->d_reclen = reclen;
+        d->d_ino = de->inode;
+        d->d_off = index++;
+        /**@brief   Directory entry types. */
+        /*
+        enum { EXT4_DE_UNKNOWN = 0,
+            EXT4_DE_REG_FILE,
+            EXT4_DE_DIR,
+            EXT4_DE_CHRDEV,
+            EXT4_DE_BLKDEV,
+            EXT4_DE_FIFO,
+            EXT4_DE_SOCK,
+            EXT4_DE_SYMLINK };
+        */        
+        switch(de->inode_type) {
+            case EXT4_DE_UNKNOWN:
+                d->d_type = T_UNKNOWN;
+                break;
+            case EXT4_DE_REG_FILE:
+                d->d_type = T_REG;
+                break;
+            case EXT4_DE_DIR:
+                d->d_type = T_DIR;
+                break;
+            case EXT4_DE_CHRDEV:
+                d->d_type = T_CHR;
+                break;
+            case EXT4_DE_BLKDEV:
+                d->d_type = T_BLK;
+                break;
+            case EXT4_DE_FIFO:
+                d->d_type = T_FIFO;
+                break;
+            case EXT4_DE_SOCK:
+                d->d_type = T_SOCK;
+                break;
+            case EXT4_DE_SYMLINK:
+                d->d_type = T_LNK;
+                break;
+            default:
+                d->d_type = T_UNKNOWN;
+                break;
+        }
+        totlen += reclen;
+        d = (struct linux_dirent64 *)((char *)d + reclen);
+    }
+    return totlen;
 }

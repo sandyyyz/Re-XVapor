@@ -172,3 +172,17 @@ uint64 sys_geteuid() {
 uint64 sys_ppoll() {
     return 0;
 }
+
+
+uint64 sys_clock_gettime() {
+    uint64 clkid;
+    uint64 tp;
+    arguint64(0, &clkid);
+    argaddr(1, &tp);
+
+    volatile struct timespec ts;
+    ts = TIME2TIMESPEC(rdtime());
+    if(copyout(myproc()->mm.pagetable, tp, (char *)&ts, sizeof(ts)) < 0)
+        return -1;
+    return 0;
+}

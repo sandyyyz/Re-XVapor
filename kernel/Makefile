@@ -14,7 +14,7 @@ ENTRY_OBJ := $(BUILD_DIR)/asm/entry.o
 OBJS := $(filter-out $(ENTRY_OBJ), $(OBJS))
 OBJS := $(ENTRY_OBJ) $(OBJS) 
 
-CFLAGS += -D__DEBUG_SYS_EXEC
+# CFLAGS += -D__DEBUG_SYS_EXEC
 # CFLAGS += -D__DEBUG_NAMEX
 
 # CFLAGS += -D__DEBUG_KILL
@@ -39,7 +39,7 @@ CFLAGS += -D__DEBUG_SYS_EXEC
 # CFLAGS += -D__DEBUG_SCHED
 # CFLAGS += -D__DEBUG_EXEC
 # CFLAGS += -D__DEBUG_FLOADSEG
-CFLAGS += -D__DEBUG_SYSCALL
+# CFLAGS += -D__DEBUG_SYSCALL
 # CFLAGS += -D__USE_XV6FS
 
 .PHONY: all clean
@@ -64,3 +64,7 @@ $(BUILD_DIR)/kernel: $(OBJS) $(KERNEL_DIR)/kernel.ld $(USER_BUILD_DIR)/initcode
 # 清理
 clean:
 	@rm -rf $(BUILD_DIR)
+	@if [ -f $(INCLUDE_DIR)/sysnum.h ]; then rm $(INCLUDE_DIR)/sysnum.h; fi
+	@if [ -f $(INCLUDE_DIR)/sysfunc.h ]; then rm $(INCLUDE_DIR)/sysfunc.h; fi
+	@if [ -f $(INCLUDE_DIR)/sysdecl.h ]; then rm $(INCLUDE_DIR)/sysdecl.h; fi
+

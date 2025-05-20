@@ -91,7 +91,6 @@ clean:
 	@if [ -d $(BUILD_DIR) ]; then rm -r $(BUILD_DIR); fi
 	@if [ -f mkfs/mkfs ]; then rm mkfs/mkfs; fi
 
-
 mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xv6fs.h $(KERNEL_DIR)/include/param.h 
 	gcc -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 

@@ -710,3 +710,13 @@ brk后最终调用了syscall 17，然后卡死。（在这之前还有很多的s
 ![busybox.4.1](image-122.png)
 ![busybox.4.2](image-123.png)
 居然写了一个代码段的地址？？
+
+
+### busybox.5
+exit_group之后会不断重试执行init
+
+ash_main 没有解析到命令，然后退出了？事实上非login_sh时，也不需要/dev/tty  
+
+`cmd_loop()` --> `parsecmd()` 
+
+`ls_main()` --> `scan_and_display_dir_cur`  

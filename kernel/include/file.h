@@ -5,6 +5,7 @@
 #include "sleeplock.h"
 #include "xv6fs.h"
 #include "param.h"
+#include "ext4.h"
 
 #define READABLE 0X1
 #define WRITABLE 0X2
@@ -39,9 +40,10 @@ struct file {
 
   // support vfs
   struct file_ops *fops; // file operations
-  void *private_data; // filesystem-specific data; just used for ext4 right now , xv6fs donn't have fs-specific file structure, so don't use this
+  void *private_data; // filesystem-specific data; just used for ext4 right now. maybe a ext4_file or ext4_dir
   struct file_info info;
   uint64 fpos; // file position
+  ext4_dir dir; // directory entry. just used for ext4, and don't use a pointer because of lacking a small memory allocator in kernel right now
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)

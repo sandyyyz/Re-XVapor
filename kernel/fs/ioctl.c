@@ -4,14 +4,22 @@
 #include "file.h"
 #include "proc.h"
 
-struct termios kernel_termios;
+struct termios kernel_termios = {
+    .c_iflag = ICRNL,
+    .c_oflag = OPOST,
+    .c_cflag = 0,
+    .c_lflag = ECHO | ICANON,
+    .c_line = 0,
+    .c_cc = {0},
+};
+
 struct winsize kernel_winsize;
 
 int do_ioctl(struct file *f, uint64 op, uint64 arg) {
     switch (op) {
         case TCGETS:
-            printf("TCGETS\n");
-            return 0;
+            // printf("TCGETS\n");
+            // return 0;
             // buggy after copyout,why??
             if (arg == 0) {
                 return -1;
@@ -21,7 +29,7 @@ int do_ioctl(struct file *f, uint64 op, uint64 arg) {
             }
             break;
         case TCSETS:
-            printf("TCSETS\n");
+            // printf("TCSETS\n");
             if (arg == 0) {
                 return -1;
             }
@@ -30,7 +38,7 @@ int do_ioctl(struct file *f, uint64 op, uint64 arg) {
             }
             break;
         case TIOCGWINSZ:
-            printf("TIOCGWINSZ\n");
+            // printf("TIOCGWINSZ\n");
             if (arg == 0) {
                 return -1;
             }
@@ -39,6 +47,7 @@ int do_ioctl(struct file *f, uint64 op, uint64 arg) {
             }
             break;
         default:
+            printf("UNKNOW IOCTL!\n");
             return -1;
     }
     // printf("do_ioctl: %d\n", op);

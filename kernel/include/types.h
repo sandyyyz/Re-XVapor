@@ -9,6 +9,7 @@ typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int  uint32;
 typedef unsigned long uint64;
+typedef long int64;
 
 #if !(defined (off_t))
 typedef long off_t;
@@ -64,5 +65,12 @@ typedef unsigned char	cc_t;
 typedef unsigned int	speed_t;
 typedef unsigned int	tcflag_t;
 
+#ifndef __user_space
+#define __user_space
+#endif
+
+#ifndef __kernel_space
+#define __kernel_space
+#endif
 
 // typedef uint32 dev_t;

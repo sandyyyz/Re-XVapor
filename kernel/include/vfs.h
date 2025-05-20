@@ -9,6 +9,7 @@
 #include "param.h"
 #include "list.h"
 #include "types.h"
+#include "dirent.h"
 
 #ifndef VFS_MAXFS
 #define VFS_MAXFS 4
@@ -128,6 +129,7 @@ struct file_ops {
     int             (*write)(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
     int             (*filestat)(struct file *f, uint64 addr);
     int             (*cleansf)(struct file* f);
+    int (*getdents)(struct file *fp, struct linux_dirent64 *dirp, int count);
 };
 
 struct fs_ops {
@@ -146,6 +148,7 @@ struct fs_ops {
     int             (*namecmp)(const char *s, const char *t);
     int             (*mknod)(const char *pathname, mode_t mode, dev_t dev);
     int             (*mkdir)(const char *pathname, mode_t mode);
+    int (*fstat)(char *path, struct kstat *kst);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

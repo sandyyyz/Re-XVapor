@@ -22,6 +22,7 @@
 #define SYS_mkdirat 34
 #define SYS_openat 56
 #define SYS_close 57
+#define SYS_getdents64 61
 #define SYS_read 63
 #define SYS_write 64
 #define SYS_ppoll 73
@@ -32,6 +33,7 @@
 #define SYS_set_tid_address 96
 #define SYS_set_robust_list 99
 #define SYS_nanosleep 101
+#define SYS_clock_gettime 113
 #define SYS_sched_yield 124
 #define SYS_sigaction 134
 #define SYS_setgid 144

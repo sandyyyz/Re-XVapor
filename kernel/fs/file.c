@@ -102,6 +102,8 @@ fileclose(struct file *f)
     f->fops->cleansf(f);
   }
   f->private_data = 0;
+  memset(&f->info, 0, sizeof(f->info));
+  memset(&f->dir, 0, sizeof(f->dir));
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){

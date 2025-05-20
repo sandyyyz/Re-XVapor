@@ -93,7 +93,7 @@ static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
 		bp += BSIZE;
 		brelse(b);
 	}
-		
+	
 	return EOK;
 }
 /******************************************************************************/

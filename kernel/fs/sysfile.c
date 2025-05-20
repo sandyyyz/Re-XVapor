@@ -23,6 +23,10 @@
 #include "vfs.h"
 #include "ioctl.h"
 #include "ext4_errno.h"
+#include "debug.h"
+
+
+static void set_omode(struct file *f, int omode);
 
 // for debug
 int g_first_exec = 0;
@@ -270,10 +274,11 @@ static int generic_mkdir(char *path, mode_t mode) {
     printf("sys_mkdir: fsops->mkdir is NULL\n");
     return -1;
   }
-  if (fs->fsops->mkdir(path, mode) < 0) {
+  if (fs->fsops->mkdir(path, mode) != 0) {
     printf("sys_mkdir: fsops->mkdir failed\n");
     return -1;
   }
+  Log("sys_mkdir : path %s successfully created", path);
   return 0;
 }
 /**
@@ -345,6 +350,7 @@ static uint64 generic_mknod(char *path, mode_t mode, dev_t dev) {
     printf("sys_mknod: fsops->mknod failed\n");
     return -1;
   }
+  Log("sys_mknod : path %s successfully created", path);
   return 0;
 }
 /**
@@ -678,6 +684,13 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    return 0;
 }
 
+static void set_omode(struct file *f, int omode) {
+  if(!(omode & O_WRONLY) )
+  SET_READABLE(f->flags);
+  if((omode & O_WRONLY) || (omode & O_RDWR))
+  SET_WRITABLE(f->flags);
+};
+
 // To open console device.
 uint64
 sys_dev(void)
@@ -689,11 +702,6 @@ sys_dev(void)
     argint(0, &omode);
     argint(1, &major);
     argint(2, &minor);
-
-    if (omode & O_CREAT)
-    {
-      panic("dev file on FAT");
-    }
 
     if (major < 0 || major >= NDEV)
         return -1;
@@ -708,10 +716,7 @@ sys_dev(void)
     f->type = FD_DEVICE;
     f->off = 0;
     f->major = major;
-    if(!(omode & O_WRONLY) )
-    SET_READABLE(f->flags);
-    if((omode & O_WRONLY) || (omode & O_RDWR))
-    SET_WRITABLE(f->flags);
+    set_omode(f, omode);
     myproc()->ofile[fd] = f;
     return fd;
 }
@@ -746,7 +751,7 @@ static uint64 generic_open(char *path, int flags, int omode) {
   }
   
   f->flags |= flags;
-  f->omode = omode;
+  set_omode(f, omode);
   strcpy(f->info.path, path);
   if (fs->fops->open(f, path, flags) < 0) {
     fileclose(f);
@@ -768,12 +773,14 @@ uint64 sys_openat(void) {
   argint(2, &flags);
   argint(3, &omode);
 
-  printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
+  // printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
-  printf("[sys_openat] abs_path = %s\n", abs_path);
+  // printf("[sys_openat] abs_path = %s\n", abs_path);
   if((r = generic_open(abs_path, flags, omode)) < 0) {
+    printf("[sys_openat] generic_open failed\n");
     return -1;
   }
+  // printf("[sys_openat] generic_open success, fd = %d, path = %s\n", r, abs_path);
   return r;
 }
 
@@ -788,7 +795,7 @@ sys_open(void)
     return -1;
   argint(1, &flags);
   argint(2, &omode);
-  printf("[sys_open] path = %s, flags = %d, omode = %d\n", path, flags, omode);
+  // printf("[sys_open] path = %s, flags = %d, omode = %d\n", path, flags, omode);
   if((r = generic_open(path, flags, omode)) < 0) {
     return -1;
   }
@@ -807,6 +814,25 @@ uint64 sys_readlinkat() {
   return 0;
 }
 
+
+uint64 generic_fstat(char *path, struct kstat *buf) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(path);
+  // printf("pathname = %s\n", path);
+  if (fs == NULL) {
+      printf("FS type not found\n");
+      return -1;
+  }
+  if(fs->fsops->fstat == NULL) {
+      printf("fsops->fstat is NULL\n");
+      return -1;
+  }
+  if (fs->fsops->fstat(path, buf) < 0) {
+      printf("fsops->fstat failed\n");
+      return -1;
+  }
+  // Log("sys_fstat : path %s successfully fstat", path);
+  return 0;
+}
 /**
  * @brief These functions return information about a file.
  * @param dirfd The file descriptor of the directory in which the file is located.
@@ -824,6 +850,8 @@ uint64 sys_fstatat() {
   char pathname[MAXPATH];
   int dirfd, flags;
   uint64 statbuf;
+  char abs_path[MAXPATH] = {0};
+
   argint(0, &dirfd);
   if (argstr(1, pathname, MAXPATH) < 0) {
       return -1;
@@ -831,29 +859,19 @@ uint64 sys_fstatat() {
   argaddr(2, &statbuf);
   argint(3, &flags);
 
-  struct vfs_filesystem *fs = vfs_resolve_fs(pathname);
-  printf("pathname = %s\n", pathname);
-  if (fs == NULL) {
-      printf("FS type not found\n");
-      return ENOENT;
-  }
+  get_abpath_from_dirfd(pathname, dirfd, abs_path);
+  // printf("[sys_fstatat] abs_path = %s\n", abs_path);
 
-  if(fs->type == VFS_TYPE_EXT4) {
-    struct kstat kstat;
-    char * dirfd_path = dirfd == AT_FDCWD ? myproc()->cinfo.path : myproc()->ofile[dirfd]->info.path;
-    char abs_path[MAXPATH] = {0};
-    get_absolute_path(pathname, dirfd_path, abs_path);
-    // printf("[sys_fstatat] abs_path = %s\n", abs_path);
-    if (ext4_vstat(abs_path, &kstat) < 0) {
+  struct kstat kbuf;
+  if(generic_fstat(abs_path, &kbuf) != 0) {
+      printf("[sys_fstatat] generic_fstat failed\n");
       return -1;
-    }
-    if (copyout(myproc()->mm.pagetable, statbuf, (char *)&kstat, sizeof(kstat)) < 0) {
-      return -1;
-    }
-    return 0;
   }
-  printf("sys_fstatat: fs type not supported, type: %d\n", fs->type);
-  return -1;
+  if (copyout(myproc()->mm.pagetable, statbuf, (char *)&kbuf, sizeof(struct stat)) < 0) {
+      printf("[sys_fstatat] copyout failed\n");
+      return -1;
+  }
+  return 0;
 }
 
 /**
@@ -917,7 +935,7 @@ uint64 sys_ioctl(void) {
   }
   arglong(1, &op);
   arglong(2, &arg);
-  printf("[sys_ioctl] fd = %d, op = 0x%x, arg = 0x%x\n", fd, op, arg);
+  // printf("[sys_ioctl] fd = %d, op = 0x%x, arg = 0x%x\n", fd, op, arg);
   return do_ioctl(f, op, arg);
   // return -1;
 }
@@ -933,6 +951,75 @@ uint64 sys_fcntl(void) {
   }
   arglong(1, &cmd);
   arglong(2, &arg);
-  printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
+  // printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
   return do_fcntl(f, cmd, arg);
+}
+
+/**
+ * @brief getdents - read several directory entries from a directory
+ * 
+ * @property int getdents(unsigned int fd, struct linux_dirent *dirp,unsigned int count);
+ * @return On success, the number of bytes read is returned (zero indicates
+       end of file), and the file position is advanced by this number.
+       It is not an error if this number is smaller than the number of
+       bytes requested; this may happen for example because fewer bytes
+       are actually available right now (maybe because we were close to
+       end-of-file, or because we are reading from a pipe, or from a
+       terminal), or because read() was interrupted by a signal.  See
+       also NOTES.
+
+       On error, -1 is returned, and errno is set to indicate the error.
+ */
+uint64 sys_getdents64(void) {
+  // int getdents(unsigned int fd, struct linux_dirent *dirp,unsigned int count);  
+  struct file *f;
+  uint64 ubuf;
+  uint64 count;
+
+  argaddr(1, &ubuf);
+  arguint64(2, &count);
+  if(argfd(0, 0, &f) < 0)
+    return -1;
+  
+  /*
+
+  here are the real implementations
+  because of lacking a memmory allocator that can offer a buffer larger than a page,
+  so the `kbuf` is not always allocated successfully.
+  so we reuse a page buffer to temporarily store the data right now.
+  However, this approach will make the interface non-standard, so it is listed separately.
+
+  real implementation:
+  
+  int r;
+  char *kbuf;
+  if(f->fops->getdents == NULL) {
+    printf("sys_getdents64: fops->getdents is NULL\n");
+    return -1;
+  }
+  if((kbuf = kmalloc(count)) == NULL) {
+    printf("sys_getdents64: kmalloc failed, count %d\n", count);
+    return -1;
+  }
+  if((r = f->fops->getdents(f, (struct linux_dirent64 *)kbuf, count)) < 0) {
+    kfree(kbuf);
+    printf("sys_getdents64: fops->getdents failed\n");
+    return -1;
+  }
+  if(copyout(myproc()->mm.pagetable, ubuf, kbuf, r) < 0) {
+    kfree(kbuf);
+    printf("sys_getdents64: copyout failed\n");
+    return -1;
+  }
+  kfree(kbuf);
+  return r;
+
+  real implement after realize a buddy system (or allocator that can offer a buffer lager than a page */
+
+
+  /* temporary impelementation */
+
+
+  return ext4_temp_vgentdents(f, (struct linux_dirent64*)ubuf, count);
+  
 }

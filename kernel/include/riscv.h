@@ -260,6 +260,12 @@ r_mcounteren()
   return x;
 }
 
+static inline uint64 rdtime() {
+  uint64 x;
+  asm volatile("rdtime %0" : "=r"(x));
+  return x;
+}
+
 // machine-mode cycle counter
 static inline uint64
 r_time()

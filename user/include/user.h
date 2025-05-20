@@ -22,7 +22,7 @@ int open(const char*, int);
 int unlink(const char*);
 int fstat(int fd, struct stat*);
 int link(const char*, const char*);
-int mkdir(const char*);
+int mkdir(const char*, mode_t mode);
 int chdir(const char*);
 int dup(int);
 int getpid(void);

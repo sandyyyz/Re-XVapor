@@ -17,7 +17,6 @@
 17  getcwd      sys_getcwd
 18  unlink      sys_unlink
 19  link        sys_link
-20  mkdir       sys_mkdir
 
 153 times       sys_times
 169 gettimeofday sys_gettimeofday
@@ -32,7 +31,6 @@
 260 wait4       sys_wait4
 222 mmap        sys_mmap
 215 munmap      sys_munmap
-214 brk         sys_brk
 
 96 set_tid_address sys_set_tid_address
 99 set_robust_list sys_set_robust_list 
@@ -57,3 +55,7 @@
 33 mknodat sys_mknodat
 34 mkdirat sys_mkdirat
 11 mknod sys_mknod
+20  mkdir sys_mkdir
+214 brk sys_brk
+113 clock_gettime sys_clock_gettime
+61 getdents64 sys_getdents64

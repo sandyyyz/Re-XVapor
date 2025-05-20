@@ -1,12 +1,27 @@
 #ifndef __STAT_H
 #define __STAT_H
 
-#define T_DIR     1   // Directory
-#define T_FILE    2   // File
-#define T_DEVICE  3   // Device
-#define T_MOUNT   4   // Mount point
+#define T_UNKNOWN 0
+#define T_FIFO 1
+#define T_CHR 2
+#define T_DIR 4
+#define T_BLK 6
+#define T_REG 8
+#define T_LNK 10
+#define T_SOCK 12
+#define T_WHT 14
+
+// for xv6fs
+// #define T_DIR     15   // Directory
+#define T_FILE    16   // File
+#define T_DEVICE  17   // Device
+#define T_MOUNT   18   // Mount point
 
 #include "timer.h"
+
+#ifndef __unused
+#define __unused __attribute__((__unused__))
+#endif
 
 #define S_IFMT  00170000    /* bit mask for file type */
 #define S_IFSOCK 0140000    /* socket */
@@ -61,7 +76,7 @@ struct kstat {
 	time_t st_mtime_nsec;
 	time_t st_ctime_sec;
 	time_t st_ctime_nsec;
-	unsigned __unused[2];
+	// unsigned __unused u[2];
 };
 
 // for inode
@@ -85,12 +100,12 @@ struct stat {
   struct timespec st_atim; /* Time of last access */
   struct timespec st_mtim; /* Time of last modification */
   struct timespec st_ctim; /* Time of last status change */
-  unsigned __unused[2];
+  // unsigned __unused u[2];
 
 #define st_atime st_atim.tv_sec /* Backward compatibility */
 #define st_mtime st_mtim.tv_sec
 #define st_ctime st_ctim.tv_sec
 };
 
-#define __unused __attribute__((__unused__))
+
 #endif

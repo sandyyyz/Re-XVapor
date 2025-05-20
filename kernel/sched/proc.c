@@ -568,10 +568,7 @@ void proc_exit(int status)
   }
   freeprocvm(p);
 
-  begin_op();
-  iput(p->cwd);
-  end_op();
-  p->cwd = 0;
+  memset(&p->cinfo, 0, sizeof(p->cinfo));
 
   acquire(&wait_lock);
   
