@@ -138,7 +138,6 @@ void thread_scheduler(void) {
     for (;;) {
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
-
         t = (struct tcb *)queue_pop_atomic(g_tcb_queues[TCB_RUNNABLE], 1); // remove it
         if (t == NULL)
             continue;
@@ -149,7 +148,6 @@ void thread_scheduler(void) {
         printf("try to get thread%d's lock\n",t->tid);
 #endif
         acquire(&t->lock);
-
 #ifdef __DEBUG_SCHED
         printf("get the lock of thread %d\n",t->tid);
 #endif

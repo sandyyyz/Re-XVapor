@@ -222,9 +222,7 @@ int exec(char *path, char **argv)
 
 int execve(char *path, char **argv, char **envp)
 {
-  if(envp == NULL) 
-    exec(path, argv);
-
+  
   char *s, *last;
   int i, off;
   int r = 0, rcnt = 0, index = 0;

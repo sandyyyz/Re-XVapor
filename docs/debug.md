@@ -755,6 +755,17 @@ getdents return 0!! 吗？？？
 `ls_main()` 
 nfiles == 0, !cur??
 `scan_and_display_dirs_recur()`
+
+![busybox.9.7](image-139.png)
+![busybox.9.8](image-140.png)
+![busybox.9.9](image-141.png)
+
+第一次到`__bswapdi2()`
+第二次到这个地址0xd585c
+`__run_exit_handler()`
+
+要不还是先支持musl busybox吧
+
 ### init.1
 
 ![init.1.1](image-126.png)

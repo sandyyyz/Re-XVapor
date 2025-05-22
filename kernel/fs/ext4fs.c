@@ -284,6 +284,8 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
             return -1;
         }
         kfree(kbuf);
+    } else {
+        memmove((char *)dst, kbuf, *rcnt);
     }
     #ifdef __DEBUG_EXT4_VFREAD
     Log("[ext4] ext4_vfread: copyout finish, kbuf = %p, dst = %p, size = %d", kbuf, dst, size);

@@ -191,6 +191,7 @@ allocproc(void)
 #ifdef __DEBUG_ALLOCATE_PROC
   Info("proc %d allocated, pcb %p\n", p->pid, p);
 #endif
+  pcb_q_change_state(p, USED);
   // process family tree
   p->first_child = NULL;
   INIT_LIST_HEAD(&p->sibling_list);
@@ -204,8 +205,6 @@ allocproc(void)
   
   strcpy(p->cinfo.path, "/");
   // state
-  pcb_q_change_state(p, USED);
-
   // mm_struct
   initlock(&p->mm.lock, "mm_lock");
   p->mm.pagetable = proc_pagetable(p);
@@ -456,20 +455,22 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
-  struct tcb  *t = mythread();
+  // struct tcb  *t = mythread();
   // Allocate process.
   // return with np->lock held
-  if((np = allocproc()) == 0){
+  // if((np = allocproc()) == 0){
+  //   return -1;
+  // }
+  // if((t = alloc_thread(thread_forkret)) == 0) {
+  //   freeproc(np);
+  //   return -1;
+  // }
+
+  // // make the allocated thread be the group leader
+  // proc_join_thread(np, t, NULL);
+  if((np = create_proc()) == 0) {
     return -1;
   }
-  if((t = alloc_thread(thread_forkret)) == 0) {
-    freeproc(np);
-    return -1;
-  }
-
-  // make the allocated thread be the group leader
-  proc_join_thread(np, t, NULL);
-
   if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
@@ -501,7 +502,7 @@ fork(void)
 
   pid = np->pid;
   
-  release(&np->tg.group_leader->lock);
+  // release(&np->tg.group_leader->lock);
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -512,15 +513,15 @@ fork(void)
   append_child(p, np);
   release(&p->lock);
   
-  acquire(&np->lock);
+  // acquire(&np->lock);
   // np->state = RUNNABLE;
   // change the leader thread's state
-  acquire(&np->tg.lock);
+  // acquire(&np->tg.lock);
   acquire(&np->tg.group_leader->lock);
   tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
   release(&np->tg.group_leader->lock);
-  release(&np->tg.lock);
-  release(&np->lock);
+  // release(&np->tg.lock);
+  // release(&np->lock);
   
   return pid;
 }

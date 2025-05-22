@@ -8,9 +8,6 @@
 #include "proc.h"
 #include "defs.h"
 #include "debug.h"
-
-extern int init_finished;
-
 void
 initlock(struct spinlock *lk, char *name)
 {

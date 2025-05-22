@@ -35,8 +35,6 @@ queue_t *g_tcb_queues[TCB_MAX_STATE] = {
 tcb_t tcb_pool[NTHREADS];
 
 
-
-
 // tcb init
 void tcb_init(void) {
     struct tcb *t;
@@ -103,8 +101,6 @@ struct tcb *alloc_thread(thread_callback callback) {
     INIT_LIST_HEAD(&t->threads);
 
     t->tid = alloctid();
-
-
 
     memset(&t->context, 0, sizeof(t->context));
     t->context.ra = (uint64)callback;
