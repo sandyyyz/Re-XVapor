@@ -32,11 +32,9 @@
 #include <ext4_errno.h>
 #include "types.h"
 #include "defs.h"
-#ifndef __USE_XV6FS
-#include "buf.h"
-#endif
 #include "param.h"
-
+#include "buf.h"
+#include "debug.h"
 
 #ifndef BSIZE
 #define BSIZE 1024
@@ -69,6 +67,9 @@ static int blockdev_open(struct ext4_blockdev *bdev)
 static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
 			 uint32_t blk_cnt)
 {
+#ifdef __DEBUG_BREAD
+	Log("blockdev_bread: bdev 0x%x, buf 0x%x, blockid 0x%x", bdev, buf, blk_id);
+#endif
 	uint64 bp = (uint64)buf;
 	for(int i = 0; i < blk_cnt; i++) {
 		struct buf *b = bread(ROOTDEV, blk_id + i);
@@ -76,7 +77,9 @@ static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id
 		bp += BSIZE;
 		brelse(b);
 	}
-
+#ifdef __DEBUG_BREAD
+	Log("blockdev_bread end!");
+#endif
 	return EOK;
 }
 

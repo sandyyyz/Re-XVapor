@@ -775,4 +775,8 @@ nfiles == 0, !cur??
 not align version?:
 ![init.1.2](image-127.png)
 ![init.1.3](image-128.png)
-
+出错位置:(实在是难以定位只能print大法了)
+似乎是函数`ext4_bdif_bread()`问题
+![init.1.4](image-142.png)
+![init.1.5](image-143.png)
+![init.1.6](image-144.png)

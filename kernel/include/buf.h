@@ -1,7 +1,8 @@
 #ifndef __BUF_H
 #define __BUF_H
 #include "sleeplock.h"
-#include "xv6fs.h"
+
+#define BSIZE 1024
 
 struct buf {
   int valid;   // has data been read from disk?

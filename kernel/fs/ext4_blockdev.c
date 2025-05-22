@@ -44,6 +44,8 @@
 #include <ext4_fs.h>
 #include <ext4_journal.h>
 
+#include "debug.h"
+
 static void ext4_bdif_lock(struct ext4_blockdev *bdev)
 {
 	if (!bdev->bdif->lock)
@@ -66,6 +68,9 @@ static int ext4_bdif_bread(struct ext4_blockdev *bdev, void *buf,
 			   uint64_t blk_id, uint32_t blk_cnt)
 {
 	ext4_bdif_lock(bdev);
+	if(!bdev->bdif->bread) {
+		Log("Blockdev %x interface does not support read", bdev);
+	}
 	int r = bdev->bdif->bread(bdev, buf, blk_id, blk_cnt);
 	bdev->bdif->bread_ctr++;
 	ext4_bdif_unlock(bdev);

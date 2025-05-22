@@ -55,6 +55,7 @@
 
 #include "types.h"
 #include "defs.h"
+#include "debug.h"
 
 /**@brief   Mount point OS dependent lock*/
 #define EXT4_MP_LOCK(_m)                                                       \
@@ -1675,16 +1676,25 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 	if (rcnt)
 		*rcnt = 0;
 
+#ifdef __DEBUG_EXT4_FREAD
+	Log("ready to read %d bytes from %s", size, file->mp->name);
+	// Log("ready to get inode ref!");
+#endif
 	r = ext4_fs_get_inode_ref(fs, file->inode, &ref);
 	if (r != EOK) {
 		EXT4_MP_UNLOCK(file->mp);
 		return r;
 	}
-
+#ifdef __DEBUG_EXT4_FREAD
+	// Log("ready to get inode size!");
+#endif
 	/*Sync file size*/
 	file->fsize = ext4_inode_get_size(sb, ref.inode);
-
+#ifdef __DEBUG_EXT4_FREAD
+	// Log("ready to get block size!");
+#endif
 	block_size = ext4_sb_get_block_size(sb);
+
 	size = ((uint64_t)size > (file->fsize - file->fpos))
 		? ((size_t)(file->fsize - file->fpos)) : size;
 
@@ -1692,6 +1702,9 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 	iblock_last = (uint32_t)((file->fpos + size) / block_size);
 	unalg = (file->fpos) % block_size;
 
+#ifdef __DEBUG_EXT4_FREAD
+	// Log("ready to get softlink!");
+#endif
 	/*If the size of symlink is smaller than 60 bytes*/
 	bool softlink;
 	softlink = ext4_inode_is_type(sb, ref.inode, EXT4_INODE_MODE_SOFTLINK);
@@ -1746,6 +1759,9 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 
 	fblock_start = 0;
 	fblock_count = 0;
+#ifdef __DEBUG_EXT4_FREAD
+	Log("size = %d, block_size = %d", size, block_size);
+#endif
 	while (size >= block_size) {
 		while (iblock_idx < iblock_last) {
 			r = ext4_fs_get_inode_dblk_idx(&ref, iblock_idx,
@@ -1763,7 +1779,10 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 
 			fblock_count++;
 		}
-
+#ifdef __DEBUG_EXT4_FREAD
+		Log("fblock_start = %d, fblock_count = %d", fblock_start,
+		    fblock_count);
+#endif
 		r = ext4_blocks_get_direct(file->mp->fs.bdev, u8_buf, fblock_start,
 					   fblock_count);
 		if (r != EOK)
@@ -1787,6 +1806,9 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 			goto Finish;
 
 		off = fblock * block_size;
+#ifdef __DEBUG_EXT4_FREAD
+		Log("read %d bytes from %d", size, off);
+#endif
 		r = ext4_block_readbytes(file->mp->fs.bdev, off, u8_buf, size);
 		if (r != EOK)
 			goto Finish;
@@ -1797,6 +1819,9 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 			*rcnt += size;
 	}
 
+#ifdef __DEBUG_EXT4_FREAD
+	Log("ready to put inode ref!");
+#endif
 Finish:
 	ext4_fs_put_inode_ref(&ref);
 	EXT4_MP_UNLOCK(file->mp);

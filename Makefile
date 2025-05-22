@@ -121,7 +121,7 @@ CPUS := 4
 endif
 
 
-QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/kernel/kernel -m 128M -smp $(CPUS) -nographic
+QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/kernel/kernel -m 4G -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
