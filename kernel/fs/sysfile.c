@@ -142,6 +142,9 @@ sys_close(void)
     return -1;
   myproc()->ofile[fd] = 0;
   fileclose(f);
+#ifdef __DEBUG_CLOSE
+  Log("sys_close: fd=%d, f=%p", fd, f);
+#endif
   return 0;
 }
 
@@ -756,9 +759,13 @@ static uint64 generic_open(char *path, int flags, int omode) {
   if (fs->fops->open(f, path, flags) < 0) {
     fileclose(f);
     myproc()->ofile[fd] = 0;
-    printf("fsops->open failed\n");
+    printf("fsops->open failed, path %s\n", path);
     return -1;
   }
+  #ifdef __DEBUG_GOPEN
+  Log("generic_open : path %s successfully opened, type = %d", path, f->type);
+  #endif
+
   return r;
 }
 uint64 sys_openat(void) {
@@ -766,7 +773,7 @@ uint64 sys_openat(void) {
   char path[MAXPATH];
   char abs_path[MAXPATH];
   int dirfd, flags, omode;
-  int r;
+  int r = 0;
   argint(0, &dirfd);
   if(argstr(1, path, MAXPATH) < 0)
     return -1;
@@ -777,10 +784,13 @@ uint64 sys_openat(void) {
   get_abpath_from_dirfd(path, dirfd, abs_path);
   // printf("[sys_openat] abs_path = %s\n", abs_path);
   if((r = generic_open(abs_path, flags, omode)) < 0) {
-    printf("[sys_openat] generic_open failed\n");
+    printf("[sys_openat] generic_open failed, abs_path = %s\n", abs_path);
     return -1;
   }
-  // printf("[sys_openat] generic_open success, fd = %d, path = %s\n", r, abs_path);
+
+#ifdef __DEBUG_SYS_OPENAT
+  Log("[sys_openat] generic_open success, fd = %d, path = %s", r, abs_path);
+#endif
   return r;
 }
 
@@ -817,7 +827,10 @@ uint64 sys_readlinkat() {
 
 uint64 generic_fstat(char *path, struct kstat *buf) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
-  // printf("pathname = %s\n", path);
+  int r = 0;
+  #ifdef __DEBUG_SYS_FSTAT
+  printf("[generic_fstat] pathname = %s\n", path);
+  #endif
   if (fs == NULL) {
       printf("FS type not found\n");
       return -1;
@@ -826,12 +839,14 @@ uint64 generic_fstat(char *path, struct kstat *buf) {
       printf("fsops->fstat is NULL\n");
       return -1;
   }
-  if (fs->fsops->fstat(path, buf) < 0) {
-      printf("fsops->fstat failed\n");
+  if ((r = fs->fsops->fstat(path, buf)) != 0) {
+      printf("fsops->fstat failed, r = %d\n", r);
       return -1;
   }
-  // Log("sys_fstat : path %s successfully fstat", path);
-  return 0;
+  #ifdef __DEBUG_SYS_FSTAT
+  Log("sys_fstat : path %s successfully fstat", path);
+  #endif
+  return r;
 }
 /**
  * @brief These functions return information about a file.
@@ -959,7 +974,8 @@ uint64 sys_fcntl(void) {
  * @brief getdents - read several directory entries from a directory
  * 
  * @property int getdents(unsigned int fd, struct linux_dirent *dirp,unsigned int count);
- * @return On success, the number of bytes read is returned (zero indicates
+ * @return 
+ *     On success, the number of bytes read is returned (zero indicates
        end of file), and the file position is advanced by this number.
        It is not an error if this number is smaller than the number of
        bytes requested; this may happen for example because fewer bytes
@@ -968,6 +984,7 @@ uint64 sys_fcntl(void) {
        terminal), or because read() was interrupted by a signal.  See
        also NOTES.
 
+       On success, the number of bytes read is returned. On end of directory, 0 is returned. On error, -1 is returned, and errno is set appropriately.
        On error, -1 is returned, and errno is set to indicate the error.
  */
 uint64 sys_getdents64(void) {

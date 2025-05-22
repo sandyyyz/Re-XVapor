@@ -720,3 +720,48 @@ ash_main 没有解析到命令，然后退出了？事实上非login_sh时，也
 `cmd_loop()` --> `parsecmd()` 
 
 `ls_main()` --> `scan_and_display_dir_cur`  
+
+
+### busybox.6
+
+![busybox.6.1](image-129.png)
+问题是getdents传入的f->dir == null
+
+### busybox.7
+
+![busybox.7.1](image-130.png)
+![busybox.7.2](image-131.png)
+
+open的返回值写错了，导致每次都返回fd == 0
+
+### busybox.8
+
+![busybox.8.1](image-132.png)
+ls一直getdents,怎么解析到读取所有目录项结束呢？，
+
+getdents return 0!! 吗？？？
+``ext4_dir_entry_next()``中会改变dir的off,这是判断目录项是否遍历完成的依据。  
+传入了临时变量dir指针，导致fp的dir off没有更新。
+
+
+### busybox.9
+
+![busybox.9.1](image-133.png)
+![busybox.9.2](image-134.png)
+![busybox.9.3](image-135.png)
+![busybox.9.4](image-136.png)
+![busybox.9.5](image-137.png)
+![busybox.9.6](image-138.png)
+`ls_main()` 
+nfiles == 0, !cur??
+`scan_and_display_dirs_recur()`
+### init.1
+
+![init.1.1](image-126.png)
+
+执行execve时卡死。。。。。。。
+
+not align version?:
+![init.1.2](image-127.png)
+![init.1.3](image-128.png)
+

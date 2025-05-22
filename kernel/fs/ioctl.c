@@ -27,6 +27,33 @@ int do_ioctl(struct file *f, uint64 op, uint64 arg) {
             if (copyout(myproc()->mm.pagetable, arg, (char *)&kernel_termios, sizeof(kernel_termios)) < 0) {
                 return -1;
             }
+            /* return 1 ... see glibc src
+
+            ISATTY(3)                                     Linux Programmer's Manual                                    ISATTY(3)
+
+NAME
+       isatty - test whether a file descriptor refers to a terminal
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int isatty(int fd);
+
+DESCRIPTION
+       The isatty() function tests whether fd is an open file descriptor referring to a terminal.
+
+RETURN VALUE
+       isatty() returns 1 if fd is an open file descriptor referring to a terminal; otherwise 0 is returned, and er‐
+       rno is set to indicate the error.
+       
+            int
+            isatty (int fd)
+            {
+            struct termios term;
+            return __tcgetattr (fd, &term) != -1;
+            }
+            */
+            return 1;
             break;
         case TCSETS:
             // printf("TCSETS\n");

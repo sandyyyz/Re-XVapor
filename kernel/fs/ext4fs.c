@@ -263,22 +263,31 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
     } else {
         kbuf = (char *)dst;
     }
-    if((r = ext4_fread(efp, kbuf, size, (size_t*) rcnt)) != EOK) {
+    #ifdef __DEBUG_EXT4_VFREAD
+    Log("[ext4] ext4_vfread: kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
+    #endif
+    if((r = ext4_fread(efp, kbuf, (size_t)size, (size_t*) rcnt)) != EOK) {
         printf("[ext4] ext4_fread error! r=%d\n", r);
         if(user_dst) {
             kfree(kbuf);
         }
         return r;
     }
+    #ifdef __DEBUG_EXT4_VFREAD
+    Log("[ext4] ext4_vfread: finish, kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
+    #endif
+
     if(user_dst) {
-        if((r = copyout(myproc()->mm.pagetable, dst, kbuf, *rcnt)) != EOK) {
+        if(copyout(myproc()->mm.pagetable, dst, kbuf, *rcnt) != EOK) {
             printf("[ext4] copyout error! r=%d\n", r);
             kfree(kbuf);
-            return r;
+            return -1;
         }
         kfree(kbuf);
     }
-
+    #ifdef __DEBUG_EXT4_VFREAD
+    Log("[ext4] ext4_vfread: copyout finish, kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
+    #endif
     return r;
 }
 
@@ -381,7 +390,7 @@ isdir:
             fp->major = ext4_inode_get_dev(&inode);
             break;
         case EXT4_INODE_MODE_DIRECTORY:
-            fp->type = FD_INODE;
+            fp->type = FD_DIR;
             break;
         case EXT4_INODE_MODE_BLOCKDEV:
             fp->type = FD_DEVICE;
@@ -405,6 +414,9 @@ isdir:
 }
 
 int ext4_vfclose(struct file *fp) {
+    #ifdef __DEBUG_EXT4_VFCLOSE
+    Log("[ext4] ext4_vfclose: fp = %p", fp);
+    #endif
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     if(!efp) {
@@ -431,7 +443,7 @@ int ext4_vstat(char *path, struct kstat *st) {
     /* Don't open file or dir, just get info from inode */
     r = ext4_raw_inode_fill(stat_path, &ino, &inode);
     if (r != EOK) {
-        return -r;
+        return r;
     }
 
     struct ext4_sblock *sb = NULL;
@@ -464,7 +476,7 @@ int ext4_vstat(char *path, struct kstat *st) {
         }
     }
 
-    return -r;
+    return r;
 }
 
 int ext4_vfstat(struct file *f, struct kstat *st) {
@@ -578,30 +590,33 @@ int ext4_vmkdir(const char *pathname, mode_t mode) {
  * @param fp file pointer
  * @param u_dirp pointer to the user space buffer
  * @param count size of the buffer
- * @return read bytes on success, -1 on error
+ * @return read bytes on success when quit in the loop, -1 on error, 0 on no more entries
  */
 int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_dirp, int count) {
-    struct ext4_dir dir = fp->dir;
+    struct ext4_dir *dir = &fp->dir;
     struct linux_dirent64 *d;
     struct linux_dirent64 *dirp;
+    uint64 off = 0;
     const ext4_direntry *de;
     int totlen = 0;
     int reclen = 0;
-    int index = 1;
     if(count <= 0) {
         printf("[ext4] count <= 0!\n");
-        return -1;
+        return 0;
     }
-
+    if(fp->type != FD_DIR) {
+        printf("[ext4] fp->type != FD_DIR!, == %d\n", fp->type);
+        return 0;
+    }
     dirp = kalloc();
     if(dirp == NULL) {
         printf("[ext4] dirp is NULL!\n");
-        return -1;
+        return 0;
     }
 
     d = dirp;
     while(1) {
-        de = ext4_dir_entry_next(&dir);
+        de = ext4_dir_entry_next(dir);
         if(de == NULL) {
             break;
         }
@@ -610,14 +625,15 @@ int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_
             return -1;
         }
         reclen = sizeof(struct linux_dirent64) + de->name_length + 1;
-        if(totlen + reclen > count) {
+        if(totlen + reclen >= count) {
             break;
         }
         strncpy(d->d_name, (const char*)de->name, de->name_length);
         d->d_name[de->name_length] = '\0';
         d->d_reclen = reclen;
         d->d_ino = de->inode;
-        d->d_off = index++;
+        d->d_off = off; //
+        off = dir->next_off;
         /**@brief   Directory entry types. */
         /*
         enum { EXT4_DE_UNKNOWN = 0,
@@ -658,13 +674,18 @@ int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_
                 d->d_type = T_UNKNOWN;
                 break;
         }
+        if(copyout(myproc()->mm.pagetable, (uint64)u_dirp, (char*)dirp, reclen) != EOK) {
+            printf("[ext4] copyout error!\n");
+            kfree(dirp);
+            return totlen;
+        }
         totlen += reclen;
-        // d = (struct linux_dirent64 *)((char *)d + reclen);
-        copyout(myproc()->mm.pagetable, (uint64)u_dirp, (char*)d, reclen);
         u_dirp = (struct linux_dirent64 *)((char *)u_dirp + reclen);
     }
     kfree(dirp);
-    Log("[ext4] ext4_temp_vgentdents: totlen=%d\n", totlen);
+#ifdef __DEBUG_EXT4_VGENTDENTS
+    Log("[ext4] ext4_temp_vgentdents: totlen=%d, path = %s\n", totlen, fp->info.path);
+#endif
     return totlen;
 }
 /**

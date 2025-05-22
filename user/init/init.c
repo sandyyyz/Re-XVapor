@@ -10,9 +10,9 @@
 #include "fcntl.h"
 #include "debug.h"
 
-char *argv[] = {"/glibc/busybox_unstripped", "sh", "glibc/basic_testcode.sh",  NULL };
+char *argv[] = {"/glibc/busybox_unstripped", "sh",  NULL };
 char path[] = "/glibc/busybox_unstripped";
-char *envp[] = {0};
+char *envp[] = {"/glibc",0};
 int main(void)
 {
   dev(O_RDWR, CONSOLE, 0);
@@ -24,7 +24,7 @@ int main(void)
   //   // while(1);
   //   if(mkdir("/dev", 0755) < 0) {
   //     printf("init: mkdir /dev failed\n");
-  //     return -1;
+  //     return -1;`
   //   }
   //   // while(1);
   //   if(mknod("/dev/tty", S_IFCHR | S_IRUSR | S_IWUSR, CONSOLE) < 0) {
@@ -32,14 +32,14 @@ int main(void)
   //     return -1;
   //   }
   // }
-  // int pid = fork();
-  // if(pid == 0) {
-  //   printf("init: child process, pid = %d\n", getpid());
-  //   execve(path, argv, envp);
-  // } else {
-  //   wait(0);
-  // }
-  execve(path, argv, envp);
+  int pid = fork();
+  if(pid == 0) {
+    printf("init: child process, pid = %d\n", getpid());
+    execve(path, argv, envp);
+  } else {
+    wait(0);
+  }
+  // execve(path, argv, envp);
   // while(1);
   return 0;
 }

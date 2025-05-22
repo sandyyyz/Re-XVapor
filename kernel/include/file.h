@@ -27,7 +27,7 @@ struct file_info {
 };
 
 struct file {
-  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE, FD_SOFTLINK, FD_SOCKET } type;
+  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE, FD_SOFTLINK, FD_SOCKET, FD_DIR} type;
   int ref; // reference count
   // char readable;
   // char writable;
@@ -44,6 +44,7 @@ struct file {
   struct file_info info;
   uint64 fpos; // file position
   ext4_dir dir; // directory entry. just used for ext4, and don't use a pointer because of lacking a small memory allocator in kernel right now
+  
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)

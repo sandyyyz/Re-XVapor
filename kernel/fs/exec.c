@@ -59,20 +59,6 @@ int exec(char *path, char **argv)
   struct proc *p = myproc();
   struct tcb *t = mythread();
 
-#ifdef __USE_XV6FS
-  struct inode *ip;
-  begin_op();
-
-  if((ip = namei(path)) == 0){
-    end_op();
-    return -1;
-  }
-  ip->iops->ilock(ip);
-
-  // Check ELF header
-  if(ip->iops->readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
-    goto bad;
-  #else
   char abs_path[MAXPATH];
   struct file *f;
   if((f = filealloc()) == 0)
@@ -82,13 +68,13 @@ int exec(char *path, char **argv)
     Log("ext4_fopen2 failed %d", r);
     return -1;
   }
+
   if(((r = ext4_vfread(f, 0, (uint64) &elf, 0, sizeof(elf), &rcnt)) != EOK) || 
      (rcnt != sizeof(elf))) {
     Log("ext4_fread failed %d", r);
     ext4_vfclose(f);
     return -1;
   }
-#endif
 
   if(elf.magic != ELF_MAGIC)
     goto bad;
@@ -100,13 +86,8 @@ int exec(char *path, char **argv)
   
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-#ifdef __USE_XV6FS
-    if(ip->iops->readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
-      goto bad;
-#else
     if((r = ext4_vfread(f, 0, (uint64)&ph, off, sizeof(ph), &rcnt)) != EOK || rcnt != sizeof(ph))
       goto bad;
-#endif
 
     if(ph.type == ELF_PROG_INTERP)
       printf("ELF_PROG_INTERP not supported\n");
@@ -114,7 +95,6 @@ int exec(char *path, char **argv)
       printf("ph.type == 0x%x\n", ph.type);
       continue;
     }
-
     if(ph.memsz < ph.filesz)
       goto bad;
     if(ph.vaddr + ph.memsz < ph.vaddr)
@@ -135,12 +115,7 @@ int exec(char *path, char **argv)
       goto bad;
     #endif
     
-  }
-  #ifdef __USE_XV6FS  
-  iunlockput(ip);
-  end_op();
-  ip = 0;
-  #endif  
+  } 
 
   // fix size, and allocate ustack and stack guard page
   p = myproc();
@@ -238,15 +213,9 @@ int exec(char *path, char **argv)
  bad:
   if(pagetable)
     proc_freepagetable(pagetable, sz, 1);
-  #ifdef __USE_XV6FS  
-  if(ip){
-    iunlockput(ip);
-    end_op();
-  }
-  #else
+
   if(f)
     ext4_vfclose(f);
-  #endif
   return -1;
 
 }
@@ -261,36 +230,16 @@ int execve(char *path, char **argv, char **envp)
   int r = 0, rcnt = 0, index = 0;
   uint64 argc, envc, sz = 0, sp, ustack[MAXARG], estack[MAXENV + 1], stackbase;
   struct elfhdr elf;
-  #ifdef __USE_XV6FS
-  struct inode *ip;
-  #endif
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
   
   struct proc *p = myproc();
   struct tcb *t = mythread();
-
-  #ifdef __USE_XV6FS
-  struct inode *ip;
-  begin_op();
-
-  if((ip = namei(path)) == 0){
-    end_op();
-    return -1;
-  }
-  ip->iops->ilock(ip);
-
-  // Check ELF header
-  if(ip->iops->readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
-    goto bad;
-  #else
   char abs_path[MAXPATH];
   struct file *f;
+
   if((f = filealloc()) == 0)
     return -1;
-#ifdef __DEBUG_EXEC
-  Log("cwd = %s", myproc()->cinfo.path);
-#endif
   get_absolute_path(path, myproc()->cinfo.path, abs_path);
   if((r = ext4_vfopen(f, abs_path, O_RDONLY)) != EOK) {
     Log("ext4_fopen2 failed %d", r);
@@ -302,25 +251,17 @@ int execve(char *path, char **argv, char **envp)
     ext4_vfclose(f);
     return -1;
   }
-#endif
-
   if(elf.magic != ELF_MAGIC)
     goto bad;
-
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
-
-  
   
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-#ifdef __USE_XV6FS
-    if(ip->iops->readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+
+    if((r = ext4_vfread(f, 0, (uint64)&ph, off, sizeof(ph), &rcnt)) != EOK
+                        || rcnt != sizeof(ph))
       goto bad;
-#else
-    if((r = ext4_vfread(f, 0, (uint64)&ph, off, sizeof(ph), &rcnt)) != EOK || rcnt != sizeof(ph))
-      goto bad;
-#endif
 
     if(ph.type == ELF_PROG_INTERP)
       printf("ELF_PROG_INTERP not supported\n");
@@ -340,22 +281,12 @@ int execve(char *path, char **argv, char **envp)
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
-    #ifdef __USE_XV6FS
-    // now load segment into mapped memory in pgtble
-    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
-      goto bad;
-    #else 
+
     if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
-    #endif
-    
   }
-  #ifdef __USE_XV6FS  
-  iunlockput(ip);
-  end_op();
-  ip = 0;
-  #endif  
 
+  ext4_vfclose(f);
   // fix size, and allocate ustack and stack guard page
   p = myproc();
   uint64 oldsz = p->sz;
@@ -487,52 +418,21 @@ int execve(char *path, char **argv, char **envp)
   bad:
   if(pagetable)
     proc_freepagetable(pagetable, sz, 1);
-  #ifdef __USE_XV6FS  
-  if(ip){
-    iunlockput(ip);
-    end_op();
-  }
-  #else
   if(f)
     ext4_vfclose(f);
-  #endif
   return -1;
 
 }
 
-#ifdef __USE_XV6FS
-// Load a program segment into pagetable at virtual address va.
-// va must be page-aligned
-// and the pages from va to va+sz must already be mapped.
-// Returns 0 on success, -1 on failure.
-static int
-loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz)
-{
-  uint i, n;
-  uint64 pa;
-
-  for(i = 0; i < sz; i += PGSIZE){
-    pa = walkaddr(pagetable, va + i);
-    if(pa == 0)
-      panic("loadseg: address should exist");
-    if(sz - i < PGSIZE)
-      n = sz - i;
-    else
-      n = PGSIZE;
-    if(ip->iops->readi(ip, 0, (uint64)pa, offset+i, n) != n)
-      return -1;
-  }
-  
-  return 0;
-}
-#endif
-
 static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offset, uint sz){
+  #ifdef __DEBUG_FLOADSEG
+  Log("enter floadseg: va %p, offset %p, sz 0x%x", va, offset, sz);
+  #endif
   uint i, n;
   int r = 0, rcnt = 0;
   uint64 pa;
   if ((va % PGSIZE) != 0)
-  panic("loadseg: va must be page aligned");
+    panic("loadseg: va must be page aligned");
 
   for (i = 0; i < sz; i += PGSIZE)
   {
