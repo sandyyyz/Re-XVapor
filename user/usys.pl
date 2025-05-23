@@ -38,6 +38,7 @@ entry("close");
 entry("getdents64");
 entry("read");
 entry("write");
+entry("writev");
 entry("ppoll");
 entry("readlinkat");
 entry("fstatat");

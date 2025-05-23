@@ -25,6 +25,7 @@
 [SYS_getdents64] sys_getdents64,
 [SYS_read] sys_read,
 [SYS_write] sys_write,
+[SYS_writev] sys_writev,
 [SYS_ppoll] sys_ppoll,
 [SYS_readlinkat] sys_readlinkat,
 [SYS_fstatat] sys_fstatat,

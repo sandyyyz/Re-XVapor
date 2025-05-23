@@ -59,3 +59,4 @@
 214 brk sys_brk
 113 clock_gettime sys_clock_gettime
 61 getdents64 sys_getdents64
+66 writev sys_writev

@@ -13,6 +13,7 @@
 #include "ext4.h"
 #include "dirent.h"
 #include "stat.h"
+#include "iovec.h"
 
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
@@ -47,6 +48,7 @@ struct file_ops ext4_file_ops = {
     .close = ext4_vfclose,
     .cleansf = ext4_vcleansf,
     .getdents = ext4_vgetdents,
+    .writev = ext4_vwritev,
 };
 
 struct fs_ops ext4_fs_ops = {
@@ -290,6 +292,58 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
     return r;
 }
 
+/**
+ * @brief write to a file using iovec
+ * 
+ * @param fp file pointer
+ * @param user_src if 1, address in iovec is in user space
+ * @param iovec kernel space iovecs
+ * @param iovcnt count of iovecs
+ * @param wcnt write count
+ * @attention iovec should in kernel space
+ * @return 0 on success, -1 on error
+ */
+int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, int *wcnt) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    char *kvecs = (char*) iovec;
+    int wc = 0;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return EINVAL;
+    }
+    // if(user_src) {
+    //     kvecs = (char *)kmalloc(iovcnt * sizeof(struct iovec));
+    //     if(!kvecs) {
+    //         printf("[ext4] kmalloc error!\n");
+    //         return ENOMEM;
+    //     }
+    //     if((r = copyin(myproc()->mm.pagetable, kvecs, iovec, iovcnt * sizeof(struct iovec))) != EOK) {
+    //         printf("[ext4] copyin error! r=%d\n", r);
+    //         kfree(kvecs);
+    //         return r;
+    //     }
+    // } else {
+    //     kvecs = (char *)iovec;
+    // }
+    struct iovec *vecs = (struct iovec *)kvecs;
+    for (int i = 0; i < iovcnt; i++) {
+        if (vecs[i].iov_len == 0) {
+            continue;
+        }
+        if ((r = ext4_vwrite(fp, user_src, (uint64)vecs[i].iov_base, fp->fpos, vecs[i].iov_len, &wc)) != EOK) {
+            printf("[ext4] ext4_vwrite error! r=%d\n", r);
+            if(user_src) {
+                kfree(kvecs);
+            }
+            return -1;
+        }
+        *wcnt += wc;
+        vecs++;
+    }
+    return r;
+    
+}
 int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;

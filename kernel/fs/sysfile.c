@@ -24,7 +24,7 @@
 #include "ioctl.h"
 #include "ext4_errno.h"
 #include "debug.h"
-
+#include "iovec.h"
 
 static void set_omode(struct file *f, int omode);
 
@@ -1039,4 +1039,83 @@ uint64 sys_getdents64(void) {
 
   return ext4_temp_vgentdents(f, (struct linux_dirent64*)ubuf, count);
   
+}
+
+int generic_writev(struct file *f, uint64 iov, int iovcnt) {
+  int wcnt = 0;
+  char *kvecs = NULL;
+  if((kvecs = kmalloc(iovcnt * sizeof(struct iovec))) == NULL) {
+    printf("generic_writev: kmalloc failed\n");
+    return -1;
+  }
+  if(either_copyin(kvecs, 1, iov, iovcnt * sizeof(struct iovec)) < 0) {
+    printf("generic_writev: either_copyin failed\n");
+    goto bad;
+  }
+  if(f->type == FD_DIR) {
+    printf("generic_writev: f->type is T_DIR\n");
+    goto bad;
+  } else if(f->type == FD_DEVICE || f->type == FD_PIPE) {
+    struct iovec *kvec = (struct iovec *)kvecs;
+    int wc = 0;
+    for(int i = 0; i < iovcnt; i++)  {
+#ifdef __DEBUG_GENERIC_WRITEV
+      Log("generic_writev: i = %d, kvec[i].iov_base = %p, kvec[i].iov_len = %d", i, kvec[i].iov_base, kvec[i].iov_len);
+#endif
+      if(kvec[i].iov_len <= 0 || kvec[i].iov_base == 0) {
+        continue;
+      }
+      if((wc = filewrite(f, (uint64)kvec[i].iov_base, kvec[i].iov_len)) < 0) {
+        printf("generic_writev: filewrite failed\n");
+        goto bad;
+      }
+      wcnt += wc;
+      kvec++;
+    }
+    goto out;
+  }
+  if(f->fops->writev == NULL) {
+    printf("generic_writev: fops->writev is NULL\n");
+    goto bad;
+  }
+  if(f->fops->writev(f, 1, (uint64)kvecs, iovcnt, &wcnt) != EOK) {
+    printf("generic_writev: fops->writev failed\n");
+    goto bad;
+  }
+  if(wcnt < 0) {
+    printf("generic_writev: wcnt < 0\n");
+    goto bad;
+  }
+out:
+  kfree(kvecs);
+  return wcnt;
+bad:
+  kfree(kvecs);
+  return -1;
+}
+/**
+ * @brief The writev() system call writes iovcnt buffers of data described by iov to the file associated with the file descriptor fd ("gather output").
+ * 
+ * 
+ * @return On success, writev() and pwritev() return the number of bytes written. On error, -1 is returned, and errno is set appropriately. 
+ */
+uint64 sys_writev(void) {
+  // ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+  struct file *f;
+  uint64 iov;
+  int iovcnt;
+  int r = 0;
+  argaddr(1, &iov);
+  argint(2, &iovcnt);
+  if(argfd(0, 0, &f) < 0)
+    return -1;
+  
+  if((r = generic_writev(f, iov, iovcnt)) < 0) {
+    printf("sys_writev: generic_writev failed\n");
+    return -1;
+  }
+#ifdef __DEBUG_SYS_WRITEV
+  Log("sys_writev : f %p successfully writev, r = %d", f, r);
+#endif
+  return r;
 }
