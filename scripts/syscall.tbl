@@ -8,7 +8,7 @@
 6   kill        sys_kill
 7   exec        sys_exec
 8   fstat       sys_fstat
-9   chdir       sys_chdir
+
 10  dup         sys_dup
 12  sbrk        sys_sbrk
 13  sleep       sys_sleep
@@ -60,3 +60,4 @@
 113 clock_gettime sys_clock_gettime
 61 getdents64 sys_getdents64
 66 writev sys_writev
+49 chdir sys_chdir

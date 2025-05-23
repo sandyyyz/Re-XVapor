@@ -5,7 +5,6 @@
 #define SYS_kill 6
 #define SYS_exec 7
 #define SYS_fstat 8
-#define SYS_chdir 9
 #define SYS_dup 10
 #define SYS_mknod 11
 #define SYS_sbrk 12
@@ -20,6 +19,7 @@
 #define SYS_ioctl 29
 #define SYS_mknodat 33
 #define SYS_mkdirat 34
+#define SYS_chdir 49
 #define SYS_openat 56
 #define SYS_close 57
 #define SYS_getdents64 61

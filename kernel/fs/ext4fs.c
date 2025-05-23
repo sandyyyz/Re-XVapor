@@ -55,6 +55,7 @@ struct fs_ops ext4_fs_ops = {
     .mknod = ext4_vmknod,
     .mkdir = ext4_vmkdir,
     .fstat = ext4_vstat,
+    .isdir = ext4_visdir,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -831,4 +832,25 @@ int ext4_vgetdents(struct file *fp, __kernel_space struct linux_dirent64 *dirp, 
         d = (struct linux_dirent64 *)((char *)d + reclen);
     }
     return totlen;
+}
+
+/**
+ * @brief if the path is a directory?
+ * 
+ * @param path given path
+ * @return 1 if it is a directory, 0 if not
+ */
+int ext4_visdir(const char *path) {
+    struct ext4_dir dir;
+    int r = EOK;
+
+    if((r = ext4_dir_open(&dir, path)) != EOK) {
+        printf("[ext4] ext4_visdir error! r=%d\n", r);
+        return 0;
+    }
+    if((r = ext4_dir_close(&dir)) != EOK) {
+        printf("[ext4] ext4_dir_close error! r=%d\n", r);
+        return 0;
+    }
+    return 1;
 }

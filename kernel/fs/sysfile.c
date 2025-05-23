@@ -409,29 +409,47 @@ uint64 sys_mknodat(void) {
   return generic_mknod(abs_path, mode, dev);
 }
 
-uint64
-sys_chdir(void)
+/**
+ * @brief chdir() changes the current working directory of the calling
+       process to the directory specified in path.
+
+ * @property int chdir(const char *path);
+ * @return  On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_chdir(void)
 {
   char path[MAXPATH];
-  struct inode *ip;
   struct proc *p = myproc();
-  
-  begin_op();
-  if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
-    end_op();
+  char *cwd = p->cinfo.path;
+  char abs_path[MAXPATH];
+  struct vfs_filesystem *fs = NULL;
+  if(argstr(0, path, MAXPATH) < 0)
+    return -1;
+  get_absolute_path(path, cwd, abs_path);
+  fs = vfs_resolve_fs(abs_path);
+
+  if(strlen(abs_path) >= MAXPATH) {
+    printf("sys_chdir: path too long\n");
     return -1;
   }
-  ip->iops->ilock(ip);
-  if(ip->type != T_DIR){
-    iunlockput(ip);
-    end_op();
+  if (fs == NULL) {
+    printf("sys_chdir: vfs_resolve_fs failed\n");
     return -1;
   }
-  ip->iops->iunlock(ip);
-  iput(p->cwd);
-  end_op();
-  p->cwd = ip;
+  if(fs->fsops->isdir == NULL) {
+    printf("sys_chdir: fsops->isdir is NULL\n");
+    return -1;
+  }
+  if (!fs->fsops->isdir(abs_path)) {
+    printf("sys_chdir: fsops->isdir failed\n");
+    return -1;
+  }
+
+  // check over
+  strncpy(cwd, abs_path, MAXPATH);
   return 0;
+
 }
 uint64 sys_execve(void){
 // come in like:

@@ -25,5 +25,6 @@ int ext4_vstat(char *path, struct kstat *st);
 int ext4_vcleansf(struct file *fp);
 int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_dirp, int count);
 int ext4_vwritev(struct file *fp, int user_src, uint64 iovec, int iovcnt, int *wcnt);
+int ext4_visdir(const char *path);
 
 #endif

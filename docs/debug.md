@@ -798,4 +798,4 @@ nfiles == 0, !cur??
 
 ![busybox.10.1](image-147.png)
 ls为啥一直在写0个字节？？？  
-·
+跳过非法vector就好了

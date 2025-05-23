@@ -150,6 +150,7 @@ struct fs_ops {
     int             (*mknod)(const char *pathname, mode_t mode, dev_t dev);
     int             (*mkdir)(const char *pathname, mode_t mode);
     int (*fstat)(char *path, struct kstat *kst);
+    int (*isdir)(const char *path);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);
