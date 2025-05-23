@@ -24,6 +24,7 @@
 #include "defs.h"
 #include "xv6fs.h"
 #include "buf.h"
+#include "debug.h"
 
 struct {
   struct spinlock lock;
@@ -104,13 +105,21 @@ struct buf*
 bread(uint dev, uint blockno)
 {
   struct buf *b;
-
+#ifdef __DEBUG_BREAD
+  Log("bread: dev %d, blockno %d", dev, blockno);
+#endif
   b = bget(dev, blockno);
   if(!b->valid) {
     // read new block from disk
+#ifdef __DEBUG_BREAD
+    Log("bread: read block from disk");
+#endif
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }
+#ifdef __DEBUG_BREAD
+  Log("bread: read block end");
+#endif
   return b; 
 }
 

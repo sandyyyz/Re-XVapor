@@ -780,3 +780,17 @@ not align version?:
 ![init.1.4](image-142.png)
 ![init.1.5](image-143.png)
 ![init.1.6](image-144.png)
+从磁盘读的问题
+
+![init.1.7](image-145.png)
+
+这么看应该是lostwakeup问题
+![init.1.8](image-146.png)
+wakeup结束了才sleep??  
+好像发现问题所在了。原本xv6使用p->lock保证sleep和wakeup之间的竞态不会发生，也就是保证不会先唤醒再睡眠，但是此时我改成了直接遍历sleeping queue。这会导致有可能还未修改好状态为sleeping，就直接遍历了一个不存在目标即将睡眠线程的sleeping queue.此时该队列中不存在目标线程，自然t->lock对wakeup的约束根本不存在，导致丢失唤醒  
+那么存不存在一种情况，就是wakeup先于sleep获取了进程锁和对应状态，导致lost wakeup呢？？  
+答案是不可能！这就是条件锁的意义，也是设计精妙之处  
+- sleep在获取线程锁之后才会释放条件锁
+- wakeup整个过程必须持有条件锁，也就是调用wakeup之前必须持有sleep相关的条件锁！
+- wakeup只有同时持有条件锁和线程锁才可以访问线程状态
+- 如果二者不存在一个条件锁约束，就有可能导致lostwakeup！

@@ -700,7 +700,6 @@ pid_t wait4(pid_t pid, uint64 pstatus, int options) {
       release(&wait_lock);
       return 0;
     }
-    
     // Wait for a child to exit.
     // TODO: how to wait for a specific child process to exit??
     // TODO: bug here: any child process will wake up this parent process

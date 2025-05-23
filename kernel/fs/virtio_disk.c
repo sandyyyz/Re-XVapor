@@ -182,7 +182,9 @@ free_desc(int i)
   disk.free[i] = 1;
 
   thread_wakeup_chan(&disk.free[0]);
-
+#ifdef __DEBUG_FREEDESC
+  Log("wakeup chan %p", (void*)&disk.free[0]);
+#endif
 }
 
 // free a chain of descriptors.
@@ -229,12 +231,18 @@ virtio_disk_rw(struct buf *b, int write)
 
   // allocate the three descriptors.
   int idx[3];  
+#ifdef __DEBUG_VDISKRW
+  Log("reach sleep point %p",&disk.free[0]);
+#endif
   while(1){
     if(alloc3_desc(idx) == 0) {
     break;
     }
     thread_sleep(&disk.free[0], &disk.vdisk_lock);
   }
+#ifdef __DEBUG_VDISKRW
+  Log("pass sleep point %p",&disk.vdisk_lock);
+#endif
 
   // format the three descriptors.
   // qemu's virtio-blk.c reads them.
@@ -285,10 +293,15 @@ virtio_disk_rw(struct buf *b, int write)
   *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // value is queue number
 
   // Wait for virtio_disk_intr() to say request has finished.
+#ifdef __DEBUG_VDISKRW
+  Log("reach sleep point %p",(void*)b);
+#endif
   while(b->disk == 1) {
     thread_sleep(b, &disk.vdisk_lock);
   }
-
+#ifdef __DEBUG_VDISKRW
+  Log("pass sleep point %p",(void*)b);
+#endif
   disk.info[idx[0]].b = 0;
   free_chain(idx[0]);
   release(&disk.vdisk_lock);
@@ -323,11 +336,11 @@ virtio_disk_intr()
     struct buf *b = disk.info[id].b;
     b->disk = 0;   // disk is done with buf
 #ifdef __DEBUG_DISK_INTR
-    Log("thread_wakeup_chan begin");
+    // Log("thread_wakeup_chan buf 0x%x begin", b);
 #endif
     thread_wakeup_chan(b);
 #ifdef __DEBUG_DISK_INTR
-    Log("thread_wakeup_chan end");
+    Log("thread_wakeup_chan %p end",(void*)b);
 #endif
     disk.used_idx += 1;
   }
