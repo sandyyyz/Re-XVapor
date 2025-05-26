@@ -265,8 +265,8 @@ int execve(char *path, char **argv, char **envp)
                         || rcnt != sizeof(ph))
       goto bad;
 
-    if(ph.type == ELF_PROG_INTERP)
-      printf("ELF_PROG_INTERP not supported\n");
+    // if(ph.type == ELF_PROG_INTERP)
+    //   printf("ELF_PROG_INTERP not supported\n");
     if(ph.type != ELF_PROG_LOAD) {
       // printf("ph.type == 0x%x\n", ph.type);
       continue;

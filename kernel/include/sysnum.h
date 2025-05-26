@@ -4,7 +4,6 @@
 #define SYS_pipe 4
 #define SYS_kill 6
 #define SYS_exec 7
-#define SYS_dup 10
 #define SYS_mknod 11
 #define SYS_sbrk 12
 #define SYS_sleep 13
@@ -14,6 +13,8 @@
 #define SYS_unlink 18
 #define SYS_link 19
 #define SYS_mkdir 20
+#define SYS_dup 23
+#define SYS_dup3 24
 #define SYS_fcntl 25
 #define SYS_ioctl 29
 #define SYS_mknodat 33

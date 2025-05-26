@@ -1,14 +1,12 @@
 # syscall_number function_name_for_user  function_name_in_kernel
 
 1   fork        sys_fork
-93  exit        sys_exit
 2   dev         sys_dev
 3   wait        sys_wait
 4   pipe        sys_pipe
 6   kill        sys_kill
 7   exec        sys_exec
 
-10  dup         sys_dup
 12  sbrk        sys_sbrk
 13  sleep       sys_sleep
 14  uptime      sys_uptime
@@ -61,3 +59,6 @@
 66 writev sys_writev
 49 chdir sys_chdir
 80  fstat       sys_fstat
+93  exit        sys_exit
+23  dup         sys_dup
+24  dup3    sys_dup3

@@ -64,6 +64,17 @@ fdalloc(struct file *f)
   return -1;
 }
 
+static int fdalloc_spec(struct file *f, int spec_fd) {
+  struct proc *p = myproc();
+  if (spec_fd < 0 || spec_fd >= NOFILE) {
+    return -1;
+  }
+  if(p->ofile[spec_fd] != 0) {
+    fileclose(p->ofile[spec_fd]);
+  }
+  p->ofile[spec_fd] = f;
+  return spec_fd;
+}
 
 static void get_abpath_from_dirfd(const char* path, int dirfd, char* abs_path) {
   struct proc *p = myproc();
@@ -85,6 +96,31 @@ sys_dup(void)
   return fd;
 }
 
+/**
+ * @brief dup3() duplicates the file descriptor oldfd to newfd, closing newfd first if it was open.
+       If flags is specified, it is used to set the close-on-exec flag for newfd.
+ * 
+ * @property int dup3(int oldfd, int newfd, int flags);
+ * @return uint64 
+ */
+uint64 sys_dup3(void) {
+  int oldfd, newfd, flags;
+  struct file *f;
+  if(argfd(0, &oldfd, &f) < 0)
+    return -1;
+  argint(1, &newfd);
+  argint(2, &flags);
+  if(oldfd < 0 || oldfd >= NOFILE || newfd < 0 || newfd >= NOFILE)
+    return -1;
+  if(fdalloc_spec(f, newfd) < 0)
+    return -1;
+  if (flags & O_CLOEXEC) {
+    f->flags |= O_CLOEXEC; // set the close-on-exec flag
+  } else {
+    f->flags &= ~O_CLOEXEC; // clear the close-on-exec flag
+  }
+  return newfd;
+}
 /**
  * @brief ssize_t read(int fd, void buf[.count], size_t count);  
  * 
@@ -269,7 +305,9 @@ static int generic_mkdir(char *path, mode_t mode) {
     printf("sys_mkdir: fsops->mkdir failed\n");
     return -1;
   }
+#ifdef __DEBUG_GENERIC_MKDIR
   Log("sys_mkdir : path %s successfully created", path);
+#endif
   return 0;
 }
 /**

@@ -88,6 +88,7 @@ struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
 struct proc*    myproc();
 void            procinit(void);
+int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid);
 // void            scheduler(void) __attribute__((noreturn));
 // void            sched(void);
 void            thread_scheduler(void) __attribute__((noreturn));

@@ -526,6 +526,65 @@ fork(void)
   return pid;
 }
 
+int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid)
+{
+  int i, pid;
+  struct proc *np;
+  struct proc *p = myproc();
+  if((np = create_proc()) == 0) {
+    return -1;
+  }
+  if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+  np->sz = p->sz;
+  
+  // copy vma
+  acquire(&p->mm.lock);
+  acquire(&np->mm.lock);
+  proc_copy_vma(p, np);
+  release(&np->mm.lock);
+  release(&p->mm.lock);
+
+  // TODO: let's just copy the leader thread right now
+  // copy saved user registers.
+  *(np->tg.group_leader->trapframe) = *(p->tg.group_leader->trapframe);
+
+  // Cause fork to return 0 in the child.
+  np->tg.group_leader->trapframe->a0 = 0;
+
+  if(stack) {
+    np->tg.group_leader->trapframe->sp = stack;
+  }
+  // increment reference counts on open file descriptors.
+  // child process "open" the files
+  for(i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      np->ofile[i] = filedup(p->ofile[i]);
+
+  safestrcpy(np->name, p->name, sizeof(p->name));
+
+  pid = np->pid;
+  strncpy(np->cinfo.path, p->cinfo.path, MAXPATH);
+
+  release(&np->lock);
+
+  acquire(&wait_lock);
+  np->parent = p;
+  release(&wait_lock);
+
+  acquire(&p->lock);
+  append_child(p, np);
+  release(&p->lock);
+  
+  acquire(&np->tg.group_leader->lock);
+  tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
+  release(&np->tg.group_leader->lock);
+
+  return pid;
+}
 // initproc接管即将退出的父进程的所有子进程
 // 将p所有子进程的父进程修改为initproc,并wakeup(initproc)
 // Pass p's abandoned children to init.
