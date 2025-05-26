@@ -151,6 +151,8 @@ struct fs_ops {
     int             (*mkdir)(const char *pathname, mode_t mode);
     int (*fstat)(char *path, struct kstat *kst);
     int (*isdir)(const char *path);
+    int (*link) (const char *oldpath, const char *newpath, int flags);
+    int (*unlink)(const char *path, int flags);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

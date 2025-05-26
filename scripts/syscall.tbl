@@ -3,7 +3,7 @@
 1   fork        sys_fork
 2   dev         sys_dev
 3   wait        sys_wait
-4   pipe        sys_pipe
+
 6   kill        sys_kill
 7   exec        sys_exec
 
@@ -62,3 +62,8 @@
 93  exit        sys_exit
 23  dup         sys_dup
 24  dup3    sys_dup3
+40  mount   sys_mount
+39  umount2    sys_umount2
+59   pipe        sys_pipe
+37  linkat  sys_linkat
+35  unlinkat    sys_unlinkat

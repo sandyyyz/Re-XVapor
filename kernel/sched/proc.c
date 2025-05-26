@@ -642,7 +642,7 @@ void proc_exit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
-
+  p->xstate <<= 8; // shift to high byte
   pcb_q_change_state(p, ZOMBIE);
   release(&wait_lock);
 

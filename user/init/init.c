@@ -40,6 +40,7 @@ int main(void)
       exit(-1);
     }
     execve(busybox_path, basic_argv, busybox_envp);
+    exit(0);
   } else {
     wait(0);
     printf("child process exited, pid = %d\n", pid);
@@ -48,5 +49,5 @@ int main(void)
   // execve(path, argv, envp);
   // while(1);
 
-  return 0;
+  exit(0);
 }

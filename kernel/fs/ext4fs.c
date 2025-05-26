@@ -56,6 +56,8 @@ struct fs_ops ext4_fs_ops = {
     .mkdir = ext4_vmkdir,
     .fstat = ext4_vstat,
     .isdir = ext4_visdir,
+    .link = ext4_vlink,
+    .unlink = ext4_vunlink,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -865,4 +867,55 @@ int ext4_visdir(const char *path) {
         return 0;
     }
     return 1;
+}
+
+/**
+ * @brief create a link to an existing file
+ * 
+ * @param oldpath old path of the file to link
+ * @param newpath new path of the link to create
+ * @param flags flags for link operation, currently not used
+ * @return 0 on success, -1 on error
+ */
+int ext4_vlink(const char *oldpath, const char *newpath, int flags) {
+    int r = EOK;
+
+    if((r = ext4_flink(oldpath, newpath)) != EOK) {
+        printf("[ext4] ext4_vlink error! r=%d\n", r);
+        return -1;
+    }
+    return r;
+}
+
+/**
+ * @brief unlink a file or directory
+ 
+ * 
+ * @param path path to the file or directory to unlink
+ * @param flags flags for unlink operation, currently not used
+ * @return 0 on success, -1 on error
+ */
+int ext4_vunlink(const char *path, int flags) {
+    ext4_dir dir;
+    
+    if(ext4_dir_open(&dir, path) != EOK) {
+        // path is not a directory, try to unlink the file
+        if(ext4_fremove(path) != EOK) {
+            printf("[ext4] ext4_vunlink error! r=%d\n", -EINVAL);
+            return -1;
+        }
+        return EOK;
+    } else {
+        // path is a directory, try to remove the directory
+        if(ext4_dir_open(&dir, path) != EOK) {
+            printf("[ext4] ext4_vunlink error! r=%d\n", -EINVAL);
+            return -1;
+        }
+        if(ext4_dir_rm(path) != EOK) {
+            printf("[ext4] ext4_vunlink error! r=%d\n", -EINVAL);
+            return -1;
+        }
+        return EOK;
+    }
+    return -1;
 }

@@ -184,111 +184,130 @@ sys_close(void)
   return 0;
 }
 
-// Create the path new as a link to the same inode as old.
-uint64
-sys_link(void)
-{
-  char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
-  struct inode *dp, *ip;
-
-  if(argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
-    return -1;
-
-  begin_op();
-  if((ip = namei(old)) == 0){
-    end_op();
+static int generic_link(char *oldpath, char *newpath, int flags) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(oldpath);
+  if (fs == NULL) {
+    printf("sys_link: vfs_resolve_fs failed\n");
     return -1;
   }
-
-  ip->iops->ilock(ip);
-  if(ip->type == T_DIR){
-    iunlockput(ip);
-    end_op();
+  if(fs->fsops->link == NULL) {
+    printf("sys_link: fsops->link is NULL\n");
     return -1;
   }
-
-  ip->nlink++;
-  ip->iops->iupdate(ip);
-  ip->iops->iunlock(ip);
-
-  if((dp = nameiparent(new, name)) == 0)
-    goto bad;
-  ip->iops->ilock(dp);
-  if(dp->dev != ip->dev || dp->iops->dirlink(dp, name, ip->inum) < 0){
-    iunlockput(dp);
-    goto bad;
+  if (fs->fsops->link(oldpath, newpath, flags) < 0) {
+    printf("sys_link: fsops->link failed\n");
+    return -1;
   }
-  iunlockput(dp);
-  iput(ip);
-
-  end_op();
-
   return 0;
-
-bad:
-  ip->iops->ilock(ip);
-  ip->nlink--;
-  ip->iops->iupdate(ip);
-  iunlockput(ip);
-  end_op();
-  return -1;
 }
 
-uint64
-sys_unlink(void)
+/**
+ * @brief link() creates a new link (also known as a hard link) to an
+       existing file.
+
+       If newpath exists, it will not be overwritten.
+
+       This new name may be used exactly as the old one for any
+       operation; both names refer to the same file (and so have the same
+       permissions and ownership) and it is impossible to tell which name
+       was the "original".
+ * 
+  * @property int link(const char *oldpath, const char *newpath);
+ * @return  On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_link(void)
 {
-  struct inode *ip, *dp;
-  struct dirent de;
-  char name[DIRSIZ], path[MAXPATH];
-  uint off;
+  char oldpath[MAXPATH], newpath[MAXPATH];
+  char oldpath_abs[MAXPATH], newpath_abs[MAXPATH];
 
-  if(argstr(0, path, MAXPATH) < 0)
+  argstr(0, oldpath, MAXPATH);
+  argstr(1, newpath, MAXPATH);
+
+  get_abpath_from_dirfd(oldpath, AT_FDCWD, oldpath_abs);
+  get_abpath_from_dirfd(newpath, AT_FDCWD, newpath_abs);
+
+  return generic_link(oldpath_abs, newpath_abs, 0);
+}
+
+uint64 sys_linkat(void) {
+  int olddirfd, newdirfd;
+  char oldpath[MAXPATH], newpath[MAXPATH];
+  char abs_oldpath[MAXPATH], abs_newpath[MAXPATH];
+  int flags;
+
+  argint(0, &olddirfd);
+  argstr(1, oldpath, MAXPATH);
+  argint(2, &newdirfd);
+  argstr(3, newpath, MAXPATH);
+  argint(4, &flags);
+
+  get_abpath_from_dirfd(oldpath, olddirfd, abs_oldpath);
+  get_abpath_from_dirfd(newpath, newdirfd, abs_newpath);
+
+  return generic_link(abs_oldpath, abs_newpath, flags);
+}
+
+
+static int generic_unlink(char *path, int flags) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(path);
+  if (fs == NULL) {
+    printf("sys_unlink: vfs_resolve_fs failed\n");
     return -1;
-
-  begin_op();
-  if((dp = nameiparent(path, name)) == 0){
-    end_op();
+  }
+  if(fs->fsops->unlink == NULL) {
+    printf("sys_unlink: fsops->unlink is NULL\n");
     return -1;
   }
-
-  dp->iops->ilock(dp);
-
-  // Cannot unlink "." or "..".
-  if(dp->fs->fsops->namecmp(name, ".") == 0 || dp->fs->fsops->namecmp(name, "..") == 0)
-    goto bad;
-
-  if((ip = dp->iops->dirlookup(dp, name, &off)) == 0)
-    goto bad;
-  ip->iops->ilock(ip);
-
-  if(ip->nlink < 1)
-    panic("unlink: nlink < 1");
-  if(ip->type == T_DIR && !ip->iops->isdirempty(ip)){
-    iunlockput(ip);
-    goto bad;
+  if (fs->fsops->unlink(path, flags) < 0) {
+    printf("sys_unlink: fsops->unlink failed\n");
+    return -1;
   }
-
-  memset(&de, 0, sizeof(de));
-  if(dp->iops->writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-    panic("unlink: writei");
-  if(ip->type == T_DIR){
-    dp->nlink--;
-    dp->iops->iupdate(dp);
-  }
-  iunlockput(dp);
-
-  ip->nlink--;
-  ip->iops->iupdate(ip);
-  iunlockput(ip);
-
-  end_op();
-
   return 0;
+}
 
-bad:
-  iunlockput(dp);
-  end_op();
-  return -1;
+/**
+ * @brief delete a name and possibly the file it refers
+ * 
+ * @property int unlink(const char *pathname);
+ * @return On success, zero is returned.  On error, -1 is returned
+ */
+uint64 sys_unlink(void)
+{
+  char path[MAXPATH];
+  char abs_path[MAXPATH];
+
+  if(argstr(0, path, MAXPATH) < 0) {
+    printf("sys_unlink: argstr failed\n");
+    return -1;
+  }
+  get_abpath_from_dirfd(path, AT_FDCWD, abs_path);
+
+  return generic_unlink(abs_path, 0);
+}
+
+/**
+ * @brief delete a name and possibly the file it refers to.
+       
+ * @property int unlinkat(int dirfd, const char *pathname, int flags);
+ * @return uint64 
+ */
+uint64 sys_unlinkat(void) {
+  int dirfd;
+  char path[MAXPATH];
+  char abs_path[MAXPATH];
+  int flags;
+
+  argint(0, &dirfd);
+  if(argstr(1, path, MAXPATH) < 0) {
+    printf("sys_unlinkat: argstr failed\n");
+    return -1;
+  }
+  argint(2, &flags);
+  
+  get_abpath_from_dirfd(path, dirfd, abs_path);
+  
+  return generic_unlink(abs_path, flags);
 }
 
 static int generic_mkdir(char *path, mode_t mode) {
@@ -660,75 +679,80 @@ int ret = syscall(SYS_mount, special, dir, fstype, flags, data);
    * 
    */
 
-   char devf[MAXPATH];
-   char path[MAXPATH];
-   char fstype[MAXPATH];
-   struct inode *ip, *devi;
+  //  char devf[MAXPATH];
+  //  char path[MAXPATH];
+  //  char fstype[MAXPATH];
+  //  struct inode *ip, *devi;
  
-   if (argstr(0, devf, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0 || argstr(2, fstype, MAXPATH) < 0) {
-     return -1;
-   }
+  //  if (argstr(0, devf, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0 || argstr(2, fstype, MAXPATH) < 0) {
+  //    return -1;
+  //  }
  
-   if ((ip = namei(path)) == 0 || (devi = namei(devf)) == 0) {
-     return -1;
-   }
+  //  if ((ip = namei(path)) == 0 || (devi = namei(devf)) == 0) {
+  //    return -1;
+  //  }
  
-   struct vfs_filesystem *fs = getfs(fstype);
+  //  struct vfs_filesystem *fs = getfs(fstype);
  
-   if (fs == 0) {
-     printf("FS type not found\n");
-     return -1;
-   }
+  //  if (fs == 0) {
+  //    printf("FS type not found\n");
+  //    return -1;
+  //  }
  
-   ip->iops->ilock(ip);
-   devi->iops->ilock(devi);
-   // we only can mount points over directories nodes
-   if (ip->type != T_DIR && ip->ref > 1) {
-     ip->iops->iunlock(ip);
-     devi->iops->iunlock(devi);
-     return -1;
-   }
+  //  ip->iops->ilock(ip);
+  //  devi->iops->ilock(devi);
+  //  // we only can mount points over directories nodes
+  //  if (ip->type != T_DIR && ip->ref > 1) {
+  //    ip->iops->iunlock(ip);
+  //    devi->iops->iunlock(devi);
+  //    return -1;
+  //  }
  
-   // The device inode should be T_DEV
-   if (devi->type != T_DEVICE) {
-     ip->iops->iunlock(ip);
-     devi->iops->iunlock(devi);
-     return -1;
-   }
+  //  // The device inode should be T_DEV
+  //  if (devi->type != T_DEVICE) {
+  //    ip->iops->iunlock(ip);
+  //    devi->iops->iunlock(devi);
+  //    return -1;
+  //  }
  
-   if (bdev_open(devi) != 0) {
-     ip->iops->iunlock(ip);
-     devi->iops->iunlock(devi);
-     return -1;
-   }
+  //  if (bdev_open(devi) != 0) {
+  //    ip->iops->iunlock(ip);
+  //    devi->iops->iunlock(devi);
+  //    return -1;
+  //  }
  
-   if (devi->minor == 0 || devi->minor == ROOTDEV) {
-     ip->iops->iunlock(ip);
-     devi->iops->iunlock(devi);
-     return -1;
-   }
+  //  if (devi->minor == 0 || devi->minor == ROOTDEV) {
+  //    ip->iops->iunlock(ip);
+  //    devi->iops->iunlock(devi);
+  //    return -1;
+  //  }
  
-   // Add this to a list to retrieve the Filesystem type to current device
-   if (put_vfs_on_list(devi->major, devi->minor, fs) == -1) {
-     ip->iops->iunlock(ip);
-     devi->iops->iunlock(devi);
-     return -1;
-   }
+  //  // Add this to a list to retrieve the Filesystem type to current device
+  //  if (put_vfs_on_list(devi->major, devi->minor, fs) == -1) {
+  //    ip->iops->iunlock(ip);
+  //    devi->iops->iunlock(devi);
+  //    return -1;
+  //  }
  
-   int mounted = fs->fsops->mount(devi, ip);
+  //  int mounted = fs->fsops->mount(devi, ip);
  
-   if (mounted != 0) {
-     ip->iops->iunlock(ip);
-     devi->iops->iunlock(devi);
-     return -1;
-   }
+  //  if (mounted != 0) {
+  //    ip->iops->iunlock(ip);
+  //    devi->iops->iunlock(devi);
+  //    return -1;
+  //  }
  
-   ip->type = T_MOUNT;
+  //  ip->type = T_MOUNT;
  
-   ip->iops->iunlock(ip);
-   devi->iops->iunlock(devi);
+  //  ip->iops->iunlock(ip);
+  //  devi->iops->iunlock(devi);
  
    return 0;
+}
+
+// TODO
+uint64 sys_umount2() {
+  return 0;
 }
 
 static void set_omode(struct file *f, int omode) {

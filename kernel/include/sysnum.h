@@ -1,7 +1,6 @@
 #define SYS_fork 1
 #define SYS_dev 2
 #define SYS_wait 3
-#define SYS_pipe 4
 #define SYS_kill 6
 #define SYS_exec 7
 #define SYS_mknod 11
@@ -19,9 +18,14 @@
 #define SYS_ioctl 29
 #define SYS_mknodat 33
 #define SYS_mkdirat 34
+#define SYS_unlinkat 35
+#define SYS_linkat 37
+#define SYS_umount2 39
+#define SYS_mount 40
 #define SYS_chdir 49
 #define SYS_openat 56
 #define SYS_close 57
+#define SYS_pipe 59
 #define SYS_getdents64 61
 #define SYS_read 63
 #define SYS_write 64

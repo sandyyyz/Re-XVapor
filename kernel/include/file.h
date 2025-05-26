@@ -44,6 +44,7 @@ struct file {
   struct file_info info;
   uint64 fpos; // file position
   ext4_dir dir; // directory entry. just used for ext4, and don't use a pointer because of lacking a small memory allocator in kernel right now
+  int removed; // if the file is removed, this will be set to 1, and the file will be removed when the reference count reaches 0
   
 };
 
