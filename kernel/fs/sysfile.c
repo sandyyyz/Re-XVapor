@@ -872,7 +872,7 @@ uint64 sys_readlinkat() {
 }
 
 
-uint64 generic_fstat(char *path, struct kstat *buf) {
+uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
   int r = 0;
   #ifdef __DEBUG_GENERIC_FSTAT
@@ -942,11 +942,19 @@ sys_fstat(void)
 {
   struct file *f;
   uint64 st; // user pointer to struct stat
-
+  struct kstat kbuf;
   argaddr(1, &st);
   if(argfd(0, 0, &f) < 0)
     return -1;
-  return generic_fstat(f->info.path, (struct kstat *)st);
+  if(generic_fstat(f->info.path, &kbuf) != 0) {
+    printf("[sys_fstat] generic_fstat failed\n");
+    return -1;
+  }
+  if (copyout(myproc()->mm.pagetable, st, (char *)&kbuf, sizeof(struct stat)) < 0) {
+    printf("[sys_fstat] copyout failed\n");
+    return -1;
+  }
+  return 0;
 }
 
 /**
