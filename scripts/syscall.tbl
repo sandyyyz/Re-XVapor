@@ -7,7 +7,6 @@
 4   pipe        sys_pipe
 6   kill        sys_kill
 7   exec        sys_exec
-8   fstat       sys_fstat
 
 10  dup         sys_dup
 12  sbrk        sys_sbrk
@@ -61,3 +60,4 @@
 61 getdents64 sys_getdents64
 66 writev sys_writev
 49 chdir sys_chdir
+80  fstat       sys_fstat

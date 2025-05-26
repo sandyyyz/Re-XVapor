@@ -73,7 +73,15 @@ int do_fcntl(struct file *f, int cmd, uint64 arg) {
         case F_SETFL:
             f->flags = arg;
             break;
+        case F_DUPFD_CLOEXEC:
+            if((ret = fdalloc_lteq(f, arg)) < 0)
+                return -1;
+            filedup(f);
+            f->flags |= O_CLOEXEC; // set close on exec flag
+            break;
+            
         default:
+            printf("do_fcntl: unknown command %d\n", cmd);
             ret = -1;
     }
     return ret;

@@ -24,6 +24,9 @@
 #define O_CREATE  0x200
 #endif
 
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 02000000 /* set close_on_exec */
+#endif
 
 // utimensat
 #define AT_FDCWD -100

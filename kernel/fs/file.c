@@ -90,6 +90,10 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
+  if(f->private_data) {
+    f->fops->close(f);
+    f->fops->cleansf(f);
+  }
   ff = *f;
   f->ref = 0;
   f->flags = 0;
@@ -97,10 +101,6 @@ fileclose(struct file *f)
   f->type = FD_NONE;
   f->fops = 0;
   f->fpos = 0;
-  if(f->private_data) {
-    f->fops->close(f);
-    f->fops->cleansf(f);
-  }
   f->private_data = 0;
   memset(&f->info, 0, sizeof(f->info));
   memset(&f->dir, 0, sizeof(f->dir));

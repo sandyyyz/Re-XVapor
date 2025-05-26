@@ -10,6 +10,7 @@
 #include "debug.h"
 #include "vm.h"
 #include "ext4fs.h"
+#include "fcntl.h"
 
 //动态链接器所需要的一些辅助信息数组（Auxiliary Vector)
 // type: 类型 val:类型对应的值
@@ -239,6 +240,9 @@ int execve(char *path, char **argv, char **envp)
   if((f = filealloc()) == 0)
     return -1;
   get_absolute_path(path, myproc()->cinfo.path, abs_path);
+#ifdef __DEBUG_EXECVE
+  Log("execve abs_path: %s, path %s, cinfo.path %s", abs_path, path, myproc()->cinfo.path);
+#endif
   if((r = ext4_vfopen(f, abs_path, O_RDONLY)) != EOK) {
     Log("ext4_fopen2 failed %d", r);
     return -1;
@@ -411,6 +415,13 @@ int execve(char *path, char **argv, char **envp)
 // #endif
   proc_freepagetable(oldpagetable, oldsz, 1);
 
+  // close the file with flag O_CLOEXEC
+  for(i = 0; i < NOFILE; i++) {
+    if (p->ofile[i] && p->ofile[i]->flags & O_CLOEXEC) {
+      fileclose(p->ofile[i]);
+      p->ofile[i] = 0;
+    }
+  }
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
   bad:

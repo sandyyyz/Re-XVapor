@@ -9,10 +9,10 @@
 #include "user.h"
 #include "fcntl.h"
 #include "debug.h"
-
-char *argv[] = {"/glibc/busybox_unstripped", "sh",  NULL };
-char path[] = "/glibc/busybox_unstripped";
-char *envp[] = {"/glibc",0};
+char basic_dir[] = "/musl/basic";
+char *basic_argv[] = {"/glibc/busybox", "sh", "/musl/basic/run-all.sh", NULL };
+char busybox_path[] = "/glibc/busybox";
+char *busybox_envp[] = {"PATH=/",0};
 int main(void)
 {
   dev(O_RDWR, CONSOLE, 0);
@@ -35,11 +35,18 @@ int main(void)
   int pid = fork();
   if(pid == 0) {
     printf("init: child process, pid = %d\n", getpid());
-    execve(path, argv, envp);
+    if(chdir(basic_dir) < 0) {
+      printf("init: chdir /musl failed\n");
+      exit(-1);
+    }
+    execve(busybox_path, basic_argv, busybox_envp);
   } else {
     wait(0);
+    printf("child process exited, pid = %d\n", pid);
+    exit(0);
   }
   // execve(path, argv, envp);
   // while(1);
+
   return 0;
 }

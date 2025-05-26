@@ -28,3 +28,4 @@ barrier
 compile_commands.json
 build/*
 *.prog
+/mnt/*

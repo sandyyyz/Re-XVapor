@@ -501,7 +501,7 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-  
+  strncpy(np->cinfo.path, p->cinfo.path, MAXPATH);
   // release(&np->tg.group_leader->lock);
   release(&np->lock);
 

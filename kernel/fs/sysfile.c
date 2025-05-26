@@ -148,18 +148,6 @@ sys_close(void)
   return 0;
 }
 
-uint64
-sys_fstat(void)
-{
-  struct file *f;
-  uint64 st; // user pointer to struct stat
-
-  argaddr(1, &st);
-  if(argfd(0, 0, &f) < 0)
-    return -1;
-  return filestat(f, st);
-}
-
 // Create the path new as a link to the same inode as old.
 uint64
 sys_link(void)
@@ -772,6 +760,7 @@ static uint64 generic_open(char *path, int flags, int omode) {
   }
   
   f->flags |= flags;
+  f->fops = fs->fops;
   set_omode(f, omode);
   strcpy(f->info.path, path);
   if (fs->fops->open(f, path, flags) < 0) {
@@ -800,7 +789,9 @@ uint64 sys_openat(void) {
 
   // printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
-  // printf("[sys_openat] abs_path = %s\n", abs_path);
+#ifdef __DEBUG_SYS_OPENAT
+  printf("[sys_openat] abs_path = %s\n", abs_path);
+#endif
   if((r = generic_open(abs_path, flags, omode)) < 0) {
     printf("[sys_openat] generic_open failed, abs_path = %s\n", abs_path);
     return -1;
@@ -846,7 +837,7 @@ uint64 sys_readlinkat() {
 uint64 generic_fstat(char *path, struct kstat *buf) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
   int r = 0;
-  #ifdef __DEBUG_SYS_FSTAT
+  #ifdef __DEBUG_GENERIC_FSTAT
   printf("[generic_fstat] pathname = %s\n", path);
   #endif
   if (fs == NULL) {
@@ -861,7 +852,7 @@ uint64 generic_fstat(char *path, struct kstat *buf) {
       printf("fsops->fstat failed, r = %d\n", r);
       return -1;
   }
-  #ifdef __DEBUG_SYS_FSTAT
+  #ifdef __DEBUG_GENERIC_FSTAT
   Log("sys_fstat : path %s successfully fstat", path);
   #endif
   return r;
@@ -893,8 +884,9 @@ uint64 sys_fstatat() {
   argint(3, &flags);
 
   get_abpath_from_dirfd(pathname, dirfd, abs_path);
-  // printf("[sys_fstatat] abs_path = %s\n", abs_path);
-
+#ifdef __DEBUG_SYS_FSTATAT
+  printf("[sys_fstatat] abs_path = %s\n", abs_path);
+#endif
   struct kstat kbuf;
   if(generic_fstat(abs_path, &kbuf) != 0) {
       printf("[sys_fstatat] generic_fstat failed\n");
@@ -905,6 +897,18 @@ uint64 sys_fstatat() {
       return -1;
   }
   return 0;
+}
+
+uint64
+sys_fstat(void)
+{
+  struct file *f;
+  uint64 st; // user pointer to struct stat
+
+  argaddr(1, &st);
+  if(argfd(0, 0, &f) < 0)
+    return -1;
+  return generic_fstat(f->info.path, (struct kstat *)st);
 }
 
 /**
@@ -984,7 +988,9 @@ uint64 sys_fcntl(void) {
   }
   arglong(1, &cmd);
   arglong(2, &arg);
-  // printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
+#ifdef __DEBUG_SYS_FCNTL
+  printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
+#endif
   return do_fcntl(f, cmd, arg);
 }
 

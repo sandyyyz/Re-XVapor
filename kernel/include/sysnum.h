@@ -4,7 +4,6 @@
 #define SYS_pipe 4
 #define SYS_kill 6
 #define SYS_exec 7
-#define SYS_fstat 8
 #define SYS_dup 10
 #define SYS_mknod 11
 #define SYS_sbrk 12
@@ -29,6 +28,7 @@
 #define SYS_ppoll 73
 #define SYS_readlinkat 78
 #define SYS_fstatat 79
+#define SYS_fstat 80
 #define SYS_exit 93
 #define SYS_exit_group 94
 #define SYS_set_tid_address 96
