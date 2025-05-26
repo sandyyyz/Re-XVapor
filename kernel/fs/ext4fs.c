@@ -244,6 +244,18 @@ void ext4_ilock(struct inode *ip) {
     acquiresleep(&ip->lock);
 }
 
+/**
+ * @brief read from a file
+ * 
+ * @param fp file pointer
+ * @param user_dst is 1 if dst is in user space, 0 if dst is in kernel space
+ * @param dst destination address in user space or kernel space
+ * @param off offset in the file to read from
+ * @param size size to read
+ * @param rcnt count of bytes read
+ * @attention rcnt shouldn't be NULL !!!!!, it will be set to the number of bytes read
+ * @return int 
+ */
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
