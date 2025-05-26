@@ -622,7 +622,8 @@ void proc_exit(int status)
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
       struct file *f = p->ofile[fd];
-      fileclose(f);
+      if(f->ref > 0)
+        fileclose(f);
       p->ofile[fd] = 0;
     }
   }
