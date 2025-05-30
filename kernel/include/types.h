@@ -73,4 +73,12 @@ typedef unsigned int	tcflag_t;
 #define __kernel_space
 #endif
 
+#ifndef __nullable
+#define __nullable
+#endif
+
+#ifndef __nonnull
+#define __nonnull
+#endif
+
 // typedef uint32 dev_t;

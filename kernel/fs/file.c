@@ -70,8 +70,13 @@ struct file*
 filedup(struct file *f)
 {
   acquire(&ftable.lock);
-  if(f->ref < 1)
+  if(f->ref < 1){
+    printf("filedup: ref count < 1\n");
+    printf("filedup: file info: type=%d, flags=%d, omode=%d, fpos=%d\n", 
+           f->type, f->flags, f->omode, f->fpos);
+    printf("path %s\n", f->info.path);
     panic("filedup");
+  }
   f->ref++;
   release(&ftable.lock);
   return f;
@@ -83,6 +88,9 @@ fileclose(struct file *f)
 {
   struct file ff;
 
+#ifdef __DEBUG_FILE_CLOSE
+  Log("fileclose : f %p ref %d", f, f->ref);
+#endif
   acquire(&ftable.lock);
   if(f->ref < 1)
     panic("fileclose");
@@ -108,8 +116,7 @@ fileclose(struct file *f)
 
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, IS_WRITABLE(ff.flags));
-  } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
-    
+  } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){ 
   }
 }
 

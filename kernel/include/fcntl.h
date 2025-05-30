@@ -4,6 +4,12 @@
 #include "types.h"
 #include "file.h"
 
+// faccess
+#define F_OK 0 /* test existance */
+#define R_OK 4 /* test readable */
+#define W_OK 2 /* test writable */
+#define X_OK 1 /* test executable */
+
 #ifndef O_RDONLY
 #define O_RDONLY  0x000
 #endif

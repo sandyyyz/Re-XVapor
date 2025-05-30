@@ -256,9 +256,7 @@ void thread_exit(int status) {
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
 
         proc_exit(status);
-
         release(&p->lock);
-
     }
 
     acquire(&p->tg.lock);
@@ -266,7 +264,6 @@ void thread_exit(int status) {
     if(p->tg.group_leader == t) {
         p->tg.group_leader = list_first_entry(&p->tg.threads, struct tcb, threads);
     }
-
     release(&p->tg.lock);
     
     acquire(&t->lock);

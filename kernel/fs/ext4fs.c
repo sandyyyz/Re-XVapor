@@ -14,6 +14,9 @@
 #include "dirent.h"
 #include "stat.h"
 #include "iovec.h"
+#include "fcntl.h"
+#include "timer.h"
+#include "riscv.h"
 
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
@@ -38,7 +41,6 @@ struct inode_ops ext4_inode_ops = {
     .ilock = ext4_ilock,
     .iunlock = generic_iunlock,
     .stati = generic_stati,
-
 };
 
 struct file_ops ext4_file_ops = {
@@ -58,6 +60,9 @@ struct fs_ops ext4_fs_ops = {
     .isdir = ext4_visdir,
     .link = ext4_vlink,
     .unlink = ext4_vunlink,
+    .faccess = ext4_vfaccess,
+    .utimens = ext4_vutimens,
+    .file_exist = ext4_vfile_exist,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -528,6 +533,8 @@ int ext4_vstat(char *path, struct kstat *st) {
     st->st_gid = ext4_inode_get_gid(&inode);
     st->st_rdev = 0;
     st->st_size = (off_t) inode.size_lo;
+    st->st_blksize = inode.size_lo / inode.blocks_count_lo;
+    st->st_blocks = (blkcnt_t) inode.blocks_count_lo;
     st->st_atime_sec = 0;
     st->st_atime_nsec = 0;
     st->st_mtime_sec = 0;
@@ -918,4 +925,110 @@ int ext4_vunlink(const char *path, int flags) {
         return EOK;
     }
     return -1;
+}
+
+int ext4_vfaccess(char *path, int amode, int flags) {
+
+    struct ext4_inode inode;
+    struct ext4_sblock *sb = NULL;
+    uint32_t ino = 0;
+    int inode_amode = 0;
+
+    if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
+        printf("[ext4_vfaccess] ext4_raw_inode_fill error!, path %s\n", path);
+        return -1;
+    }
+    if(ext4_get_sblock(path, &sb) != EOK) {
+        printf("[ext4_vfaccess] ext4_get_sblock error!\n");
+        return -1;
+    }
+    inode_amode = ext4_inode_get_mode(sb, &inode);
+
+#ifdef __DEBUG_EXT4_VFACCESS
+    Log("[ext4] ext4_vfaccess: path = %s, amode = %d, inode_amode = %d", path, amode, inode_amode);
+#endif
+
+    if(amode & R_OK) {
+        if(!(inode_amode & S_IRUSR)) {
+            printf("[ext4] read access denied for %s\n", path);
+            return -1;
+        }
+    }
+    if(amode & W_OK) {
+        if(!(inode_amode & S_IWUSR)) {
+            printf("[ext4] write access denied for %s\n", path);
+            return -1;
+        }
+    }
+    if(amode & X_OK) {
+        if(!(inode_amode & S_IXUSR)) {
+            printf("[ext4] execute access denied for %s\n", path);
+            return -1;
+        }
+    }
+    // TODO
+    return 0;
+}
+
+int ext4_vutimens(const char *path, __nullable const struct timespec *ts) {
+    struct timespec atime, mtime, nowtime;
+    int seta = 1, setm = 1;
+   
+    nowtime = TIME2TIMESPEC(rdtime());
+
+    if(ts == NULL) {
+        atime = nowtime;
+        mtime = nowtime;
+    } else {
+        if(ts[0].tv_nsec == UTIME_OMIT) {
+            seta = 0;
+        } else if(ts[0].tv_nsec == UTIME_NOW) {
+            atime = nowtime;
+        } else {
+            atime = ts[0];
+        }
+
+        if(ts[1].tv_nsec == UTIME_OMIT) {
+            setm = 0;
+        } else if(ts[1].tv_nsec == UTIME_NOW) {
+            mtime = nowtime;
+        } else {
+            mtime = ts[1];
+        }
+    }
+    if(seta == 0 && setm == 0) {
+        // no need to set time
+        return EOK;
+    }
+    if(seta) {
+        if(ext4_atime_set(path, atime.tv_sec) != EOK) {
+            printf("[ext4] ext4_atime_set error!\n");
+            return -1;
+        }
+    }
+    if(setm) {
+        if(ext4_mtime_set(path, mtime.tv_sec) != EOK) {
+            printf("[ext4] ext4_mtime_set error!\n");
+            return -1;
+        }
+    }
+    return EOK;
+}
+
+int ext4_vfile_exist(const char *path) {
+    struct ext4_inode inode;
+    uint32_t ino = 0;
+    int r = EOK;
+
+    if((r = ext4_raw_inode_fill(path, &ino, &inode)) != EOK) {
+        if(r != ENOENT) {
+            printf("[ext4] ext4_raw_inode_fill error! r=%d\n", r);
+            return -1;
+        }
+        // not found
+    }
+    if(ino == 0) {
+        return 0; // file not exist
+    }
+    return 1; // file exist
 }

@@ -188,6 +188,7 @@ allocproc(void)
 
 // found:
   p->pid = allocpid();
+  p->pgid = p->pid; // process group id, equals to pid
 #ifdef __DEBUG_ALLOCATE_PROC
   Info("proc %d allocated, pcb %p\n", p->pid, p);
 #endif
@@ -299,6 +300,8 @@ void freeproc(struct proc *p)
   p->mm.pagetable = 0;
   p->sz = 0;
   p->pid = 0;
+  p->pgid = 0; // process group id, equals to pid
+  
   p->parent = 0;
   p->name[0] = 0;
   // p->chan = 0;
@@ -896,4 +899,13 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int procs_cnt(void) {
+  int cnt = 0;
+
+  cnt += get_queue_count(&used_p_q);
+  cnt += get_queue_count(&zombie_p_q);
+
+  return cnt;
 }

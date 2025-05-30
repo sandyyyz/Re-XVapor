@@ -3,6 +3,7 @@
 #include "fcntl.h" 
 #include "file.h"
 #include "proc.h"
+#include "debug.h"
 
 int getfd(struct file *f) {
     int fd;
@@ -50,6 +51,9 @@ int fdalloc_lteq(struct file *f, int dmd) {
 
 int do_fcntl(struct file *f, int cmd, uint64 arg) {
     int ret = 0;
+#ifdef __DEBUG_DO_FCNTL
+    Log("do_fcntl: f=%p, cmd=%d, arg=%p", f, cmd, arg);
+#endif
     switch (cmd) {
         case F_DUPFD:
             if((ret = fdalloc_lteq(f, arg)) < 0)
@@ -77,7 +81,7 @@ int do_fcntl(struct file *f, int cmd, uint64 arg) {
             if((ret = fdalloc_lteq(f, arg)) < 0)
                 return -1;
             filedup(f);
-            f->flags |= O_CLOEXEC; // set close on exec flag
+            // f->flags |= O_CLOEXEC; // set close on exec flag
             break;
             
         default:

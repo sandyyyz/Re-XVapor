@@ -4,7 +4,6 @@
 2   dev         sys_dev
 3   wait        sys_wait
 
-6   kill        sys_kill
 7   exec        sys_exec
 
 12  sbrk        sys_sbrk
@@ -67,3 +66,11 @@
 59   pipe        sys_pipe
 37  linkat  sys_linkat
 35  unlinkat    sys_unlinkat
+135 sigprocmask sys_sigprocmask
+178 getttid sys_gettid
+155 getpgid sys_getpgid
+129   kill        sys_kill
+116 sys_log sys_syslog
+48 faccessat sys_faccessat
+179 sysinfo sys_sysinfo
+88 utimensat sys_utimensat

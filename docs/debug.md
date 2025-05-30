@@ -799,3 +799,22 @@ nfiles == 0, !cur??
 ![busybox.10.1](image-147.png)
 ls为啥一直在写0个字节？？？  
 跳过非法vector就好了
+
+### busybox.11
+为什么一直无法退出shell?  
+- 没有到达exitshell
+- 没有退出cmdloop
+![busybox.11.1](image-148.png)
+
+执行完一轮之后再hit parsecmd()， n == 0x0?why?  
+![busybox.11.2](image-149.png)
+![busybox.11.3](image-150.png)
+
+除了第一次，好像从来没有执行inter++这行，一直在重复解析一个指令  mnb 
+![busybox.11.4](image-151.png)
+
+就改了两次？？。。。
+![busybox.11.5](image-152.png)
+
+### busybox.12
+

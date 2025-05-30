@@ -153,6 +153,9 @@ struct fs_ops {
     int (*isdir)(const char *path);
     int (*link) (const char *oldpath, const char *newpath, int flags);
     int (*unlink)(const char *path, int flags);
+    int (*faccess)(char *path, int amode, int flags);
+    int (*utimens)(const char *path, const struct timespec times[2]);
+    int (*file_exist)(const char *path);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

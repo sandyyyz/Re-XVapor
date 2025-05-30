@@ -15,6 +15,8 @@
 #define TIME2MS(time) (time * 1000 / FREQUENCY)
 #define TIME2US(time) (time * 1000 * 1000 / FREQUENCY)
 #define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
+#define NS2SEC(ns) (ns / (1000 * 1000 * 1000))
+#define S2NS(sec) (sec * 1000 * 1000 * 1000)
 #define TIME2TIMESPEC(time)                                                                                            \
     (struct timespec) { .tv_sec = TIME2SEC(time), .tv_nsec = TIME2NS(time) % (1000 * 1000 * 1000) }
 

@@ -3,6 +3,7 @@
 #include "defs.h"
 #include "file.h"
 #include "proc.h"
+#include "debug.h"
 
 struct termios kernel_termios = {
     .c_iflag = ICRNL,
@@ -73,8 +74,17 @@ RETURN VALUE
                 return -1;
             }
             break;
+        // case TIOCGPGRP:
+        //     // printf("TIOCGPGRP\n");
+        //     if (arg == 0) {
+        //         return -1;
+        //     }
+        //     if (copyout(myproc()->mm.pagetable, arg, (char *)&myproc()->pgid, sizeof(myproc()->pgid)) < 0) {
+        //         return -1;
+        //     }
+            break;
         default:
-            printf("UNKNOW IOCTL!\n");
+            Log("UNKNOW IOCTL %d!", op);
             return -1;
     }
     // printf("do_ioctl: %d\n", op);

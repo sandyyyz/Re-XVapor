@@ -271,6 +271,7 @@ struct vfs_filesystem * vfs_resolve_fs(const char* path) {
  * @param path path to the file
  * @param cwd current working directory
  * @param absolute_path pointer to the buffer to store the absolute path
+ * @attention If path is NULL, it will return the current working directory.
  */
 void get_absolute_path(const char *path, const char *cwd, char *absolute_path) {
     if (path == NULL) {

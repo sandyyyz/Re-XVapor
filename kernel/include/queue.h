@@ -18,6 +18,7 @@ struct queue {
     struct list_head list;
     char name[30]; // the name of queue
     enum queue_type type;
+    int cnt; // count of nodes in the queue, used for debugging
 };
 
 typedef struct queue queue_t;
@@ -69,6 +70,6 @@ void *queue_pop_atomic(queue_t *q, int remove);
 #define queue_for_each_entry_safe(pos, tmp, q, member) \
     list_for_each_entry_safe(pos, tmp, &(q->list), member)// buggy
     
-
+int get_queue_count(queue_t *q);
 
 #endif  // __QUEUE_H

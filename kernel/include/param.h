@@ -15,16 +15,14 @@
 #define LOGSIZE      (MAXOPBLOCKS*3)  // max data blocks in on-disk log
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       2000  // size of file system in blocks
-#define MAXPATH      128   // maximum file path name
+#define MAXPATH      256   // maximum file path name
 #define MAXVFSSIZE   4  // size of file system in blocks
 #define MAXBDEV       4  // maximum numbers of block devices
 
-#ifdef __USE_XV6FS
-#define ROOTFSTYPE  "xv6fs"
-#else
-#define ROOTFSTYPE  "ext4"
-#endif
+#define NPROCID     1 << 16 // maximum number of process IDs
+#define NPROC_GROUP  64 // maximum number of process groups
 
+#define ROOTFSTYPE  "ext4"
 #define NTHREADS_PER_PROC 2
 #define NTHREADS (NPROC * NTHREADS_PER_PROC)
 

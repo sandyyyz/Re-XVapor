@@ -13,14 +13,16 @@ char musl_basic_dir[] = "/musl/basic";
 char glibc_basic_dir[] = "/glibc/basic";
 char musl_dir[] = "/musl";
 char glibc_dir[] = "/glibc";
-char glibc_busybox_path[] = "/glibc/busybox";
+char glibc_busybox_path[] = "/glibc/busybox_unstripped";
+char musl_busybox_path[] = "/musl/busybox";
 
-char *glibc_basic_test_argv[] = {"/glibc/busybox", "sh", "/glibc/basic/run-all.sh", NULL };
+char *glibc_basic_test_argv[] = {"/glibc/busybox_unstripped", "sh", "-v", "/glibc/basic/run-all.sh", "exit", NULL};
 char *glibc_busybox_test_argv[] = {"/glibc/busybox", "sh", "/glibc/busybox_testcode.sh", NULL };
 char *musl_basic_test_argv[] = {"/glibc/busybox", "sh", "/musl/basic/run-all.sh", NULL };
 char *musl_busybox_test_argv[] = {"/glibc/busybox", "sh", "/musl/busybox_testcode.sh", NULL };
-char *shell_argv[] = {"/glibc/busybox", "sh", NULL };
-char *busybox_envp[] = {"PATH=/",0};
+char *glibc_shell_argv[] = {"/glibc/busybox", "sh", NULL };
+char *musl_shell_argv[] = {"/musl/busybox", "sh", NULL };
+char *busybox_envp[] = {0};
 
 int main(void)
 {
@@ -44,19 +46,17 @@ int main(void)
   int pid = fork();
   if(pid == 0) {
     printf("init: child process, pid = %d\n", getpid());
-    if(chdir(glibc_basic_dir) < 0) {
-      printf("init: chdir %s failed\n", glibc_basic_dir);
-      exit(-1);
-    }
-    execve(glibc_busybox_path, glibc_basic_test_argv, busybox_envp);
-    exit(0);
+    // if(chdir(glibc_basic_dir) < 0) {
+    //   printf("init: chdir %s failed\n", glibc_dir);
+    //   exit(-1);
+    // }
+    int ret = execve(musl_busybox_path, musl_shell_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
   } else {
     wait(0);
     printf("child process exited, pid = %d\n", pid);
-    exit(0);
   }
-  // execve(path, argv, envp);
-  // while(1);
 
   exit(0);
+  return 0;
 }

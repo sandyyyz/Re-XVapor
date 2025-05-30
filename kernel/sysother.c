@@ -5,9 +5,12 @@
 #include "proc.h"
 #include "defs.h"
 #include "uname.h"
-
+#include "debug.h"
+#include "sysinfo.h"
 
 extern struct proc proc[NPROC];
+
+struct utsname g_uts;
 
 uint64 sys_times(void){ 
     struct tms ptms;
@@ -41,14 +44,7 @@ sys_uname(void)
     uint64 addr;
     argaddr(0, &addr);
 
-    strncpy(uts.sysname, "rexvapor", 3);
-    strncpy(uts.nodename, "none", 4);
-    strncpy(uts.release, "5.0", 3);
-    strncpy(uts.version, "0.1", 3);
-    strncpy(uts.machine, "QEMU", 4);
-    strncpy(uts.domainname, "none", 4);
-
-    if (copyout(myproc()->mm.pagetable, addr, (char *)&uts, sizeof(uts)) < 0)
+    if (copyout(myproc()->mm.pagetable, addr, (char *)&g_uts, sizeof(g_uts)) < 0)
         return -1;
     return 0;
 }
@@ -165,6 +161,9 @@ uint64 sys_sigaction() {
     return 0;
 }
 
+uint64 sys_sigprocmask() {
+    return 0;
+}
 uint64 sys_geteuid() {
     return 0;
 }
@@ -184,5 +183,41 @@ uint64 sys_clock_gettime() {
     ts = TIME2TIMESPEC(rdtime());
     if(copyout(myproc()->mm.pagetable, tp, (char *)&ts, sizeof(ts)) < 0)
         return -1;
+    return 0;
+}
+
+uint64 sys_syslog(void) {
+    int priority;
+    uint64 addr;
+    argint(0, &priority);
+    argaddr(1, &addr);
+
+    char buf[128];
+    if (copyin(myproc()->mm.pagetable, buf, addr, sizeof(buf)) < 0) {
+        return -1;
+    }
+
+    Log("%s", buf);
+    return 0;
+}
+
+uint64 sys_sysinfo(void) {
+    uint64 addr;
+    argaddr(0, &addr);
+
+    struct sysinfo info;
+    info.uptime = TIME2SEC(rdtime());
+    info.totalram = totalram_bytes();
+    info.freeram = freemem_bytes();
+    info.sharedram = 0; // not supported
+    info.bufferram = 0; // not supported
+    info.totalswap = 0; // not supported
+    info.freeswap = 0; // not supported
+    info.procs = procs_cnt();
+    
+    if (copyout(myproc()->mm.pagetable, addr, (char *)&info, sizeof(info)) < 0) {
+        return -1;
+    }
+    
     return 0;
 }

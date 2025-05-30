@@ -76,7 +76,7 @@ static int fdalloc_spec(struct file *f, int spec_fd) {
   return spec_fd;
 }
 
-static void get_abpath_from_dirfd(const char* path, int dirfd, char* abs_path) {
+static void get_abpath_from_dirfd(__nullable const char* path, int dirfd, char* abs_path) {
   struct proc *p = myproc();
   const char *dirpath = dirfd == AT_FDCWD ? p->cinfo.path : p->ofile[dirfd]->info.path;
   get_absolute_path(path, dirpath, abs_path);
@@ -998,11 +998,13 @@ uint64 sys_getcwd() {
   int size;
   argaddr(0, &addr);
   argint(1, &size);
-  // printf("[sys_getcwd] cinfo.path = %s\n", myproc()->cinfo.path);
+#ifdef __DEBUG_SYS_GETCWD
+  Log("[sys_getcwd] addr : %p, size %d, cinfo.path = %s", addr, size, myproc()->cinfo.path);
+#endif
   if(size < 0 || size > MAXPATH || size < strlen(myproc()->cinfo.path)) {
     return 0;
   }
-  if (copyout(myproc()->mm.pagetable, addr, myproc()->cinfo.path, MAXPATH) < 0) {
+  if (copyout(myproc()->mm.pagetable, addr, myproc()->cinfo.path, size) < 0) {
     return 0;
   }
   return addr;
@@ -1166,7 +1168,13 @@ int generic_writev(struct file *f, uint64 iov, int iovcnt) {
       wcnt += wc;
       kvec++;
     }
-    goto out;
+  goto out;
+  }
+
+  // inode-file writev
+  if(f->fops == NULL) {
+    printf("generic_writev: fops is NULL\n");
+    goto bad;
   }
   if(f->fops->writev == NULL) {
     printf("generic_writev: fops->writev is NULL\n");
@@ -1199,11 +1207,14 @@ uint64 sys_writev(void) {
   uint64 iov;
   int iovcnt;
   int r = 0;
+  int fd;
   argaddr(1, &iov);
   argint(2, &iovcnt);
-  if(argfd(0, 0, &f) < 0)
+  if(argfd(0, &fd, &f) < 0)
     return -1;
-  
+#ifdef __DEBUG_SYS_WRITEV
+  Log("sys_writev : fd %d, f %p, iov %p, iovcnt %d", fd, f, (void *)iov, iovcnt);
+#endif
   if((r = generic_writev(f, iov, iovcnt)) < 0) {
     printf("sys_writev: generic_writev failed\n");
     return -1;
@@ -1212,4 +1223,177 @@ uint64 sys_writev(void) {
   Log("sys_writev : f %p successfully writev, r = %d", f, r);
 #endif
   return r;
+}
+
+
+/**
+ * @brief        faccessat — determine accessibility of a file relative to
+       directory file descriptor
+ * @property int faccessat(int fd, const char *path, int amode, int flag);
+ * @return    Upon successful completion, these functions shall return 0.
+       Otherwise, these functions shall return -1 and set errno to
+       indicate the error.
+ */
+uint64 sys_faccessat(void) {
+  int dirfd;
+  int amode, flag;
+  char path[MAXPATH], abs_path[MAXPATH];
+  struct vfs_filesystem *fs = NULL;
+  argint(0, &dirfd);
+  if(argstr(1, path, MAXPATH) < 0) {
+    printf("sys_faccessat: argstr failed\n");
+    return -1;
+  }
+  argint(2, &amode);
+  argint(3, &flag);
+  get_abpath_from_dirfd(path, dirfd, abs_path);
+#ifdef __DEBUG_SYS_FACCESSAT
+  printf("sys_faccessat: abs_path = %s, amode = %d, flag = %d\n", abs_path, amode, flag);
+#endif
+  fs = vfs_resolve_fs(abs_path);
+  if (fs == NULL) {
+    printf("sys_faccessat: vfs_resolve_fs failed\n");
+    return -1;
+  }
+  if(fs->fsops->faccess == NULL) {
+    printf("sys_faccessat: fsops->faccessat is NULL\n");
+    return -1;
+  }
+  if (fs->fsops->faccess(abs_path, amode, flag) < 0) {
+    printf("sys_faccessat: fsops->faccessat failed\n");
+    return -1;
+  }
+#ifdef __DEBUG_SYS_FACCESSAT
+  Log("sys_faccessat: abs_path %s successfully accessed", abs_path);
+#endif
+  return 0;
+}
+
+static int file_exist(const char *path) {
+  struct vfs_filesystem *fs = vfs_resolve_fs(path);
+  if (fs == NULL) {
+    printf("file_exsit: vfs_resolve_fs failed\n");
+    return 0;
+  }
+  if(fs->fsops->file_exist == NULL) {
+    printf("file_exsit: fsops->file_exsit is NULL\n");
+    return 0;
+  }
+  return fs->fsops->file_exist(path);
+}
+
+int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct timespec *times, int flags) {
+  char abs_path[MAXPATH];
+  struct vfs_filesystem *fs = NULL;
+
+  if(flags & ~AT_SYMLINK_NOFOLLOW) {
+    printf("generic_utimensat: flags & ~AT_SYMLINK_NOFOLLOW is not supported\n");
+    return -1;
+  }
+  get_abpath_from_dirfd(pathname, dirfd, abs_path);
+  
+#ifdef __DEBUG_GENERIC_UTIMENSAT
+  printf("[generic_utimensat] dirfd = %d, pathname = %s, abs_path = %s, flags = %d\n", dirfd, pathname ? pathname : "NULL", abs_path, flags);
+#endif
+  if(!file_exist(abs_path)) {
+    // printf("generic_utimensat: file %s does not exist\n", abs_path);
+    // return -1;
+
+    // or create a new file if it does not exist?
+    int flags = O_CREAT | O_RDWR;
+    int omode = 0644; // default mode
+    int fd = generic_open(abs_path, flags, omode);
+    if(fd < 0) {
+      printf("generic_utimensat: generic_open failed, abs_path = %s\n", abs_path);
+      return -1;
+    }
+    // close the file descriptor
+    struct file *f = myproc()->ofile[fd];
+    fileclose(f);
+    myproc()->ofile[fd] = NULL; // clear the file descriptor
+    // now we can set the timestamps
+  }
+  
+  fs = vfs_resolve_fs(abs_path);
+  if (fs == NULL) {
+    printf("generic_utimensat: vfs_resolve_fs failed\n");
+    return -1;
+  }
+  if(fs->fsops->utimens == NULL) {
+    printf("generic_utimensat: fsops->utimensat is NULL\n");
+    return -1;
+  }
+  if (fs->fsops->utimens(abs_path, times) < 0) {
+    printf("generic_utimensat: fsops->utimensat failed\n");
+    return -1;
+  }
+#ifdef __DEBUG_GENERIC_UTIMENSAT
+  Log("generic_utimensat: abs_path %s successfully utimensat", abs_path);
+#endif
+  return 0;
+}
+/**
+ * @brief  utimensat() and futimens() update the timestamps of a file with
+       nanosecond precision.
+    *
+       times: times[0] specifies the new "last access time" (atime);
+       times[1] specifies the new "last modification time" (mtime). 
+    *
+    If the tv_nsec field of one of the timespec structures has the
+       special value UTIME_NOW, then the corresponding file timestamp is
+       set to the current time.  If the tv_nsec field of one of the
+       timespec structures has the special value UTIME_OMIT, then the
+       corresponding file timestamp is left unchanged.  In both of these
+       cases, the value of the corresponding tv_sec field is ignored.
+
+       The flags argument is a bit mask created by ORing together zero or
+       more of the following values defined in <fcntl.h>:
+
+       AT_EMPTY_PATH (since Linux 5.8)
+              If pathname is an empty string, operate on the file
+              referred to by dirfd (which may have been obtained using
+              the open(2) O_PATH flag).  In this case, dirfd can refer to
+              any type of file, not just a directory.  If dirfd is
+              AT_FDCWD, the call operates on the current working
+              directory.  This flag is Linux-specific; define _GNU_SOURCE
+              to obtain its definition.
+
+       AT_SYMLINK_NOFOLLOW
+              If pathname specifies a symbolic link, then update the
+              timestamps of the link, rather than the file to which it
+              refers.
+ * 
+ * 
+ * @property        int utimensat(int dirfd, const char *pathname,
+                     const struct timespec times[_Nullable 2], int flags);
+ * @return  On success, utimensat() and futimens() return 0.  On error, -1 is
+       returned and errno is set to indicate the error.
+ */
+uint64 sys_utimensat(void) {
+  int dirfd;
+  char path[MAXPATH];
+  uint64 path_addr;
+  uint64 times_addr;
+  struct timespec times[2];
+  int flags;
+
+  argint(0, &dirfd);
+  argaddr(1, &path_addr);
+  if(path_addr == 0 || argstr(1, path, MAXPATH) < 0) {
+      path[0] = '\0'; // empty path
+  }
+  argaddr(2, &times_addr);
+  argint(3, &flags);
+  
+  if(times_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&times, times_addr, sizeof(times)) < 0) {
+      printf("sys_utimensat: copyin failed\n");
+      return -1;
+    }
+    if(times[0].tv_nsec == UTIME_OMIT && times[1].tv_nsec == UTIME_OMIT) {
+      // both times are omitted, so we don't need to update the timestamps
+      return 0;
+    }
+  }
+  return generic_utimensat(dirfd, path[0] ? path : NULL , times_addr ? times : NULL, flags);
 }

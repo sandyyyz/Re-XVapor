@@ -70,6 +70,16 @@
 
 #define TCGETS		0x5401
 #define TCSETS		0x5402
+
+/**
+ * @brief        TIOCGPGRP
+              When successful, equivalent to *argp = tcgetpgrp(fd).
+
+              Get the process group ID of the foreground process group on
+              this terminal.
+ * 
+ */
+#define TIOCGPGRP 0x540F
 #define TIOCGWINSZ 0x5413
 
 int do_ioctl(struct file *f, uint64 op, uint64 arg);

@@ -56,6 +56,9 @@ void            kinit(void);
 void*           kzalloc(void);
 void*           kmalloc(uint size);
 void*           kcalloc(int n, uint size);
+uint64          freemem_pages(void);
+uint64          freemem_bytes(void);
+uint64          totalram_bytes(void);
 // log.c
 void            initlog(int, struct xv6fs_superblock*);
 void            log_write(struct buf*);

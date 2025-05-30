@@ -190,8 +190,11 @@ uint64
 sys_kill(void)
 {
   int pid;
+  int sig;
 
   argint(0, &pid);
+  argint(1, &sig);
+  
   return kill(pid);
 }
 
@@ -321,4 +324,80 @@ uint64 sys_prlimit64(void) {
   release(&p->lock);
   return ret;
 
+}
+
+uint64 sys_gettid(void) {
+  struct tcb *t = mythread();
+  if (t == NULL) {
+    return -1; // No thread found
+  }
+  return t->tid;
+}
+
+/**
+ * @brief getpgid — get the process group ID for a process
+ * 
+ * @property pid_t getpgid(pid_t pid);
+ * @return  Upon successful completion, getpgid() shall return a process group
+       ID. Otherwise, it shall return (pid_t)-1 and set errno to indicate
+       the error.
+ */
+uint64 sys_getpgid(void) {
+  pid_t pid,pgid;
+  struct proc *p = NULL;
+  argint(0, &pid); // Get the process ID from the syscall argument
+  
+  p = &proc[pid]; // Find the process by its ID
+  if (pid < 0 || pid >= NPROC || p == NULL) {
+    return -1; // Invalid process ID or process not found
+  }
+  if (p->state == UNUSED) {
+    return -1; // Process is not in use
+  }
+  acquire(&p->lock); // Acquire the process lock to ensure thread safety
+  pgid = p->pgid; // Get the process group ID
+  release(&p->lock); // Release the process lock
+  return pgid; // Return the process group ID
+}
+
+/**
+ * @brief  setpgid() sets the PGID of the process specified by pid to pgid.
+       If pid is zero, then the process ID of the calling process is
+       used.  If pgid is zero, then the PGID of the process specified by
+       pid is made the same as its process ID. 
+ * 
+  * @property int setpgid(pid_t pid, pid_t pgid);
+ * @return On success, setpgid() and setpgrp() return zero.  On error, -1 is
+       returned, and errno is set to indicate the error.
+ */
+uint64 sys_setpgid(void) {
+  pid_t pid, pgid;
+  struct proc *p = NULL;
+
+  argint(0, &pid); // Get the process ID from the syscall argument
+  argint(1, &pgid); // Get the process group ID from the syscall argument
+
+  if (pid < 0 || pid >= NPROCID) {
+    return -1; // Invalid process ID
+  }
+  if(pgid < 0 || pgid >= NPROC_GROUP) {
+    return -1; // Invalid process group ID
+  }
+  if(pid == 0) {
+    p = myproc(); // If pid is 0, use the current process
+  } else {
+    p = &proc[pid]; // Otherwise, find the process by its ID
+  }
+  if (p == NULL || p->state == UNUSED) {
+    return -1; // Process not found or not in use
+  }
+  acquire(&p->lock); // Acquire the process lock to ensure thread safety
+  if (pgid == 0) {
+    pgid = p->pid; // If pgid is 0, set it to the process ID
+  }
+  acquire(&p->lock);
+  p->pgid = pgid; // Set the process group ID
+  release(&p->lock); // Release the process lock
+
+  return 0; // Return success  
 }

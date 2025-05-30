@@ -2,6 +2,7 @@
 #define __EXT4FS_H
 
 #include "ext4_types.h"
+#include "types.h"
 
 struct ext4_minode {
     int ref;
@@ -28,5 +29,8 @@ int ext4_vwritev(struct file *fp, int user_src, uint64 iovec, int iovcnt, int *w
 int ext4_visdir(const char *path);
 int ext4_vlink(const char *oldpath, const char *newpath, int flags);
 int ext4_vunlink(const char *path, int flags);
+int ext4_vfaccess(char *path, int amode, int flags);
+int ext4_vutimens(const char *path, __nullable const struct timespec *ts);
+int ext4_vfile_exist(const char *path);
 
 #endif

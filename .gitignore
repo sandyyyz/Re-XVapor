@@ -29,3 +29,4 @@ compile_commands.json
 build/*
 *.prog
 /mnt/*
+*.txt

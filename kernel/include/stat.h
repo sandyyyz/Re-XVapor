@@ -107,5 +107,9 @@ struct stat {
 #define st_ctime st_ctim.tv_sec
 };
 
+// for utimensat
+#define UTIME_NOW ((1l << 30) - 1l)
+#define UTIME_OMIT ((1l << 30) - 2l)
+
 
 #endif

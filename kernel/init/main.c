@@ -10,7 +10,9 @@
 #include "vfs.h"
 #include "device.h"
 #include "ext4fs.h"
+#include "uname.h"
 
+extern struct utsname g_uts;
 volatile static int started = 0;
 // start() jumps here in supervisor mode on all CPUs.
 
@@ -49,6 +51,7 @@ main()
     procinit();      // process table
     tcb_init();
     
+    INIT_UTS(g_uts); // initialize utsname structure
     trapinit();      // trap vectors
     trapinithart();  // install kernel trap vector
     plicinit();      // set up interrupt controller

@@ -8,6 +8,9 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+#include "atomic.h"
+
+atomic_t g_freecnt = ATOMIC_INIT(0);
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -56,6 +59,8 @@ void kfree(void *pa) {
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
+
+  atomic_inc_return(&g_freecnt);
 }
 
 // 1. 尝试从freelist中取
@@ -74,6 +79,7 @@ void *kalloc(void) {
 
   if (r)
     memset((char *)r, 0, PGSIZE); // fill with junk
+  atomic_inc_return(&g_freecnt);
   return (void *)r;
 }
 
@@ -91,6 +97,8 @@ void *kzalloc(void) {
 
   if (r)
     memset((char *)r, 0, PGSIZE); // fill with junk
+
+  atomic_inc_return(&g_freecnt);
   return (void *)r;
 }
 
@@ -110,4 +118,16 @@ void  *kcalloc(int n, uint size) {
     return 0;
   void *p = kalloc();
   return p;
+}
+
+uint64 freemem_pages() {
+  return atomic_read(&g_freecnt);
+}
+
+uint64 freemem_bytes() {
+  return atomic_read(&g_freecnt) * PGSIZE;
+}
+
+uint64 totalram_bytes() {
+  return (PHYSTOP - (uint64)end);
 }

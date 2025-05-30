@@ -8,6 +8,7 @@ void queue_init(queue_t *q, char *name, enum queue_type type) {
     INIT_LIST_HEAD(&q->list);
     safestrcpy(q->name, name, strlen(name));
     q->type = type;
+    q->cnt = 0;
 }
 
 // is empty?
@@ -65,6 +66,7 @@ void *queue_first_node(queue_t *q) {
 void queue_push_back(queue_t *q, void *node) {
     struct list_head *list = queue_entry(node, q->type);
     list_add_tail(list, &(q->list));
+    q->cnt++;
 }
 
 // push back (atomic)
@@ -72,6 +74,7 @@ void queue_push_back_atomic(queue_t *q, void *node) {
     acquire(&q->lock);
     struct list_head *list = queue_entry(node, q->type);
     list_add_tail(list, &(q->list));
+    q->cnt++;
     release(&q->lock);
 }
 
@@ -86,6 +89,7 @@ void queue_remove_atomic(queue_t *q, void *node) {
     acquire(&q->lock);
     struct list_head *list = queue_entry(node, q->type);
     list_del_reinit(list);
+    q->cnt--;
     release(&q->lock);
 }
 
@@ -114,4 +118,8 @@ void *queue_pop_atomic(queue_t *q, int remove) {
     release(&q->lock);
     // may return NULL
     return t;
+}
+
+int inline get_queue_count(queue_t *q) {
+    return q->cnt;
 }
