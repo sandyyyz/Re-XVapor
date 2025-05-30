@@ -39,12 +39,10 @@ struct file* filealloc(void)
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
     if(f->ref == 0){
+
       // TODO: maybe change to dynamicly get fs 
-#ifdef __USE_XV6FS
-      fs = getfs("xv6fs");
-#else
       fs = getfs("ext4");
-#endif
+
       if(!fs) {
         release(&ftable.lock);
         panic("filealloc: no fs");
@@ -72,8 +70,8 @@ filedup(struct file *f)
   acquire(&ftable.lock);
   if(f->ref < 1){
     printf("filedup: ref count < 1\n");
-    printf("filedup: file info: type=%d, flags=%d, omode=%d, fpos=%d\n", 
-           f->type, f->flags, f->omode, f->fpos);
+    printf("filedup: file info: type=%d, flags=%d, omode=%d, fpos= %d ref = %d\n", 
+           f->type, f->flags, f->omode, f->fpos, f->ref);
     printf("path %s\n", f->info.path);
     panic("filedup");
   }
@@ -197,4 +195,5 @@ int filewrite(struct file *f, uint64 addr, int n)
     panic("filewrite");
   }
   return ret;
+  
 }

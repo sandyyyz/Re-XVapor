@@ -71,6 +71,7 @@ static int fdalloc_spec(struct file *f, int spec_fd) {
   }
   if(p->ofile[spec_fd] != 0) {
     fileclose(p->ofile[spec_fd]);
+    p->ofile[spec_fd] = 0;
   }
   p->ofile[spec_fd] = f;
   return spec_fd;
@@ -112,6 +113,9 @@ uint64 sys_dup3(void) {
   argint(2, &flags);
   if(oldfd < 0 || oldfd >= NOFILE || newfd < 0 || newfd >= NOFILE)
     return -1;
+#ifdef __DEBUG_SYS_DUP3
+  Log("sys_dup3: oldfd=%d, newfd=%d, flags=%d", oldfd, newfd, flags);
+#endif
   if(fdalloc_spec(f, newfd) < 0)
     return -1;
   if (flags & O_CLOEXEC) {
@@ -119,6 +123,7 @@ uint64 sys_dup3(void) {
   } else {
     f->flags &= ~O_CLOEXEC; // clear the close-on-exec flag
   }
+  f->ref++;
   return newfd;
 }
 /**
@@ -179,7 +184,7 @@ sys_close(void)
   myproc()->ofile[fd] = 0;
   fileclose(f);
 #ifdef __DEBUG_CLOSE
-  Log("sys_close: fd=%d, f=%p", fd, f);
+  Log("sys_close: fd=%d, f=%p, ref after close %d", fd, f, f->ref);
 #endif
   return 0;
 }
@@ -1313,7 +1318,7 @@ int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct ti
     myproc()->ofile[fd] = NULL; // clear the file descriptor
     // now we can set the timestamps
   }
-  
+
   fs = vfs_resolve_fs(abs_path);
   if (fs == NULL) {
     printf("generic_utimensat: vfs_resolve_fs failed\n");
