@@ -30,6 +30,7 @@ extern uint64 sys_getdents64(void);
 extern uint64 sys_read(void);
 extern uint64 sys_write(void);
 extern uint64 sys_writev(void);
+extern uint64 sys_sendfile(void);
 extern uint64 sys_ppoll(void);
 extern uint64 sys_readlinkat(void);
 extern uint64 sys_fstatat(void);

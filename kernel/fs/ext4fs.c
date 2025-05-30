@@ -257,7 +257,7 @@ void ext4_ilock(struct inode *ip) {
  * @param fp file pointer
  * @param user_dst is 1 if dst is in user space, 0 if dst is in kernel space
  * @param dst destination address in user space or kernel space
- * @param off offset in the file to read from
+ * @param off offset in the file to read from. if you don't want to read from a specific offset, set it to fp->fpos
  * @param size size to read
  * @param rcnt count of bytes read
  * @attention rcnt shouldn't be NULL !!!!!, it will be set to the number of bytes read
@@ -275,7 +275,6 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
-    fp->fpos = efp->fpos;
     if(user_dst) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
@@ -295,6 +294,7 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
         }
         return r;
     }
+    fp->fpos = efp->fpos;
     #ifdef __DEBUG_EXT4_VFREAD
     Log("[ext4] ext4_vfread: finish, kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
     #endif
@@ -376,7 +376,6 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
-    fp->fpos = efp->fpos;
     if(user_src) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {

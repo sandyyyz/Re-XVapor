@@ -43,6 +43,7 @@ entry("getdents64");
 entry("read");
 entry("write");
 entry("writev");
+entry("sendfile");
 entry("ppoll");
 entry("readlinkat");
 entry("fstatat");

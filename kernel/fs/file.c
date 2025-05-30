@@ -139,8 +139,7 @@ filestat(struct file *f, uint64 addr)
 
 // Read from file f.
 // addr is a user virtual address.
-int
-fileread(struct file *f, uint64 addr, int n)
+int  fileread(struct file *f, uint64 addr, int n)
 {
   int r = 0;
 

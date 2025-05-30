@@ -74,3 +74,4 @@
 48 faccessat sys_faccessat
 179 sysinfo sys_sysinfo
 88 utimensat sys_utimensat
+71 sendfile sys_sendfile

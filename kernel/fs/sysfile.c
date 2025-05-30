@@ -150,11 +150,14 @@ uint64 sys_read(void)
   struct file *f;
   int n;
   uint64 p;
-
+  int fd;
   argaddr(1, &p);
   argint(2, &n);
-  if(argfd(0, 0, &f) < 0)
+  if(argfd(0, &fd, &f) < 0)
     return -1;
+#ifdef __DEBUG_SYS_READ
+  Log("sys_read: fd=%d, p=%p, n=%d, f->pos %d", fd, p, n, f->fpos);
+#endif
   return fileread(f, p, n);
 }
 
@@ -164,12 +167,14 @@ sys_write(void)
   struct file *f;
   int n;
   uint64 p;
-  
+  int fd;
   argaddr(1, &p);
   argint(2, &n);
-  if(argfd(0, 0, &f) < 0)
+  if(argfd(0, &fd, &f) < 0)
     return -1;
-
+#ifdef __DEBUG_SYS_WRITE
+  Log("sys_write: fd=%d, p=%p, n=%d, f->pos %d", fd, p, n, f->fpos);
+#endif
   return filewrite(f, p, n);
 }
 
@@ -1401,4 +1406,66 @@ uint64 sys_utimensat(void) {
     }
   }
   return generic_utimensat(dirfd, path[0] ? path : NULL , times_addr ? times : NULL, flags);
+}
+
+/**
+ * @brief  sendfile() copies data between one file descriptor and another.
+       Because this copying is done within the kernel, sendfile() is more
+       efficient than the combination of read(2) and write(2), which
+       would require transferring data to and from user space.
+
+
+       If offset is not NULL, then it points to a variable holding the
+       file offset from which sendfile() will start reading data from
+       in_fd.  When sendfile() returns, this variable will be set to the
+       offset of the byte following the last byte that was read.  If
+       offset is not NULL, then sendfile() does not modify the file
+       offset of in_fd; otherwise the file offset is adjusted to reflect
+       the number of bytes read from in_fd.
+
+       If offset is NULL, then data will be read from in_fd starting at
+       the file offset, and the file offset will be updated by the call.
+
+       count is the number of bytes to copy between the file descriptors.
+ * 
+ * @property ssize_t sendfile(int out_fd, int in_fd, off_t *_Nullable offset,
+                        size_t count);
+ * @return If the transfer was successful, the number of bytes written to
+       out_fd is returned.  Note that a successful call to sendfile() may
+       write fewer bytes than requested; the caller should be prepared to
+       retry the call if there were unsent bytes.  See also NOTES.
+
+       On error, -1 is returned, and errno is set to indicate the error.
+ */
+uint64 sys_sendfile(void) {
+  int out_fd, in_fd;
+  uint64 offset_addr;
+  uint64 count;
+
+  /**
+   *    in_fd should be a file descriptor opened for reading and out_fd
+        should be a descriptor opened for writing.
+   */
+
+  argint(0, &out_fd);
+  argint(1, &in_fd);
+  argaddr(2, &offset_addr);
+  arguint64(3, &count);
+#ifdef __DEBUG_SYS_SENDFILE
+  printf("[sys_sendfile] out_fd = %d, in_fd = %d, offset_addr = %p, count = %d\n", out_fd, in_fd, (void *)offset_addr, count);
+#endif
+  if(out_fd < 0 || in_fd < 0 || count <= 0) {
+    printf("[sys_sendfile] invalid arguments, out_fd = %d, in_fd = %d, count = %d\n", out_fd, in_fd, count);
+    return -1;
+  }
+  
+  struct file *out_f = myproc()->ofile[out_fd];
+  struct file *in_f = myproc()->ofile[in_fd];
+  if(out_f == NULL || in_f == NULL) {
+    printf("[sys_sendfile] out_f or in_f is NULL\n");
+    return -1;
+  }
+  
+  // return do_sendfile(out_f, in_f, offset_addr, count);
+  return -1;
 }
