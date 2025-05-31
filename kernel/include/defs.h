@@ -35,9 +35,9 @@ struct file*    filealloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);
 void            fileinit(void);
-int             fileread(struct file*, uint64, int n);
+int fileread(struct file *f, int user_dst, uint64 addr, int n, int off);
 int             filestat(struct file*, uint64 addr);
-int             filewrite(struct file*, uint64, int n);
+int filewrite(struct file *f, int user_src, uint64 addr, int n, int off);
 
 // fs.c
 struct inode*   idup(struct inode*);
@@ -68,8 +68,8 @@ void            end_op(void);
 // pipe.c
 int             pipealloc(struct file**, struct file**);
 void            pipeclose(struct pipe*, int);
-int             piperead(struct pipe*, uint64, int);
-int             pipewrite(struct pipe*, uint64, int);
+int piperead(struct pipe *pi, int user_dst, uint64 addr, int n);
+int pipewrite(struct pipe *pi, int user_src, uint64 addr, int n);
 
 // printf.c
 void            printf(const char*, ...);

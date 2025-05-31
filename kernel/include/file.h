@@ -87,7 +87,7 @@ struct superblock {
 
 // map major device number to device functions.
 struct devsw {
-  int (*read)(int user_src, uint64 dst, int n);
+  int (*read)(int user_dst, uint64 dst, int n);
   int (*write)(int user_src, uint64 src, int n);
 };
 

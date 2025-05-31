@@ -158,7 +158,7 @@ uint64 sys_read(void)
 #ifdef __DEBUG_SYS_READ
   Log("sys_read: fd=%d, p=%p, n=%d, f->pos %d", fd, p, n, f->fpos);
 #endif
-  return fileread(f, p, n);
+  return fileread(f, 1, p, n, f->fpos);
 }
 
 uint64
@@ -175,7 +175,7 @@ sys_write(void)
 #ifdef __DEBUG_SYS_WRITE
   Log("sys_write: fd=%d, p=%p, n=%d, f->pos %d", fd, p, n, f->fpos);
 #endif
-  return filewrite(f, p, n);
+  return filewrite(f, 1, p, n, f->fpos);
 }
 
 uint64
@@ -1171,7 +1171,7 @@ int generic_writev(struct file *f, uint64 iov, int iovcnt) {
       if(kvec[i].iov_len <= 0 || kvec[i].iov_base == 0) {
         continue;
       }
-      if((wc = filewrite(f, (uint64)kvec[i].iov_base, kvec[i].iov_len)) < 0) {
+      if((wc = filewrite(f, 1, (uint64)kvec[i].iov_base, kvec[i].iov_len, f->fpos)) < 0) {
         printf("generic_writev: filewrite failed\n");
         goto bad;
       }
@@ -1409,6 +1409,123 @@ uint64 sys_utimensat(void) {
 }
 
 /**
+ * @brief read count bytes from in_f at offset into kbuf, and write them to out_f.
+ * 
+ * @param out_f which file to write to
+ * @param in_f which file to read from
+ * @param kbuf kernel buffer, just PGSIZE bytes
+ * @param offset offset in the in_f file to read from
+ * @param count count of bytes to read from in_f and write to out_f
+ * @return On success, the number of bytes written to out_f is returned.
+ */
+static int rw_sharp(struct file *out_f, struct file *in_f, void *kbuf, off_t offset, uint64 count) {
+  int r = 0, n = 0, rcnt = 0, wcnt = 0;
+
+  for(int i = 0; i < count; i += PGSIZE) {
+    if(count - i > PGSIZE) {
+      n = PGSIZE;
+    } else {
+      n = count - i;
+    }
+    if((rcnt = fileread(in_f, 0, (uint64)kbuf, n, offset + i)) < 0) {
+      printf("rw_sharp: fileread failed, rcnt = %d\n", rcnt);
+      return -1;
+    }
+    if(rcnt == 0) {
+      // no more data to read
+      break;
+    }
+    if((wcnt = filewrite(out_f, 0, (uint64)kbuf, rcnt, out_f->fpos)) < 0) {
+      printf("rw_sharp: filewrite failed, wcnt = %d\n", wcnt);
+      return -1;
+    }
+    if(wcnt != rcnt) {
+      printf("rw_sharp: wcnt != rcnt, wcnt = %d, rcnt = %d\n", wcnt, rcnt);
+      return -1;
+    }
+    r += wcnt; // accumulate the number of bytes written
+    if(wcnt < n) {
+      // we have reached the end of the file
+      break;
+    }
+  }
+  return r; // return the number of bytes written
+}
+
+int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint64 count) {
+  
+  ssize_t nread = 0;
+  ssize_t nwritten = 0;
+  // off_t offset;
+  void *kbuf = NULL;
+
+  if(offset_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&in_f->fpos, (uint64)offset_addr, sizeof(off_t)) < 0) {
+      printf("do_sendfile: copyin failed\n");
+      return -1;
+    }
+  } else {
+    // offset = in_f->fpos;
+  }
+
+  if((kbuf = kalloc()) == NULL) {
+    printf("do_sendfile: kalloc failed\n");
+    goto bad;
+  }
+#ifdef __DEBUG_DO_SENDFILE
+  Log("do_sendfile: kbuf = %p, kbuf size = %d", kbuf, PGSIZE);
+  // Log("local offset addr %p, offset %d", &offset, offset);
+  Log("tkstack: %p, pkstack %p", (void *)mythread()->kstack, (void *)myproc()->kstack);
+  // Log("do_sendfile: out_f = %p, in_f = %p, offset_addr = %p, count = %d, offset = %d", out_f, in_f, (void *)offset_addr, count, offset);
+#endif
+// in fact, the ext4_fread will check if the count larger than the file size, so the path is used for avoiding reading data larger than PGSIZE to kbuf
+  if(count > PGSIZE) {
+    nwritten = rw_sharp(out_f, in_f, kbuf, in_f->fpos, count);
+    goto finished; // rw_sharp will handle the read and write operations
+  }
+  if((nread = fileread(in_f, 0, (uint64)kbuf, count, in_f->fpos)) < 0) {
+    printf("do_sendfile: fileread failed, nread = %d\n", nread);
+    goto bad;
+  }
+
+  // offset += nread;
+
+  // if(offset != in_f->fpos) { // for debug, the f->pos should have been updated by fileread
+  //   printf("do_sendfile: offset != in_f->fpos, offset = %d, in_f->fpos = %d\n", offset, in_f->fpos);
+  //   goto bad;
+  // }
+  if((nwritten = filewrite(out_f, 0, (uint64)kbuf, nread, out_f->fpos)) < 0) {
+    printf("do_sendfile: filewrite failed, nwritten = %d\n", nwritten);
+    goto bad;
+  }
+  if(nwritten != nread) {
+    printf("do_sendfile: nwritten != nread, nwritten = %d, nread = %d\n", nwritten, nread);
+    goto bad;
+  }
+
+finished:
+#ifdef __DEBUG_DO_SENDFILE
+  // Log("finished local offset addr %p, offset %d", &offset, offset);
+#endif
+  // offset = in_f->fpos; // update the file position of in_f
+  if(offset_addr) {
+    if(copyout(myproc()->mm.pagetable, (uint64) offset_addr, (char *)&in_f->fpos, sizeof(off_t)) < 0) {
+      printf("do_sendfile: copyout failed\n");
+      goto bad;
+    }
+  } else {
+    // in_f->fpos = offset; // update the file position
+  }
+  kfree(kbuf);
+  return nwritten; // return the number of bytes written
+
+bad:
+  if(kbuf)
+    kfree(kbuf);
+  return -1;
+}
+
+/**
  * @brief  sendfile() copies data between one file descriptor and another.
        Because this copying is done within the kernel, sendfile() is more
        efficient than the combination of read(2) and write(2), which
@@ -1439,7 +1556,8 @@ uint64 sys_utimensat(void) {
  */
 uint64 sys_sendfile(void) {
   int out_fd, in_fd;
-  uint64 offset_addr;
+  struct file *out_f = NULL , *in_f = NULL;
+  off_t *offset_addr;
   uint64 count;
 
   /**
@@ -1447,25 +1565,25 @@ uint64 sys_sendfile(void) {
         should be a descriptor opened for writing.
    */
 
-  argint(0, &out_fd);
-  argint(1, &in_fd);
-  argaddr(2, &offset_addr);
+  if(argfd(0, &out_fd, &out_f) < 0) {
+    printf("[sys_sendfile] argfd(0, 0, &out_f) failed\n");
+    return -1;
+  }
+  if(argfd(1, &in_fd, &in_f) < 0) {
+    printf("[sys_sendfile] argfd(1, 0, &in_f) failed\n");
+    return -1;
+  }
+  argaddr(2, (uint64 *)&offset_addr);
   arguint64(3, &count);
 #ifdef __DEBUG_SYS_SENDFILE
   printf("[sys_sendfile] out_fd = %d, in_fd = %d, offset_addr = %p, count = %d\n", out_fd, in_fd, (void *)offset_addr, count);
 #endif
-  if(out_fd < 0 || in_fd < 0 || count <= 0) {
-    printf("[sys_sendfile] invalid arguments, out_fd = %d, in_fd = %d, count = %d\n", out_fd, in_fd, count);
-    return -1;
-  }
-  
-  struct file *out_f = myproc()->ofile[out_fd];
-  struct file *in_f = myproc()->ofile[in_fd];
+
   if(out_f == NULL || in_f == NULL) {
     printf("[sys_sendfile] out_f or in_f is NULL\n");
     return -1;
   }
   
-  // return do_sendfile(out_f, in_f, offset_addr, count);
-  return -1;
+  return do_sendfile(out_f, in_f, offset_addr, count);
+  // return -1;
 }

@@ -27,6 +27,8 @@ typedef long off_t;
 typedef long unsigned int size_t;
 #endif
 
+typedef long ssize_t;
+
 typedef uint64 pde_t;
 typedef int pid_t;
 typedef int tid_t;

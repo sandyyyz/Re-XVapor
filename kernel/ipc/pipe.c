@@ -78,7 +78,7 @@ pipeclose(struct pipe *pi, int writable)
 }
 
 int
-pipewrite(struct pipe *pi, uint64 addr, int n)
+pipewrite(struct pipe *pi, int user_src, uint64 addr, int n)
 {
   int i = 0;
   struct proc *pr = myproc();
@@ -94,7 +94,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
       thread_sleep(&pi->nwrite, &pi->lock);
     } else {
       char ch;
-      if(copyin(pr->mm.pagetable, &ch, addr + i, 1) == -1)
+      if(either_copyin(&ch, user_src, addr + i, 1) == -1)
         break;
       pi->data[pi->nwrite++ % PIPESIZE] = ch;
       i++;
@@ -107,7 +107,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
 }
 
 int
-piperead(struct pipe *pi, uint64 addr, int n)
+piperead(struct pipe *pi, int user_dst, uint64 addr, int n)
 {
   int i;
   struct proc *pr = myproc();
@@ -125,7 +125,7 @@ piperead(struct pipe *pi, uint64 addr, int n)
     if(pi->nread == pi->nwrite)
       break;
     ch = pi->data[pi->nread++ % PIPESIZE];
-    if(copyout(pr->mm.pagetable, addr + i, &ch, 1) == -1)
+    if(either_copyout(user_dst, addr + i, &ch, 1) == -1)
       break;
   }
   thread_wakeup_chan(&pi->nwrite);  //DOC: piperead-wakeup

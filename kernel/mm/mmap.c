@@ -181,7 +181,7 @@ int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) 
         }
         if((*pte & PTE_D) && vma->flags & MAP_SHARED) {
         // write back 
-        filewrite(fp, va, PGSIZE);
+        filewrite(fp, 1, va, PGSIZE, fp->fpos);
         }
 #ifdef __DEBUG_MMAP_WRITEBACK
         Log("mmap_writeback_unmapf: va %p, pte %p, pa %p\n", va, *pte, PTE2PA(*pte));

@@ -31,12 +31,12 @@ vfs_xv6fs_fileclose(struct file *f)
 }
 
 int vfs_xv6fs_fileread(struct file *f, void *buf, int count) {
-    int ret = fileread(f, ADDR2N(buf), count);
+    int ret = fileread(f, 1, ADDR2N(buf), count, f->fpos);
     return ret;
 }
 
 int vfs_xv6fs_filewrite(struct file* f, const void *buf, int count) {
-    int ret = filewrite(f, ADDR2N(buf), count);
+    int ret = filewrite(f, 1, ADDR2N(buf), count, f->fpos);
     return ret;
 }
 

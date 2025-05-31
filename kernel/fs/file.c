@@ -137,9 +137,8 @@ filestat(struct file *f, uint64 addr)
   return -1;
 }
 
-// Read from file f.
-// addr is a user virtual address.
-int  fileread(struct file *f, uint64 addr, int n)
+
+int fileread(struct file *f, int user_dst, uint64 addr, int n, int off)
 {
   int r = 0;
 
@@ -147,19 +146,21 @@ int  fileread(struct file *f, uint64 addr, int n)
     return -1;
 
   if(f->type == FD_PIPE){
-    r = piperead(f->pipe, addr, n);
+    r = piperead(f->pipe, user_dst, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
       return -1;
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
-    f->fops->read(f, 1, addr, f->fpos, n, &r);
+    f->fops->read(f, user_dst, addr, off, n, &r);
   } else {
+    Log("file %p type = %d", f, f->type);
     panic("fileread");
   }
 
   return r;
 }
+
 
 /**
  * @brief write a file
@@ -167,9 +168,11 @@ int  fileread(struct file *f, uint64 addr, int n)
  * @param f file pointer 
  * @param addr virtual address
  * @param n length
+ * @param off offset in the file to write to. if you don't want to write to a specific offset, set it to fp->fpos. 
+ * only used for FD_INODE type file
  * @return int return the number of bytes written, -1 if failed 
  */
-int filewrite(struct file *f, uint64 addr, int n)
+int filewrite(struct file *f, int user_src, uint64 addr, int n, int off)
 {
   int r, ret = 0;
 
@@ -179,13 +182,13 @@ int filewrite(struct file *f, uint64 addr, int n)
     return -1;
 
   if(f->type == FD_PIPE){
-    ret = pipewrite(f->pipe, addr, n);
+    ret = pipewrite(f->pipe, user_src, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
       return -1;
-    ret = devsw[f->major].write(1, addr, n);
+    ret = devsw[f->major].write(user_src, addr, n);
   } else if(f->type == FD_INODE){
-    f->fops->write(f, 1, addr, f->fpos, n, &r);
+    f->fops->write(f, user_src, addr, off, n, &r);
     if(r > 0)
       ret = r;
     else
