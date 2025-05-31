@@ -40,6 +40,7 @@ entry("openat");
 entry("close");
 entry("pipe");
 entry("getdents64");
+entry("lseek");
 entry("read");
 entry("write");
 entry("readv");

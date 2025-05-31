@@ -34,6 +34,9 @@
 #define O_CLOEXEC 02000000 /* set close_on_exec */
 #endif
 
+#ifndef O_APPEND
+#define O_APPEND 02000
+#endif
 // utimensat
 #define AT_FDCWD -100
 #define AT_REMOVEDIR 0x200

@@ -257,7 +257,7 @@ sys_close(void)
   myproc()->ofile[fd] = 0;
   fileclose(f);
 #ifdef __DEBUG_CLOSE
-  Log("sys_close: fd=%d, f=%p, ref after close %d", fd, f, f->ref);
+  Log("sys_close: fd=%d, f=%p, ref after close %d, f->fpos %d, path %s", fd, f, f->ref, f->fpos, f->info.path);
 #endif
   return 0;
 }
@@ -938,7 +938,8 @@ uint64 sys_openat(void) {
   }
 
 #ifdef __DEBUG_SYS_OPENAT
-  Log("[sys_openat] generic_open success, fd = %d, path = %s", r, abs_path);
+  struct file *f = myproc()->ofile[r];
+  Log("[sys_openat] generic_open success, fd = %d, path = %s, f %p, f->fpos %d, flags %x", r, abs_path, f, f->fpos, flags);
 #endif
   return r;
 }
@@ -1248,6 +1249,10 @@ int generic_writev(struct file *f, uint64 iov, int iovcnt) {
     }
   goto out;
   }
+
+  // TODO:
+  // path below maybe is duplicated
+  // see generic_readv
 
   // inode-file writev
   if(f->fops == NULL) {
@@ -1654,4 +1659,65 @@ uint64 sys_sendfile(void) {
   
   return do_sendfile(out_f, in_f, offset_addr, count);
   // return -1;
+}
+
+/**
+ * @brief     lseek() repositions the file offset of the open file description
+       associated with the file descriptor fd to the argument offset
+       according to the directive whence as follows:
+
+       SEEK_SET
+              The file offset is set to offset bytes.
+
+       SEEK_CUR
+              The file offset is set to its current location plus offset
+              bytes.
+
+       SEEK_END
+              The file offset is set to the size of the file plus offset
+              bytes.
+
+ * @property off_t lseek(int fd, off_t offset, int whence);
+ * @return   Upon successful completion, lseek() returns the resulting offset
+       location as measured in bytes from the beginning of the file.  On
+       error, the value (off_t) -1 is returned and errno is set to
+       indicate the error.
+ */
+uint64 sys_lseek(void) {
+  struct file *f;
+  int fd;
+  off_t offset;
+  int whence;
+
+  if(argfd(0, &fd, &f) < 0) {
+    printf("[sys_lseek] argfd failed\n");
+    return -1;
+  }
+  argint(1, (int *)&offset);
+  argint(2, &whence);
+#ifdef __DEBUG_SYS_LSEEK
+  Log("[sys_lseek] fd = %d, offset = %d, whence = %d", fd, offset, whence);
+#endif  
+  if(f == NULL) {
+    printf("[sys_lseek] f is NULL\n");
+    return -1;
+  }
+  if(f->fops == NULL) {
+    printf("[sys_lseek] f->fops is NULL\n");
+    return -1;
+  }
+  if(f->fops->lseek == NULL) {
+    printf("[sys_lseek] f->fops->lseek is NULL\n");
+    return -1;
+  }
+  
+  int r = f->fops->lseek(f, offset, whence);
+  if(r < 0) {
+    printf("[sys_lseek] f->fops->lseek failed, r = %d\n", r);
+    return -1;
+  }
+#ifdef __DEBUG_SYS_LSEEK
+  Log("[sys_lseek] f->fops->lseek success, r = %d, f->fpos = %d", r, f->fpos);
+#endif
+  return r; // return the new file position
 }

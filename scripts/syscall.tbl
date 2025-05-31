@@ -76,3 +76,4 @@
 88 utimensat sys_utimensat
 71 sendfile sys_sendfile
 65 readv    sys_readv
+62 lseek    sys_lseek

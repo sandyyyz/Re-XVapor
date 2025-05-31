@@ -27,6 +27,7 @@
 #define SYS_close 57
 #define SYS_pipe 59
 #define SYS_getdents64 61
+#define SYS_lseek 62
 #define SYS_read 63
 #define SYS_write 64
 #define SYS_readv 65

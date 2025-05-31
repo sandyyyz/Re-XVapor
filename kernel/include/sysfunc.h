@@ -27,6 +27,7 @@
 [SYS_close] sys_close,
 [SYS_pipe] sys_pipe,
 [SYS_getdents64] sys_getdents64,
+[SYS_lseek] sys_lseek,
 [SYS_read] sys_read,
 [SYS_write] sys_write,
 [SYS_readv] sys_readv,

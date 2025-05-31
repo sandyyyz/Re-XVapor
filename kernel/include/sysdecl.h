@@ -27,6 +27,7 @@ extern uint64 sys_openat(void);
 extern uint64 sys_close(void);
 extern uint64 sys_pipe(void);
 extern uint64 sys_getdents64(void);
+extern uint64 sys_lseek(void);
 extern uint64 sys_read(void);
 extern uint64 sys_write(void);
 extern uint64 sys_readv(void);

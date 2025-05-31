@@ -51,6 +51,7 @@ struct file_ops ext4_file_ops = {
     .cleansf = ext4_vcleansf,
     .getdents = ext4_vgetdents,
     .writev = ext4_vwritev,
+    .lseek = ext4_vlseek,
 };
 
 struct fs_ops ext4_fs_ops = {
@@ -428,7 +429,7 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
         return -r;
     }
     fp->private_data = efp;
-
+    fp->fpos = efp->fpos;
 isdir:
     // to get the file type
     if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
@@ -1030,4 +1031,22 @@ int ext4_vfile_exist(const char *path) {
         return 0; // file not exist
     }
     return 1; // file exist
+}
+
+int ext4_vlseek(struct file *fp, off_t offset, int whence) {
+    struct ext4_file *efp = fp->private_data;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return -1;
+    }
+    if(whence == SEEK_END && offset < 0) {
+        offset = -offset;
+    }
+    int r = ext4_fseek(efp, offset, whence);
+    if(r != EOK) {
+        printf("[ext4] ext4_fseek error! r=%d\n", r);
+        return -1;
+    }
+    fp->fpos = efp->fpos;
+    return fp->fpos;
 }

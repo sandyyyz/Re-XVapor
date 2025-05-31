@@ -32,5 +32,6 @@ int ext4_vunlink(const char *path, int flags);
 int ext4_vfaccess(char *path, int amode, int flags);
 int ext4_vutimens(const char *path, __nullable const struct timespec *ts);
 int ext4_vfile_exist(const char *path);
+int ext4_vlseek(struct file *fp, off_t offset, int whence);
 
 #endif
