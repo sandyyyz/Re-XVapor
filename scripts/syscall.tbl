@@ -75,3 +75,4 @@
 179 sysinfo sys_sysinfo
 88 utimensat sys_utimensat
 71 sendfile sys_sendfile
+65 readv    sys_readv

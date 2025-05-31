@@ -161,6 +161,74 @@ uint64 sys_read(void)
   return fileread(f, 1, p, n, f->fpos);
 }
 
+int generic_readv(struct file *f, uint64 iov, int iovcnt) {
+  int rcnt = 0;
+  char *kvecs = NULL;
+  if((kvecs = kmalloc(sizeof(struct iovec) * iovcnt)) == NULL) {
+    printf("generic_readv: kmalloc failed\n");
+    return -1;
+  }
+  if(either_copyin(kvecs, 1, iov, sizeof(struct iovec) * iovcnt) < 0) {
+    printf("generic_readv: either_copyin failed\n");
+    kfree(kvecs);
+    return -1;
+  }
+  struct iovec *kvec = (struct iovec *)kvecs;
+  int rc = 0;
+  for(int i = 0; i < iovcnt; i++) {
+    if(kvec[i].iov_len <= 0 || kvec[i].iov_base == 0) {
+      continue;
+    }
+    if((rc = fileread(f, 1, (uint64) kvec[i].iov_base, kvec[i].iov_len, f->fpos)) < 0) {
+      printf("generic_readv: fileread failed\n");
+      goto bad;
+    }
+    rcnt += rc;
+    kvec++;
+  }
+
+#ifdef __DEBUG_SYS_READV
+  Log("generic_readv: read %d bytes from fd=%d, f->pos=%d", rcnt, f->fd, f->fpos);
+#endif
+
+  if(kvecs)
+    kfree(kvecs);
+  return rcnt;
+bad:
+  if(kvecs)
+    kfree(kvecs);
+  return -1;
+}
+/**
+ * @brief  The readv() system call reads iovcnt buffers from the file
+       associated with the file descriptor fd into the buffers described
+       by iov ("scatter input").
+ * @property ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
+ * @return on success, return the number of bytes read. -1 on error.
+ */
+uint64 sys_readv(void) {
+  struct file *f;
+  int fd, iovcnt;
+  uint64 iov;
+  int r = 0;
+
+  argaddr(1, &iov);
+  argint(2, &iovcnt);
+  if(argfd(0, &fd, &f) < 0)
+    return -1;
+#ifdef __DEBUG_SYS_READV
+  Log("sys_readv: fd=%d, iov=%p, iovcnt=%d, f->pos %d", fd, iov, iovcnt, f->fpos);
+#endif
+  if((r = generic_readv(f, iov, iovcnt)) < 0) {
+    printf("sys_readv: generic_readv failed\n");
+    return -1;
+  }
+#ifdef __DEBUG_SYS_READV
+  Log("sys_readv: read %d bytes", r);
+#endif
+  return r;
+}
+
 uint64
 sys_write(void)
 {

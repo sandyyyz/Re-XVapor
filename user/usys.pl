@@ -42,6 +42,7 @@ entry("pipe");
 entry("getdents64");
 entry("read");
 entry("write");
+entry("readv");
 entry("writev");
 entry("sendfile");
 entry("ppoll");
