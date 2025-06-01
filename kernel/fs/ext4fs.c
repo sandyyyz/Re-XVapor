@@ -522,7 +522,7 @@ int ext4_vstat(char *path, struct kstat *st) {
     struct ext4_sblock *sb = NULL;
     r = ext4_get_sblock(stat_path, &sb);
     if (r != EOK) {
-        return -r;
+        return r;
     }
 
     st->st_dev = ext4_inode_get_dev(&inode);

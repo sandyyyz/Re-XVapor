@@ -6,20 +6,54 @@
 #include "xv6fs.h"
 #include "param.h"
 #include "ext4.h"
+#include "fcntl.h"
 
-#define READABLE 0X1
-#define WRITABLE 0X2
-#define IS_READABLE(x) (((x) & READABLE) ? 1 : 0)
-#define IS_WRITABLE(x) (((x) & WRITABLE) ? 1 : 0)
-#define IS_READABLE_WRITABLE(x) (((x) & (READABLE | WRITABLE)) ? 1 : 0)
+#define O_ACCMODE 03
 
-#define SET_READABLE(x) ((x) |= READABLE)
-#define SET_WRITABLE(x) ((x) |= WRITABLE)
-#define SET_READABLE_WRITABLE(x) ((x) |= (READABLE | WRITABLE))
-#define UNSET_READABLE(x) ((x) &= ~READABLE)
-#define UNSET_WRITABLE(x) ((x) &= ~WRITABLE)
-#define UNSET_READABLE_WRITABLE(x) ((x) &= ~(READABLE | WRITABLE))
+// 低两位用于访问模式：00 只读，01 只写，10 读写，11 保留
+#define IS_READABLE(flags)  (((flags) & O_ACCMODE) != O_WRONLY)
+#define IS_WRITABLE(flags)  (((flags) & O_ACCMODE) != O_RDONLY)
 
+// 设置为可读（保持原写标志）
+#define SET_READABLE(flags) \
+    do { \
+        int mode = (flags) & O_ACCMODE; \
+        if (mode == O_WRONLY) \
+            (flags) = ((flags) & ~O_ACCMODE) | O_RDWR; \
+        else if (mode == 0) \
+            (flags) = ((flags) & ~O_ACCMODE) | O_RDONLY; \
+    } while (0)
+
+// 设置为可写（保持原读标志）
+#define SET_WRITABLE(flags) \
+    do { \
+        int mode = (flags) & O_ACCMODE; \
+        if (mode == O_RDONLY) \
+            (flags) = ((flags) & ~O_ACCMODE) | O_RDWR; \
+        else if (mode == 0) \
+            (flags) = ((flags) & ~O_ACCMODE) | O_WRONLY; \
+    } while (0)
+
+// 清除可读（保留写标志）
+#define UNSET_READABLE(flags) \
+    do { \
+        int mode = (flags) & O_ACCMODE; \
+        if (mode == O_RDONLY) \
+            (flags) = ((flags) & ~O_ACCMODE); /* 变成无访问权限 */ \
+        else if (mode == O_RDWR) \
+            (flags) = ((flags) & ~O_ACCMODE) | O_WRONLY; \
+    } while (0)
+
+// 清除可写（保留读标志）
+#define UNSET_WRITABLE(flags) \
+    do { \
+        int mode = (flags) & O_ACCMODE; \
+        if (mode == O_WRONLY) \
+            (flags) = ((flags) & ~O_ACCMODE); /* 变成无访问权限 */ \
+        else if (mode == O_RDWR) \
+            (flags) = ((flags) & ~O_ACCMODE) | O_RDONLY; \
+    } while (0)
+    
 struct file_info {
   char path[MAXPATH]; // full path of the file
   struct vfs_filesystem *fs; // file system

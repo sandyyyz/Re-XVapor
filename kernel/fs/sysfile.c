@@ -25,6 +25,7 @@
 #include "ext4_errno.h"
 #include "debug.h"
 #include "iovec.h"
+#include "errno.h"
 
 static void set_omode(struct file *f, int omode);
 
@@ -989,7 +990,7 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
       printf("fsops->fstat is NULL\n");
       return -1;
   }
-  if ((r = fs->fsops->fstat(path, buf)) != 0) {
+  if ((r = fs->fsops->fstat(path, buf)) != EOK) {
       printf("fsops->fstat failed, r = %d\n", r);
       return -1;
   }
@@ -1013,7 +1014,7 @@ uint64 sys_fstatat() {
   // int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags);
 
   char pathname[MAXPATH];
-  int dirfd, flags;
+  int dirfd, flags, r;
   uint64 statbuf;
   char abs_path[MAXPATH] = {0};
 
@@ -1029,13 +1030,13 @@ uint64 sys_fstatat() {
   printf("[sys_fstatat] abs_path = %s\n", abs_path);
 #endif
   struct kstat kbuf;
-  if(generic_fstat(abs_path, &kbuf) != 0) {
+  if((r = generic_fstat(abs_path, &kbuf)) != EOK) {
       printf("[sys_fstatat] generic_fstat failed\n");
-      return -1;
+      return -r;
   }
   if (copyout(myproc()->mm.pagetable, statbuf, (char *)&kbuf, sizeof(struct stat)) < 0) {
       printf("[sys_fstatat] copyout failed\n");
-      return -1;
+      return -ENOMEM;
   }
   return 0;
 }
