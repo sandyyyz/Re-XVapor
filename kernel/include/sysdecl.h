@@ -49,6 +49,7 @@ extern uint64 sys_sched_yield(void);
 extern uint64 sys_kill(void);
 extern uint64 sys_sigaction(void);
 extern uint64 sys_sigprocmask(void);
+extern uint64 sys_sigreturn(void);
 extern uint64 sys_setgid(void);
 extern uint64 sys_setuid(void);
 extern uint64 sys_times(void);

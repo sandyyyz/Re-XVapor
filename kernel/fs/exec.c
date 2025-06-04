@@ -5,7 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-#include "elf.h"
+#include "../include/elf.h"
 #include "thread.h"
 #include "debug.h"
 #include "vm.h"

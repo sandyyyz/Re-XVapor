@@ -49,6 +49,7 @@
 [SYS_kill] sys_kill,
 [SYS_sigaction] sys_sigaction,
 [SYS_sigprocmask] sys_sigprocmask,
+[SYS_sigreturn] sys_sigreturn,
 [SYS_setgid] sys_setgid,
 [SYS_setuid] sys_setuid,
 [SYS_times] sys_times,

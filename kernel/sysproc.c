@@ -30,7 +30,7 @@ sys_nanosleep(void)
 
     while (ticks - ticks0 < rticks)
     {
-        if (killed(p))
+        if (proc_killed(p))
         {
             rem.tv_sec = (ticks - ticks0) / TICKS_PER_SECOND;
             rem.tv_nsec = ((ticks - ticks0) % TICKS_PER_SECOND) * 1000000000 / TICKS_PER_SECOND;
@@ -84,16 +84,37 @@ sys_getpid(void)
   return myproc()->pid;
 }
 
+
+/**
+ * @brief These system calls create a new ("child") process, in a manner
+       similar to fork.
+  * @param parent_tid If non-NULL, may be used to store the thread ID of the child process in the parent memory it pointed to 
+  * @param tls may be used to set the thread local storage (TLS) descriptor
+  * @param child_tid If non-NULL, may be used to store the thread ID of the child process in the child memory it pointed to
+ * @property int clone(typeof(int (void *_Nullable)) *fn,
+                 void *stack,
+                 int flags,
+                 pid_t *_Nullable parent_tid,
+                    void *_Nullable tls,
+                    pid_t *_Nullable child_tid 
+
+ * @return On success, the thread ID of the child process is returned in the
+       caller's thread of execution.  On failure, -1 is returned in the
+       caller's context, no child process is created, and errno is set to
+       indicate the error.
+ */
 uint64 sys_clone(void) {
   int flags;
-  uint64 stack, tls, ctid;
-  pid_t ptid;
+  uint64 stack, tls, ctid, ptid;
   argint(0, &flags);
   argaddr(1, &stack);
-  argint(2, &ptid);
+  argaddr(2, &ptid);
   argaddr(3, &tls);
   argaddr(4, &ctid);
-  return do_clone(flags, stack, ptid, tls, (pid_t *) ctid);
+#ifdef __DEBUG_SYS_CLONE
+  Log("[sys_clone] flags: 0x%x, stack: %p, ptid: %d, tls: %p, ctid: %p", flags, stack, ptid, tls, ctid);
+#endif
+  return do_clone(flags, stack, ptid, tls, ctid);
 }
 
 uint64
@@ -176,7 +197,7 @@ sys_sleep(void)
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < 10 * n){
-    if(killed(p) || thread_killed(t)){
+    if(proc_killed(p) || thread_killed(t)){
       release(&tickslock);
       return -1;
     }
@@ -212,19 +233,29 @@ sys_uptime(void)
 }
 
 
+/**
+ * @brief   The system call set_tid_address() sets the clear_child_tid value
+       for the calling thread to tidptr.
+ * @property pid_t syscall(SYS_set_tid_address, int *tidptr);
+ * @return  set_tid_address() always returns the caller's thread ID.
+ */
 uint64 sys_set_tid_address(void) {
   // printf("sys_set_tid_address\n");
   uint64 addr;
   argaddr(0, &addr);
   struct tcb *t = mythread();
-  t->set_child_tid = addr;
+#ifdef __DEBUG_SYS_STID_ADDRESS
+  Log("[sys_set_tid_address] tid: %d, addr: %p", t->tid, addr);
+#endif
+  t->clear_child_tid = addr;
   return (uint64)t->tid;
 } 
 
 extern struct proc proc[NPROC];
+
 // TODO: implement this
 uint64 sys_set_robust_list(void) {
-  return 0;
+  return -0;
 }
 
 static inline int rlim64_is_infinity(__u64 rlim64) { return rlim64 == RLIM64_INFINITY; }

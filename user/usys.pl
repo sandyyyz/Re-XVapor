@@ -62,6 +62,7 @@ entry("sched_yield");
 entry("kill");
 entry("sigaction");
 entry("sigprocmask");
+entry("sigreturn");
 entry("setgid");
 entry("setuid");
 entry("times");

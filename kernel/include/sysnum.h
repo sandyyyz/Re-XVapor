@@ -49,6 +49,7 @@
 #define SYS_kill 129
 #define SYS_sigaction 134
 #define SYS_sigprocmask 135
+#define SYS_sigreturn 139
 #define SYS_setgid 144
 #define SYS_setuid 146
 #define SYS_times 153

@@ -29,8 +29,6 @@
 
 static void set_omode(struct file *f, int omode);
 
-// for debug
-int g_first_exec = 0;
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 int argfd(int n, int *pfd, struct file **pf)
