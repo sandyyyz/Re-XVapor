@@ -9,36 +9,142 @@
 #include "debug.h"
 #include "rc.h"
 
-uint64
-sys_nanosleep(void)
+/**
+ * @brief clock_nanosleep() allows the calling thread to
+       sleep for an interval specified with nanosecond precision.  It
+       differs in allowing the caller to select the clock against which
+       the sleep interval is to be measured, and in allowing the sleep
+       interval to be specified as either an absolute or a relative
+       value.
+ * @property int clock_nanosleep(clockid_t clock_id,
+                            int flags,
+                            const struct timespec *request,
+                            struct timespec *_Nullable remain);
+
+ * @return   On successfully sleeping for the requested interval,
+       clock_nanosleep() returns 0.  If the call is interrupted by a
+       signal handler or encounters an error, then it returns one of the
+       positive error number listed in ERRORS. 
+ */
+uint64 sys_clock_nanosleep(void) {
+  int clock_id, flags;
+  uint64 addr0, addr1;
+  struct timespec req, rem;
+  uint rticks;
+  uint ticks0;
+  struct proc *p = myproc();
+  argint(0, &clock_id);
+  argint(1, &flags);
+  argaddr(2, &addr0);
+  argaddr(3, &addr1);
+
+  if (copyin(myproc()->mm.pagetable, (char *)&req, addr0, sizeof(struct timespec)) < 0)
+    return -1;
+
+  rticks = TIMESPEC2TICKS(req);
+  if(rticks < 0) {
+    Warn("sys_clock_nanosleep: invalid request time %d.%d\n", req.tv_sec, req.tv_nsec);
+    return -1;
+  }
+  acquire(&tickslock);
+  ticks0 = ticks;
+
+#ifdef __DEBUG_SYS_CLOCK_NANOSLEEP
+  Log("[sys_clock_nanosleep] clock_id: %d, flags: %d, addr0: %p, addr1: %p", clock_id, flags, (void *)addr0, (void *)addr1);
+  Log("req_sec: %d, req_nsec %d, rticks: %d", req.tv_sec, req.tv_nsec, rticks);
+#endif
+  if(req.tv_sec == INT_MAX){
+    Warn("INTMAX sec in sys_clock_nanosleep, set to 1 sec\n");
+    req.tv_sec = 1;
+    rticks = TIMESPEC2TICKS(req);
+  }
+  // release(&tickslock);
+  // return EINVAL;
+  while (ticks - ticks0 < rticks)
+  {
+      if (proc_killed(p))
+      {   
+          if(addr1) {
+            // rem.tv_sec = (ticks - ticks0) / TICKS_PER_SECOND;
+            // rem.tv_nsec = ((ticks - ticks0) % TICKS_PER_SECOND) * 1000000000 / TICKS_PER_SECOND;
+            TICKS2TIMESPEC(ticks - ticks0, rem);
+            copyout(p->mm.pagetable, addr1, (char *)&rem, sizeof(rem));
+          }
+          release(&tickslock);
+          return -1;
+      }
+      thread_sleep(&ticks, &tickslock);
+  }
+  if(addr1) {
+    rem.tv_sec = 0;
+    rem.tv_nsec = 0;
+    if (copyout(p->mm.pagetable, addr1, (char *)&rem, sizeof(struct timespec)) < 0) {
+      Warn("sys_clock_nanosleep: copyout failed\n");
+      release(&tickslock);
+      return -1;
+    }
+#ifdef __DEBUG_SYS_CLOCK_NANOSLEEP
+    Log("[sys_clock_nanosleep] copyout rem: sec: %d, nsec: %d", rem.tv_sec, rem.tv_nsec);
+#endif
+  }
+  release(&tickslock);
+  return 0;
+}
+/**
+ * @brief  nanosleep() suspends the execution of the calling thread until
+       either at least the time specified in *duration has elapsed, or
+       the delivery of a signal that triggers the invocation of a handler
+       in the calling thread or that terminates the process.
+
+ * @property int nanosleep(const struct timespec *duration,
+                     struct timespec *_Nullable rem);
+
+ * @return  On successfully sleeping for the requested duration, nanosleep()
+       returns 0.  If the call is interrupted by a signal handler or
+       encounters an error, then it returns -1, with errno set to
+       indicate the error.
+ */
+uint64 sys_nanosleep(void)
 {
     uint rticks;
     uint ticks0;
     uint64 addr0, addr1;
     struct proc *p = myproc();
+    struct timespec req, rem;
     argaddr(0, &addr0);
     argaddr(1, &addr1);
-    struct timespec req, rem;
     if (copyin(p->mm.pagetable, (char *)&req, addr0, sizeof(struct timespec)) < 0)
         return -1;
-    if (copyin(p->mm.pagetable, (char *)&rem, addr1, sizeof(struct timespec)) < 0)
-        return -1;
 
-    rticks = req.tv_sec * TICKS_PER_SECOND + req.tv_nsec * TICKS_PER_SECOND / 1000000000;
+    rticks = TIMESPEC2TICKS(req);
+#ifdef __DEBUG_SYS_NANOSLEEP
+    Log("[sys_nanosleep] sec: %d, nsec: %d, rticks: %d, addr0: %p, addr1: %p", req.tv_sec, req.tv_nsec, rticks, (void *)addr0, (void *)addr1);
+#endif
     acquire(&tickslock);
     ticks0 = ticks;
-
     while (ticks - ticks0 < rticks)
     {
-        if (killed(p))
-        {
-            rem.tv_sec = (ticks - ticks0) / TICKS_PER_SECOND;
-            rem.tv_nsec = ((ticks - ticks0) % TICKS_PER_SECOND) * 1000000000 / TICKS_PER_SECOND;
-            copyout(p->mm.pagetable, addr1, (char *)&rem, sizeof(rem));
+        if (proc_killed(p))
+        {   
+            if(addr1) {
+              // rem.tv_sec = (ticks - ticks0) / TICKS_PER_SECOND;
+              // rem.tv_nsec = ((ticks - ticks0) % TICKS_PER_SECOND) * 1000000000 / TICKS_PER_SECOND;
+              TICKS2TIMESPEC(ticks - ticks0, rem);
+              copyout(p->mm.pagetable, addr1, (char *)&rem, sizeof(rem));
+            }
             release(&tickslock);
             return -1;
         }
         thread_sleep(&ticks, &tickslock);
+    }
+    if(addr1) {
+      rem.tv_sec = 0;
+      rem.tv_nsec = 0;
+      if (copyout(p->mm.pagetable, addr1, (char *)&rem, sizeof(struct timespec)) < 0) {
+        Warn("sys_nanosleep: copyout failed\n");
+        release(&tickslock);
+        return -1;
+      }
     }
     release(&tickslock);
     return 0;
@@ -84,16 +190,37 @@ sys_getpid(void)
   return myproc()->pid;
 }
 
+
+/**
+ * @brief These system calls create a new ("child") process, in a manner
+       similar to fork.
+  * @param parent_tid If non-NULL, may be used to store the thread ID of the child process in the parent memory it pointed to 
+  * @param tls may be used to set the thread local storage (TLS) descriptor
+  * @param child_tid If non-NULL, may be used to store the thread ID of the child process in the child memory it pointed to
+ * @property int clone(typeof(int (void *_Nullable)) *fn,
+                 void *stack,
+                 int flags,
+                 pid_t *_Nullable parent_tid,
+                    void *_Nullable tls,
+                    pid_t *_Nullable child_tid 
+
+ * @return On success, the thread ID of the child process is returned in the
+       caller's thread of execution.  On failure, -1 is returned in the
+       caller's context, no child process is created, and errno is set to
+       indicate the error.
+ */
 uint64 sys_clone(void) {
   int flags;
-  uint64 stack, tls, ctid;
-  pid_t ptid;
+  uint64 stack, tls, ctid, ptid;
   argint(0, &flags);
   argaddr(1, &stack);
-  argint(2, &ptid);
+  argaddr(2, &ptid);
   argaddr(3, &tls);
   argaddr(4, &ctid);
-  return do_clone(flags, stack, ptid, tls, (pid_t *) ctid);
+#ifdef __DEBUG_SYS_CLONE
+  Log("[sys_clone] flags: 0x%x, stack: %p, ptid: %d, tls: %p, ctid: %p", flags, stack, ptid, tls, ctid);
+#endif
+  return do_clone(flags, stack, ptid, tls, ctid);
 }
 
 uint64
@@ -176,7 +303,7 @@ sys_sleep(void)
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < 10 * n){
-    if(killed(p) || thread_killed(t)){
+    if(proc_killed(p) || thread_killed(t)){
       release(&tickslock);
       return -1;
     }
@@ -212,16 +339,26 @@ sys_uptime(void)
 }
 
 
+/**
+ * @brief   The system call set_tid_address() sets the clear_child_tid value
+       for the calling thread to tidptr.
+ * @property pid_t syscall(SYS_set_tid_address, int *tidptr);
+ * @return  set_tid_address() always returns the caller's thread ID.
+ */
 uint64 sys_set_tid_address(void) {
   // printf("sys_set_tid_address\n");
   uint64 addr;
   argaddr(0, &addr);
   struct tcb *t = mythread();
-  t->set_child_tid = addr;
+#ifdef __DEBUG_SYS_STID_ADDRESS
+  Log("[sys_set_tid_address] tid: %d, addr: %p", t->tid, addr);
+#endif
+  t->clear_child_tid = addr;
   return (uint64)t->tid;
 } 
 
 extern struct proc proc[NPROC];
+
 // TODO: implement this
 uint64 sys_set_robust_list(void) {
   return 0;

@@ -37,7 +37,7 @@ typedef int tgid_t;
 /// used for sys_times
 /* TODO: incompatiable with stdlib.h, change name temporary*/
 typedef uint64 _clock_t;
-typedef uint64 _time_t;
+typedef long _time_t;
 // #include <stdlib.h>
 
 typedef uint64 pte_t;

@@ -13,12 +13,13 @@
 #include "wait.h"
 #include "mmap.h"
 #include "vfs.h"
+#include "../include/sched.h"
 
 void thread_forkret(void);
 
 extern queue_t unused_p_q, used_p_q, zombie_p_q;
 extern queue_t *g_pcb_queues[PROC_STATEMAX];
-extern char trampoline[], uservec[], userret[];
+extern char trampoline[], uservec[], userret[], __user_rt_sigreturn[];
 
 atomic_t nextpid;
 
@@ -33,8 +34,6 @@ struct proc proc[NPROC];
 extern tcb_t tcb_pool[NTHREADS];
 
 struct proc *initproc;
-
-
 
 // struct spinlock pid_lock;
 
@@ -281,7 +280,7 @@ void freeproc(struct proc *p)
   list_for_each_entry_safe(t, tt, &(p->tg.threads), threads) {
     // TODO: is it right?
     if(t)
-    list_del_reinit(&t->threads);
+      list_del_reinit(&t->threads);
 
     if(!atomic_dec_return(&cur_proc->tg.thread_cnt)) {
       panic("thread count error\n");
@@ -289,7 +288,6 @@ void freeproc(struct proc *p)
     free_thread(t);
   }
   release(&cur_proc->tg.lock);
-
 
   // have unmmaped threads' trapframe in free_thread
   // so needn't free them again
@@ -341,6 +339,11 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  if(mappages(pagetable, SIGRETURN, PGSIZE, (uint64) __user_rt_sigreturn, PTE_R | PTE_X | PTE_U) < 0){
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
   // if(mappages(pagetable, TRAPFRAME, PGSIZE,
@@ -360,6 +363,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf)
 {
   int thread_cnt = atomic_read(&myproc()->tg.thread_cnt);
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+  uvmunmap(pagetable, SIGRETURN, 1, 0);
   // uvmunmap(pagetable, TRAPFRAME, 1, 0);
 
   // and unmap the thread's trapframe
@@ -418,9 +422,6 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
 
-#ifdef __USE_XV6FS
-  p->cwd = namei("/"); 
-#endif
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
 
@@ -529,38 +530,124 @@ fork(void)
   return pid;
 }
 
-int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid)
+/**
+ * @brief clone a new process, copying the parent.
+ * 
+ * @property  * @property int clone(typeof(int (void *_Nullable)) *fn,
+                 void *stack,
+                 int flags,
+                 pid_t *_Nullable parent_tid,
+                    void *_Nullable tls,
+                    pid_t *_Nullable child_tid 
+
+ * @param flags flags for clone, see sched.h
+ * @param stack stack address for the new process
+ * @param ptid ptid address for the new process, used for CLONE_PARENT_SETTID
+ * @param tls tls address for the new process, used for CLONE_SETTLS
+ * The TLS (Thread Local Storage) descriptor is set to tls.
+
+              The interpretation of tls and the resulting effect is
+              architecture dependent.  On x86, tls is interpreted as a
+              struct user_desc * (see set_thread_area(2)).  On x86-64 it
+              is the new value to be set for the %fs base register (see
+              the ARCH_SET_FS argument to arch_prctl(2)).  On
+              architectures with a dedicated TLS register, it is the new
+              value of that register. tp in arch risc-v
+ * @param ctid ctid address for the new process, used for CLONE_CHILD_CLEARTID and CLONE_CHILD_SETTID
+ * @return return the pid of the new process if success, -1 if failed
+ */
+int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
 {
   int i, pid;
-  struct proc *np;
+  struct proc *np = NULL;
   struct proc *p = myproc();
-  if((np = create_proc()) == 0) {
-    return -1;
+  struct tcb *t = NULL;
+
+  if(flags & CLONE_THREAD) {
+    // if CLONE_THREAD, we just create a new thread in the same process
+    if((t = alloc_thread(thread_forkret)) == 0)
+      return -1; 
+    if(proc_join_thread(p, t, NULL) < 0) {
+      free_thread(t);
+      return -1;
+    }
+  } else {
+    // allocate a process
+    if((np = create_proc()) == 0) {
+      return -1;
+    }
+    t = np->tg.group_leader;
   }
-  if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
+  // TODO: let's just copy the leader thread right now
+  // copy saved user registers.
+  *(t->trapframe) = *(p->tg.group_leader->trapframe);
+  // Cause fork to return 0 in the child.
+  t->trapframe->a0 = 0;
+
+  if(flags & CLONE_SETTLS) {
+    printf("CLONE_SETTLS\n");
+    t->trapframe->tp = tls; // set the tp register
+  }
+  if(flags & CLONE_CHILD_SETTID) {
+    printf("CLONE_CHILD_SETTID\n");
+    if(copyout(p->mm.pagetable, ctid, (char *)&t->tid, sizeof(t->tid)) < 0) {
+      goto bad;
+    }
+    t->set_child_tid = ctid; // for debug
+  }
+  if(flags & CLONE_CHILD_CLEARTID) {
+    printf("CLONE_CHILD_CLEARTID\n");
+    // clear when exit
+    t->clear_child_tid = ctid;
+  }
+  if(stack) {
+    printf("set stack to %p\n", stack);
+    t->trapframe->sp = stack;
+  }
+  if(flags & CLONE_SIGHAND) {
+    // not support yet
+    printf("CLONE_SIGHAND\n");
+  }
+  if(flags & CLONE_PARENT_SETTID) {
+    printf("CLONE_PARENT_SETTID\n");
+    // set the parent tid
+    if(copyout(p->mm.pagetable, ptid, (char *)&t->tid, sizeof(t->tid)) < 0) {
+      goto bad;
+    }
+  }
+  if(np == NULL) {
+    // if np is NULL, we are just creating a thread
+    tcb_q_change_state(t, TCB_RUNNABLE);
+    release(&t->lock);
+    return t->tid; // return the thread id
+  }
+
+  /*
+    create a process
+  */
+  if(flags & CLONE_VM) {
+    printf("CLONE_VM\n");
+    np->mm.pagetable = p->mm.pagetable; // share the same pagetable
+  } else {
+    if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
+      freeproc(np);
+      release(&np->lock);
+      return -1;
+    }
+  }
+  // just not support right now
+  if(flags & CLONE_FS) {
+    printf("CLONE_FS\n");
+  }
+  if(flags & CLONE_FILES) {
+    printf("CLONE_FILES\n");
+  }
+  if(proc_copy_vma(p, np) < 0) {
     freeproc(np);
     release(&np->lock);
     return -1;
   }
   np->sz = p->sz;
-  
-  // copy vma
-  acquire(&p->mm.lock);
-  acquire(&np->mm.lock);
-  proc_copy_vma(p, np);
-  release(&np->mm.lock);
-  release(&p->mm.lock);
-
-  // TODO: let's just copy the leader thread right now
-  // copy saved user registers.
-  *(np->tg.group_leader->trapframe) = *(p->tg.group_leader->trapframe);
-
-  // Cause fork to return 0 in the child.
-  np->tg.group_leader->trapframe->a0 = 0;
-
-  if(stack) {
-    np->tg.group_leader->trapframe->sp = stack;
-  }
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)
@@ -582,11 +669,21 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid)
   append_child(p, np);
   release(&p->lock);
   
-  acquire(&np->tg.group_leader->lock);
-  tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
-  release(&np->tg.group_leader->lock);
+  acquire(&t->lock);
+  tcb_q_change_state(t, TCB_RUNNABLE);
+  release(&t->lock);
 
   return pid;
+
+bad:
+  printf("bad \n");
+  if(np) {
+    freeproc(np);
+  }
+  if(t) {
+    free_thread(t);
+  }
+  return -1;
 }
 // initproc接管即将退出的父进程的所有子进程
 // 将p所有子进程的父进程修改为initproc,并wakeup(initproc)
@@ -695,7 +792,7 @@ wait_one(uint64 addr)
     }
 
     // No point waiting if we don't have any children. 
-    if(!havekids || killed(p)){
+    if(!havekids || proc_killed(p)){
       release(&wait_lock);
       return -1;
     }
@@ -753,7 +850,7 @@ pid_t wait4(pid_t pid, uint64 pstatus, int options) {
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || killed(p)){
+    if(!havekids || proc_killed(p)){
       release(&wait_lock);
       return -1;
     }
@@ -823,7 +920,7 @@ kill(int pid)
 }
 
 void
-setkilled(struct proc *p)
+proc_setkilled(struct proc *p)
 {
   acquire(&p->lock);
   p->killed = 1;
@@ -831,7 +928,7 @@ setkilled(struct proc *p)
 }
 
 int
-killed(struct proc *p)
+proc_killed(struct proc *p)
 {
   int k;
   
@@ -908,4 +1005,29 @@ int procs_cnt(void) {
   cnt += get_queue_count(&zombie_p_q);
 
   return cnt;
+}
+
+/**
+ * @brief send a signal to all threads in the process
+ * 
+ * @param p process
+ * @param signo signal number
+ * @param opt options for the signal, see signal.h
+ */
+void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
+  struct tcb *t_cur = NULL;
+  struct tcb *t_tmp = NULL;
+  siginfo_t info;
+  acquire(&p->tg.lock);
+  list_for_each_entry_safe(t_cur, t_tmp, &p->tg.threads, threads) {
+      signal_info_init(signo, &info, opt);
+
+      acquire(&t_cur->lock);
+      thread_send_signal(t_cur, &info);
+      release(&t_cur->lock);
+  }
+  release(&p->tg.lock);
+  if (signo == SIGKILL || signo == SIGSTOP) {
+      proc_setkilled(p);
+  }
 }

@@ -85,7 +85,7 @@ pipewrite(struct pipe *pi, int user_src, uint64 addr, int n)
 
   acquire(&pi->lock);
   while(i < n){
-    if(pi->readopen == 0 || killed(pr)){
+    if(pi->readopen == 0 || proc_killed(pr)){
       release(&pi->lock);
       return -1;
     }
@@ -115,7 +115,7 @@ piperead(struct pipe *pi, int user_dst, uint64 addr, int n)
 
   acquire(&pi->lock);
   while(pi->nread == pi->nwrite && pi->writeopen){  //DOC: pipe-empty
-    if(killed(pr)){
+    if(proc_killed(pr)){
       release(&pi->lock);
       return -1;
     }

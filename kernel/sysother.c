@@ -7,6 +7,7 @@
 #include "uname.h"
 #include "debug.h"
 #include "sysinfo.h"
+#include "signal.h"
 
 extern struct proc proc[NPROC];
 
@@ -157,13 +158,6 @@ uint64 sys_setgid() {
     return 0;
 }
 
-uint64 sys_sigaction() {
-    return 0;
-}
-
-uint64 sys_sigprocmask() {
-    return 0;
-}
 uint64 sys_geteuid() {
     return 0;
 }

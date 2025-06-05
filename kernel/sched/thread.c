@@ -10,6 +10,7 @@
 #include "vm.h"
 #include "proc.h"
 #include "vfs.h"
+#include "signal.h"
 
 queue_t unused_t_queue, used_t_queue, runnable_t_queue, sleeping_t_queue;
 
@@ -88,7 +89,7 @@ void thread_forkret(void)
 /// @param callback callback of thread
 /// @return return the new thread with the lock held
 struct tcb *alloc_thread(thread_callback callback) {
-    struct tcb *t;
+    struct tcb *t = NULL;
 
     t = (struct tcb *)queue_pop_atomic(g_tcb_queues[TCB_UNUSED], 1);
 
@@ -106,10 +107,17 @@ struct tcb *alloc_thread(thread_callback callback) {
     t->context.ra = (uint64)callback;
     t->context.sp = t->kstack + KSTACK_PAGE * PGSIZE;
 
+    sig_empty_set(&t->blocked);
+    sigpending_init(&t->sig_pending);
     // chage state of TCB
     tcb_q_change_state(t, TCB_USED);
 
-
+    t->set_child_tid = 0;
+    t->clear_child_tid = 0;
+    t->killed = 0;
+    t->chan = NULL;
+    t->wait_chan_entry = NULL;
+    
 #ifdef __DEBUG_ALLOCATE_THREAD
     Log("allocate thread %d\n", t->tid);
 #endif
@@ -169,9 +177,10 @@ void free_thread(struct tcb *t) {
     t->name[0] = 0;
     t->p = 0;
     memset(&t->context, 0, sizeof(t->context));
-
     t->killed = 0;  
-
+    t->pending_cnt = 0;
+    t->sig_processing = 0;
+    signal_queue_flush(&t->sig_pending);
     tcb_q_change_state(t, TCB_UNUSED);
 }
 
@@ -250,7 +259,12 @@ void thread_exit(int status) {
         thread_wakeup_specific(t);
     
     if(t->set_child_tid) {
-    thread_wakeup_chan((void*)t->set_child_tid);
+        thread_wakeup_chan((void*)t->set_child_tid);
+    }
+    if(t->clear_child_tid) {
+        tid_t clear = 0;
+        thread_wakeup_chan((void*)t->clear_child_tid);
+        copyout(p->mm.pagetable, t->clear_child_tid, (char *)&clear, sizeof(t->tid));
     }
 
     if(atomic_dec_return(&tg->thread_cnt) == 1) {
@@ -276,8 +290,6 @@ void thread_exit(int status) {
     
 
     return;
-
-
 }
 /// @brief initialize thread group
 /// @param tg thread group
@@ -397,10 +409,12 @@ void thread_wakeup_specific_atomic(struct tcb *t) {
 
     acquire(&t->lock);
 
-    ASSERT(t->wait_chan_entry != NULL);
-    queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    // ASSERT(t->wait_chan_entry != NULL);
+    // queue_remove_atomic(t->wait_chan_entry, (void *)t);
     ASSERT(t->state == TCB_SLEEPING);
-    t->wait_chan_entry = NULL;
+    // t->wait_chan_entry = NULL;
+    ASSERT(t->chan != NULL);
+    t->chan = NULL; // clear the chan, so that we can wake it up
     tcb_q_change_state(t, TCB_RUNNABLE);
 
     release(&t->lock);
@@ -410,10 +424,12 @@ void thread_wakeup_specific_atomic(struct tcb *t) {
 /// @brief wake up a given thread, call and return with thread's lock held 
 /// @param t given thread
 void thread_wakeup_specific(struct tcb *t) {
-    ASSERT(t->wait_chan_entry != NULL);
-    queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    // ASSERT(t->wait_chan_entry != NULL);
+    // queue_remove_atomic(t->wait_chan_entry, (void *)t);
     ASSERT(t->state == TCB_SLEEPING);
-    t->wait_chan_entry = NULL;
+    // t->wait_chan_entry = NULL;
+    ASSERT(t->chan != NULL);
+    t->chan = NULL; // clear the chan, so that we can wake it up
     tcb_q_change_state(t, TCB_RUNNABLE);
 }
 
@@ -478,4 +494,36 @@ int free_allother_threads_group(struct tcb *t) {
     release(&tg->lock);
 
     return 0;
+}
+
+void sighandinit(struct tcb *t) {
+    initlock(&t->sigs.siglock, "sighand lock");
+    atomic_set(&t->sigs.ref, 1);
+}
+
+/**
+ * @brief send a signal to the given thread
+ * 
+ * @attention should call with the thread's lock held
+ * @param t_given given thread to send signal
+ * @param info siginfo_t pointer containing signal information
+ * @details this function will send a signal to the given thread, and wake it up if it is sleeping.
+ */
+void thread_send_signal(struct tcb *t_given, siginfo_t *info) {
+    signal_send(info, t_given);
+
+    if (t_given->state == TCB_SLEEPING) {
+        thread_wakeup_specific(t_given);
+    }
+
+    switch(info->si_signo) {
+        case SIGKILL:  
+        case SIGSTOP:
+        t_given->killed = 1;
+            break;
+        default:
+            break;
+    }
+    
+    return;
 }

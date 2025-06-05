@@ -792,7 +792,11 @@ nfiles == 0, !cur??
 第二次到这个地址0xd585c
 `__run_exit_handler()`
 
-要不还是先支持musl busybox吧
+要不还是先支持musl busybox吧  
+如果遇到这种异常的utrap，先把进程杀了而不是panic吧。实在找不到什么原因了
+
+![busybox.9.10](image-157.png)
+clone传入的flags不为0， 难道是clone实现不规范的原因？
 
 ### busybox.10
 
@@ -823,11 +827,16 @@ ls为啥一直在写0个字节？？？
 
 看样子是的……，难道这就是之前shell一直无限执行一个指令，并且不退出的原因吗？
 ![busybox.12.2](image-154.png)
-
+没错！
 
 ### busybox.13
 
 这是爆栈了吗？
 ![busybox.13.1](image-155.png)
 ![busybox.13.2](image-156.png)
-回来的时候s0居然和原本的值不一样；；；
+回来的时候s0居然和原本的值不一样；；；  
+这个真是个玄学
+
+### busybox.14
+为什么sleep 1 会传进来这么奇怪一个数字 0x7fff ffff
+![busybox.14.1](image-158.png)

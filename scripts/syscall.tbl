@@ -77,3 +77,5 @@
 71 sendfile sys_sendfile
 65 readv    sys_readv
 62 lseek    sys_lseek
+139 sigreturn sys_sigreturn
+115 clock_nanosleep sys_clock_nanosleep

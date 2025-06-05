@@ -10,6 +10,7 @@
 #include "riscv.h"
 #include "vm.h"
 #include "mmap.h"
+#include "signal.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -129,17 +130,18 @@ usertrap(void)
       release(&p->mm.lock);
     }
   } else {
-    
+#ifdef __SHOW_UNEXPECTED_UTRAP
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    panic("unexpected usertrap");
+#endif
+    // panic("unexpected usertrap");
     list_for_each_entry(t, &p->tg.threads, threads) {
       thread_setkilled(t);
     }
-    setkilled(p);
+    proc_setkilled(p);
   }
 
-  if(thread_killed(t) || killed(p))
+  if(thread_killed(t) || proc_killed(p))
     // exit all threads of the process's thread group,
     // and then exit the process
     // every thread will go here
@@ -152,6 +154,7 @@ usertrap(void)
     thread_yield();
   }
 
+  signal_handle(t);
   // each of the syscall, interrupt, exceptions from userspace will return from here
   // because we have set the t->tramframe->kernel_trap = (uint64)usertrap
   // and set the stvec to uservec before returned to userspace last time
@@ -159,7 +162,6 @@ usertrap(void)
   usertrapret();
 }
 
-extern int g_first_exec;
 int inline dodebug() { return 0;}
 
 //
