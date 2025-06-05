@@ -130,10 +130,11 @@ usertrap(void)
       release(&p->mm.lock);
     }
   } else {
-    
+#ifdef __SHOW_UNEXPECTED_UTRAP
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    panic("unexpected usertrap");
+#endif
+    // panic("unexpected usertrap");
     list_for_each_entry(t, &p->tg.threads, threads) {
       thread_setkilled(t);
     }

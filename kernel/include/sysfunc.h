@@ -44,6 +44,7 @@
 [SYS_set_robust_list] sys_set_robust_list,
 [SYS_nanosleep] sys_nanosleep,
 [SYS_clock_gettime] sys_clock_gettime,
+[SYS_clock_nanosleep] sys_clock_nanosleep,
 [SYS_sys_log] sys_syslog,
 [SYS_sched_yield] sys_sched_yield,
 [SYS_kill] sys_kill,

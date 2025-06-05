@@ -44,6 +44,7 @@
 #define SYS_set_robust_list 99
 #define SYS_nanosleep 101
 #define SYS_clock_gettime 113
+#define SYS_clock_nanosleep 115
 #define SYS_sys_log 116
 #define SYS_sched_yield 124
 #define SYS_kill 129

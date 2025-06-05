@@ -290,8 +290,6 @@ void thread_exit(int status) {
     
 
     return;
-
-
 }
 /// @brief initialize thread group
 /// @param tg thread group

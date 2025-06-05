@@ -563,7 +563,7 @@ int ext4_vfstat(struct file *f, struct kstat *st) {
 
     int r = ext4_fs_get_inode_ref(&file->mp->fs, file->inode, &ref);
     if (r != EOK) {
-        return -r;
+        return r;
     }
 
     st->st_dev = 0;

@@ -57,6 +57,7 @@ entry("set_tid_address");
 entry("set_robust_list");
 entry("nanosleep");
 entry("clock_gettime");
+entry("clock_nanosleep");
 entry("sys_log");
 entry("sched_yield");
 entry("kill");

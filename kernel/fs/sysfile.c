@@ -982,15 +982,15 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
   #endif
   if (fs == NULL) {
       printf("FS type not found\n");
-      return -1;
+      return EINVAL;
   }
   if(fs->fsops->fstat == NULL) {
       printf("fsops->fstat is NULL\n");
-      return -1;
+      return EINVAL;
   }
   if ((r = fs->fsops->fstat(path, buf)) != EOK) {
       printf("fsops->fstat failed, r = %d\n", r);
-      return -1;
+      return r;
   }
   #ifdef __DEBUG_GENERIC_FSTAT
   Log("sys_fstat : path %s successfully fstat", path);

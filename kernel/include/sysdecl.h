@@ -44,6 +44,7 @@ extern uint64 sys_set_tid_address(void);
 extern uint64 sys_set_robust_list(void);
 extern uint64 sys_nanosleep(void);
 extern uint64 sys_clock_gettime(void);
+extern uint64 sys_clock_nanosleep(void);
 extern uint64 sys_syslog(void);
 extern uint64 sys_sched_yield(void);
 extern uint64 sys_kill(void);
