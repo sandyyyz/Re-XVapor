@@ -201,7 +201,6 @@ void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr(void);
 
-int do_clone(int flags, uint64 stack, pid_t p_tid, uint64 tls, const pid_t *c_tid);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 #define N2ADDR(x) ((void*)(x))
