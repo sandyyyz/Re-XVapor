@@ -8,6 +8,7 @@
 #include "defs.h"
 #include "thread.h"
 #include "mmap.h"
+#include "debug.h"
 
 struct timespec;
 
@@ -69,6 +70,15 @@ argint(int n, int *ip)
 {
   *ip = argraw(n);
 }
+void arglong(int n, uint64 *lip) {
+  *lip = (long) argraw(n); 
+}
+void arguint32(int n, uint32 *lip) {
+  *lip = (uint32) argraw(n); 
+}
+void arguint64(int n, uint64 *lip) {
+  *lip = (uint64) argraw(n); 
+}
 
 // Retrieve an argument as a pointer.
 // Doesn't check for legality, since
@@ -90,75 +100,10 @@ argstr(int n, char *buf, int max)
   return fetchstr(addr, buf, max);
 }
 
-// Prototypes for the functions that handle system calls.
-extern uint64 sys_fork(void);
-extern uint64 sys_exit(void);
-extern uint64 sys_wait(void);
-extern uint64 sys_pipe(void);
-extern uint64 sys_read(void);
-extern uint64 sys_kill(void);
-extern uint64 sys_exec(void);
-extern uint64 sys_fstat(void);
-extern uint64 sys_chdir(void);
-extern uint64 sys_dup(void);
-extern uint64 sys_getpid(void);
-extern uint64 sys_sbrk(void);
-extern uint64 sys_sleep(void);
-extern uint64 sys_uptime(void);
-extern uint64 sys_open(void);
-extern uint64 sys_write(void);
-extern uint64 sys_mknod(void);
-extern uint64 sys_unlink(void);
-extern uint64 sys_link(void);
-extern uint64 sys_mkdir(void);
-extern uint64 sys_close(void);
-extern uint64 sys_times(void);
-extern uint64 sys_gettimeofday(void);
-extern uint64 sys_uname(void);
-extern uint64 sys_sched_yield(void);
-extern uint64 sys_nanosleep(void);
-extern uint64 sys_clone(void);
-extern uint64 sys_getppid(void);
-extern uint64 sys_wait4(void);
-extern uint64 sys_execve(void);
-// 函数指针数组
-// An array mapping syscall numbers from syscall.h
-// to the function that handles the system call.
-static uint64 (*syscalls[])(void) = {
-[SYS_fork]    sys_fork,
-[SYS_exit]    sys_exit,
-[SYS_wait]    sys_wait,
-[SYS_pipe]    sys_pipe,
-[SYS_read]    sys_read,
-[SYS_kill]    sys_kill,
-[SYS_exec]    sys_exec,
-[SYS_fstat]   sys_fstat,
-[SYS_chdir]   sys_chdir,
-[SYS_dup]     sys_dup,
-[SYS_getpid]  sys_getpid,
-[SYS_sbrk]    sys_sbrk,
-[SYS_sleep]   sys_sleep,
-[SYS_uptime]  sys_uptime,
-[SYS_open]    sys_open,
-[SYS_write]   sys_write,
-[SYS_mknod]   sys_mknod,
-[SYS_unlink]  sys_unlink,
-[SYS_link]    sys_link,
-[SYS_mkdir]   sys_mkdir,
-[SYS_close]   sys_close,
-[SYS_nanosleep] sys_nanosleep,
-[SYS_clone]   sys_clone,
-[SYS_wait4]   sys_wait4,
-[SYS_execve]  sys_execve,
+#include "sysdecl.h"
 
-//other syscalls
-[SYS_times]   sys_times,
-[SYS_gettimeofday] sys_gettimeofday,
-[SYS_uname]   sys_uname,
-[SYS_sched_yield] sys_sched_yield,
-[SYS_getppid] sys_getppid,
-[SYS_mmap]   sys_mmap,
-[SYS_munmap] sys_munmap,
+static uint64 (*syscalls[])(void) = {
+#include "sysfunc.h"
 };
 
 void
@@ -169,12 +114,16 @@ syscall(void)
   struct tcb *t = mythread();
 
   num = t->trapframe->a7; // call number
-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+#ifdef __DEBUG_SYSCALL
+  printf("thread %d syscall %d\n", t->tid, num);
+#endif
+    if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     t->trapframe->a0 = syscalls[num]();
     // printf("%d %s: syscall %d\n", p->pid, p->name, num);
   } else {
     t->trapframe->a0 = -1;
+    Log("thread %d syscall %d: unknown", t->tid, num);
   }
 }

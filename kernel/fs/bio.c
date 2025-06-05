@@ -22,8 +22,9 @@
 #include "sleeplock.h"
 #include "riscv.h"
 #include "defs.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "buf.h"
+#include "debug.h"
 
 struct {
   struct spinlock lock;
@@ -66,7 +67,7 @@ binit(void)
 // In either case, return locked buffer.
 // 并不会从硬盘读取数据块
 // 若未找到，则返回一个locked buffer(refcnt == 0)(不抹除数据块)
-static struct buf*
+struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;
@@ -104,14 +105,22 @@ struct buf*
 bread(uint dev, uint blockno)
 {
   struct buf *b;
-
+#ifdef __DEBUG_BREAD
+  Log("bread: dev %d, blockno %d", dev, blockno);
+#endif
   b = bget(dev, blockno);
   if(!b->valid) {
     // read new block from disk
+#ifdef __DEBUG_BREAD
+    Log("bread: read block from disk");
+#endif
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }
-  return b;
+#ifdef __DEBUG_BREAD
+  Log("bread: read block end");
+#endif
+  return b; 
 }
 
 // Write b's contents to disk.  Must be locked.

@@ -4,66 +4,59 @@
 #include "stat.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "file.h"
 #include "user.h"
 #include "fcntl.h"
 #include "debug.h"
+char musl_basic_dir[] = "/musl/basic";
+char glibc_basic_dir[] = "/glibc/basic";
+char musl_dir[] = "/musl";
+char glibc_dir[] = "/glibc";
+char glibc_busybox_path[] = "/glibc/busybox_unstripped";
+char musl_busybox_path[] = "/musl/busybox";
 
-char *argv[] = { "sh", 0 };
+char *glibc_basic_test_argv[] = {"/glibc/busybox_unstripped", "sh", "-v", "/glibc/basic/run-all.sh", "exit", NULL};
+char *glibc_busybox_test_argv[] = {"/glibc/busybox", "sh", "/glibc/busybox_testcode.sh", NULL };
+char *musl_basic_test_argv[] = {"/glibc/busybox", "sh", "/musl/basic/run-all.sh", NULL };
+char *musl_busybox_test_argv[] = {"/glibc/busybox", "sh", "/musl/busybox_testcode.sh", NULL };
+char *glibc_shell_argv[] = {"/glibc/busybox", "sh", NULL };
+char *musl_shell_argv[] = {"/musl/busybox", "sh", NULL };
+char *busybox_envp[] = {0};
 
-int
-main(void)
+int main(void)
 {
-  int pid, wpid;
+  dev(O_RDWR, CONSOLE, 0);
+  dup(0); // stdout
+  dup(0); // stderr
+  printf("======================== init: starting rexvapor init !!! ========================\n");
 
-  if(open("console", O_RDWR) < 0){
-    mknod("console", CONSOLE, 0);
-    open("console", O_RDWR);
+  // if(openat(AT_FDCWD, "/dev/tty", O_RDWR, 0) < 0) {
+  //   // while(1);
+  //   if(mkdir("/dev", 0755) < 0) {
+  //     printf("init: mkdir /dev failed\n");
+  //     return -1;`
+  //   }
+  //   // while(1);
+  //   if(mknod("/dev/tty", S_IFCHR | S_IRUSR | S_IWUSR, CONSOLE) < 0) {
+  //     printf("init: mknod tty failed\n");
+  //     return -1;
+  //   }
+  // }
+  int pid = fork();
+  if(pid == 0) {
+    printf("init: child process, pid = %d\n", getpid());
+    if(chdir(musl_dir) < 0) {
+      printf("init: chdir %s failed\n", glibc_dir);
+      exit(-1);
+    }
+    int ret = execve(musl_busybox_path, musl_shell_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
+  } else {
+    wait(0);
+    printf("child process exited, pid = %d\n", pid);
   }
-  dup(0);  // stdout
-  dup(0);  // stderr
 
-
-
-  for(;;){
-    printf("init: starting sh\n");
-    pid = fork();
-    if(pid < 0){
-      printf("init: fork failed\n");
-      exit(1);
-    }
-
-#ifdef __DEBUG_INIT
-    printf("init fork finished!\n");
-#endif
-
-    if(pid == 0){
-    // child process
-#ifdef __DEBUG_INIT
-      printf("exec sh!\n");
-#endif
-      exec("sh", argv);
-      printf("init: exec sh failed\n");
-      exit(1);
-    }
-
-  for(;;){
-      // this call to wait() returns if the shell exits,
-      // or if a parentless process exits.
-#ifdef __DEBUG_INIT
-      printf("init process waiting..,\n");
-#endif
-      wpid = wait((int *) 0);
-      if(wpid == pid){
-        // the shell exited; restart it.
-        break;
-      } else if(wpid < 0){
-        printf("init: wait returned an error\n");
-        exit(1);
-      } else {
-        // it was a parentless process; do nothing.
-      }
-    }
-  }
+  exit(0);
+  return 0;
 }

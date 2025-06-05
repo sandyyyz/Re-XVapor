@@ -260,6 +260,12 @@ r_mcounteren()
   return x;
 }
 
+static inline uint64 rdtime() {
+  uint64 x;
+  asm volatile("rdtime %0" : "=r"(x));
+  return x;
+}
+
 // machine-mode cycle counter
 static inline uint64
 r_time()
@@ -299,7 +305,7 @@ r_sp()
   return x;
 }
 
-// read and write tp, the thread pointer, which xv6 uses to hold
+// read and write tp, the thread pointer, which xv6fs uses to hold
 // this core's hartid (core number), the index into cpus[].
 static inline uint64
 r_tp()

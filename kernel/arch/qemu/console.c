@@ -15,7 +15,7 @@
 #include "param.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "file.h"
 #include "memlayout.h"
 #include "riscv.h"
@@ -60,13 +60,14 @@ consolewrite(int user_src, uint64 src, int n)
 {
   int i;
 
+  acquire(&cons.lock);
   for(i = 0; i < n; i++){
     char c;
     if(either_copyin(&c, user_src, src+i, 1) == -1)
       break;
     uartputc(c);
   }
-
+  release(&cons.lock);
   return i;
 }
 

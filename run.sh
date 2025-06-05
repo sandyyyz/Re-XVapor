@@ -1,2 +1,0 @@
-make user
-make qemu

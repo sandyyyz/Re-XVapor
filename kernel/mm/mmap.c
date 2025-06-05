@@ -56,13 +56,17 @@ int proc_copy_vma(struct proc *p, struct proc *np) {
  * @brief free process vm
  * 
  * @param p process
- * @attention call with mm lock held
+ * @attention call without mm lock held
  */
 void freeprocvm(struct proc *p) {
     struct vma_struct *vma, *next;
     list_for_each_entry_safe(vma, next, &p->mm.vma_list, vma_list) {
         mmap_writeback_unmapf(p->mm.pagetable, vma, vma->vm_end - vma->vm_start);
+        acquire(&p->mm.lock);
         list_del(&vma->vma_list);
+        release(&p->mm.lock);
+        kfree(vma);
+        vma = 0;
     }
 }
 uint64 sys_mmap(void) {
@@ -121,7 +125,8 @@ uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd,
     struct proc *p = myproc();
     struct vma_struct *vma;
     // printf("fp->writeable: %d\n", fp->writable);
-    if(!fp->writable && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
+    // printf("fp->flags: %d\n", fp->flags);
+    if(!IS_WRITABLE(fp->flags) && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
         return -1;
     }
 
@@ -160,7 +165,6 @@ uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd,
  * @param pgtable pagetable
  * @param len length of the vma want to unmap
  * @return return 0 if success, -1 if failed
- * @attention call with mm lock held
  */
 int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) {
     pte_t *pte;
@@ -177,7 +181,7 @@ int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) 
         }
         if((*pte & PTE_D) && vma->flags & MAP_SHARED) {
         // write back 
-        filewrite(fp, va, PGSIZE);
+        filewrite(fp, 1, va, PGSIZE, fp->fpos);
         }
 #ifdef __DEBUG_MMAP_WRITEBACK
         Log("mmap_writeback_unmapf: va %p, pte %p, pa %p\n", va, *pte, PTE2PA(*pte));
@@ -185,8 +189,10 @@ int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) 
         uvmunmap(pgtable, va, 1, 1);
         *pte = 0;
     }
-
+    acquire(&myproc()->mm.lock);
     vma->vm_start += len;
+    release(&myproc()->mm.lock);
+
     return 0;
 }
 
@@ -202,19 +208,22 @@ int do_munmap(uint64 addr, int len) {
     // but is that possible?... maybe holding a spinlock when sleep is not always a bad thing...
     // just never hold a spinlock when sleep right now in thread_sched()...
 
-    // acquire(&p->mm.lock);
+    acquire(&p->mm.lock);
     vma = find_vma(p, addr);
+    release(&p->mm.lock);
+
     if(vma == 0) {
         // release(&p->mm.lock);
         return -1;
     }
     mmap_writeback_unmapf(p->mm.pagetable, vma, len);
     // free vma if it's empty
+    acquire(&p->mm.lock);
     if(vma->vm_start >= vma->vm_end) {
         vma->file->ref--;
         list_del(&vma->vma_list);
         kfree((void *)vma);
     }
-    // release(&p->mm.lock);
+    release(&p->mm.lock);
     return 0;
 }

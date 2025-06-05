@@ -10,7 +10,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "fcntl.h"
 
 int
@@ -51,6 +51,7 @@ main(int argc, char *argv[])
   close(fd);
 
   wait(0);
+  printf("stressfs done\n");
 
   exit(0);
 }

@@ -12,6 +12,7 @@
 #include "list.h"
 #include "wait.h"
 #include "mmap.h"
+#include "vfs.h"
 
 void thread_forkret(void);
 
@@ -59,6 +60,7 @@ void
 procinit(void)
 {
   struct proc *p;
+  PCB_Q_ALL_INIT();
   atomic_set(&nextpid, 1);
   // initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
@@ -148,6 +150,7 @@ mycpu(void)
 {
   int id = cpuid();
   struct cpu *c = &cpus[id];
+  
   return c;
 }
 
@@ -178,16 +181,6 @@ allocproc(void)
 {
   struct proc *p;
 
-  // for(p = proc; p < &proc[NPROC]; p++) {
-  //   acquire(&p->lock);
-  //   if(p->state == UNUSED) {
-  //     goto found;
-  //   } else {
-  //     release(&p->lock);
-  //   }
-  // }
-  // return 0;
-
   if((p = (struct proc*)queue_pop_atomic(&unused_p_q, 1)) == NULL)
     return NULL;
 
@@ -195,9 +188,11 @@ allocproc(void)
 
 // found:
   p->pid = allocpid();
+  p->pgid = p->pid; // process group id, equals to pid
 #ifdef __DEBUG_ALLOCATE_PROC
   Info("proc %d allocated, pcb %p\n", p->pid, p);
 #endif
+  pcb_q_change_state(p, USED);
   // process family tree
   p->first_child = NULL;
   INIT_LIST_HEAD(&p->sibling_list);
@@ -208,33 +203,9 @@ allocproc(void)
   // timer
   p->utime = 0;
   p->ktime = 0;
-
+  
+  strcpy(p->cinfo.path, "/");
   // state
-  pcb_q_change_state(p, USED);
-
-/// we don't need a trapframe in process anymorem,caz we use thread to replace process 
-
-  // Allocate a trapframe page.
-  // if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-  //   freeproc(p);
-  //   release(&p->lock);
-  //   return 0;
-  // }
-
-  // An empty user page table.
-  // p->pagetable = proc_pagetable(p);
-  // if(p->pagetable == 0){
-  //   freeproc(p);
-  //   release(&p->lock);
-  //   return 0;
-  // }
-
-  // Set up new context to start executing at forkret,
-  // which returns to user space.
-  // memset(&p->context, 0, sizeof(p->context));
-  // p->context.ra = (uint64)forkret;
-  // p->context.sp = p->kstack + PGSIZE;
-
   // mm_struct
   initlock(&p->mm.lock, "mm_lock");
   p->mm.pagetable = proc_pagetable(p);
@@ -329,6 +300,8 @@ void freeproc(struct proc *p)
   p->mm.pagetable = 0;
   p->sz = 0;
   p->pid = 0;
+  p->pgid = 0; // process group id, equals to pid
+  
   p->parent = 0;
   p->name[0] = 0;
   // p->chan = 0;
@@ -397,6 +370,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf)
   uvmfree(pagetable, sz);
 }
 
+#ifdef __USE_XV6FS
 // a user program that calls exec("/init")
 // assembled from ../user/initcode.S
 // od -t xC ../user/initcode
@@ -409,6 +383,12 @@ uchar initcode[] = {
   0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00
 };
+
+unsigned int initcode_len = sizeof(initcode);
+
+#else 
+#include "../../build/user/initcode.h"
+#endif
 
 // Set up first user process.
 void
@@ -427,7 +407,7 @@ userinit(void)
 
   // allocate one user page and copy initcode's instructions
   // and data into it.
-  uvmfirst(p->mm.pagetable, initcode, sizeof(initcode));
+  uvmfirst(p->mm.pagetable, initcode, initcode_len);
   p->sz = PGSIZE; // TODO: how large?? maybe bug here
 
   // prepare for the very first "return" from kernel to user.
@@ -438,8 +418,9 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
 
+#ifdef __USE_XV6FS
   p->cwd = namei("/"); 
-
+#endif
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
 
@@ -477,38 +458,22 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
-  struct tcb  *t = mythread();
+  // struct tcb  *t = mythread();
   // Allocate process.
   // return with np->lock held
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, before allocproc\n", p->pid);
-#endif //__DEBUG_FORK
-  if((np = allocproc()) == 0){
+  // if((np = allocproc()) == 0){
+  //   return -1;
+  // }
+  // if((t = alloc_thread(thread_forkret)) == 0) {
+  //   freeproc(np);
+  //   return -1;
+  // }
+
+  // // make the allocated thread be the group leader
+  // proc_join_thread(np, t, NULL);
+  if((np = create_proc()) == 0) {
     return -1;
   }
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, child %d, after allocproc\n", p->pid, np->pid);
-#endif //__DEBUG_FORK
-  if((t = alloc_thread(thread_forkret)) == 0) {
-    freeproc(np);
-    return -1;
-  }
-
-  // make the allocated thread be the group leader
-  proc_join_thread(np, t, NULL);
-
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, child %d, after proc_join_thread\n", p->pid, np->pid);
-#endif //__DEBUG_FORK
-  // proc_join_thread(np, t, NULL);?
-
-  // Copy user memory from parent to child.
-#ifdef __DEBUG_FORK
-  printf("old pagetable pid %d :\n", p->pid);
-  vmprint(p->mm.pagetable);
-  printf("new pagetable: pid %d \n", np->pid);
-  vmprint(np->mm.pagetable);
-#endif
   if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
@@ -535,13 +500,12 @@ fork(void)
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
-  np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-  
-  release(&np->tg.group_leader->lock);
+  strncpy(np->cinfo.path, p->cinfo.path, MAXPATH);
+  // release(&np->tg.group_leader->lock);
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -552,43 +516,27 @@ fork(void)
   append_child(p, np);
   release(&p->lock);
   
-  acquire(&np->lock);
+  // acquire(&np->lock);
   // np->state = RUNNABLE;
   // change the leader thread's state
-  acquire(&np->tg.lock);
+  // acquire(&np->tg.lock);
   acquire(&np->tg.group_leader->lock);
   tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
   release(&np->tg.group_leader->lock);
-  release(&np->tg.lock);
-  release(&np->lock);
-#ifdef __DEBUG_FORK
-  Info("fork: parent %d, child %d, child->leader_thread id: %d\n", p->pid, np->pid, np->tg.group_leader->tid);
-#endif //__DEBUG_FORK
+  // release(&np->tg.lock);
+  // release(&np->lock);
+  
   return pid;
 }
 
-
-int do_clone(int flags, uint64 stack, pid_t p_tid, uint64 tls, const pid_t *c_tid)
+int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid)
 {
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
-  struct tcb  *t = mythread();
-  // Allocate process.
-  // return with np->lock held
-
-  if((np = allocproc()) == 0){
+  if((np = create_proc()) == 0) {
     return -1;
   }
-  if((t = alloc_thread(thread_forkret)) == 0) {
-    freeproc(np);
-    return -1;
-  }
-
-  // make the allocated thread be the group leader
-  proc_join_thread(np, t, NULL);
-  // Copy user memory from parent to child.
-
   if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
@@ -610,21 +558,20 @@ int do_clone(int flags, uint64 stack, pid_t p_tid, uint64 tls, const pid_t *c_ti
   // Cause fork to return 0 in the child.
   np->tg.group_leader->trapframe->a0 = 0;
 
-  if (stack) {
-    t->trapframe->sp = stack;
+  if(stack) {
+    np->tg.group_leader->trapframe->sp = stack;
   }
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
-  np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-  
-  release(&np->tg.group_leader->lock);
+  strncpy(np->cinfo.path, p->cinfo.path, MAXPATH);
+
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -635,15 +582,9 @@ int do_clone(int flags, uint64 stack, pid_t p_tid, uint64 tls, const pid_t *c_ti
   append_child(p, np);
   release(&p->lock);
   
-  acquire(&np->lock);
-  // np->state = RUNNABLE;
-  // change the leader thread's state
-  acquire(&np->tg.lock);
   acquire(&np->tg.group_leader->lock);
   tcb_q_change_state(np->tg.group_leader, TCB_RUNNABLE);
   release(&np->tg.group_leader->lock);
-  release(&np->tg.lock);
-  release(&np->lock);
 
   return pid;
 }
@@ -684,33 +625,18 @@ void proc_exit(int status)
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
       struct file *f = p->ofile[fd];
-      fileclose(f);
+      if(f->ref > 0)
+        fileclose(f);
       p->ofile[fd] = 0;
     }
   }
-  acquire(&p->mm.lock);
   freeprocvm(p);
-  release(&p->mm.lock);
 
-// #ifdef __DEBUG_PEXIT
-//   Info("noff before begin_op %d\n", mycpu()->noff);
-// #endif
-  begin_op();
-// #ifdef __DEBUG_PEXIT
-//   Info("noff after begin_op %d\n", mycpu()->noff);
-// #endif
-  iput(p->cwd);
-// #ifdef __DEBUG_PEXIT
-//   Info("noff after iput %d\n", mycpu()->noff);
-// #endif
-  end_op();
-// #ifdef __DEBUG_PEXIT
-//   Info("noff after end_op %d\n", mycpu()->noff);
-// #endif
-  p->cwd = 0;
+  memset(&p->cinfo, 0, sizeof(p->cinfo));
 
   acquire(&wait_lock);
-
+  
+  acquire(&p->lth_exitlock);
   // Give any children to init.
   reparent(p);
 
@@ -720,23 +646,11 @@ void proc_exit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
-  // p->state = ZOMBIE;
-  acquire(&p->lth_exitlock);
-  
-#ifdef __DEBUG_PEXIT
-  Info("thread %d proc_exit, ready to change state to ZOMBIE\n", mythread()->tid);
-#endif
+  p->xstate <<= 8; // shift to high byte
   pcb_q_change_state(p, ZOMBIE);
-#ifdef __DEBUG_PEXIT
-  Info("thread %d proc_exit, changed state to ZOMBIE\n", mythread()->tid);
-#endif
   release(&wait_lock);
 
-  // #ifdef __DEBUG_PEXIT
-  // Log("thread %d proc_exit %d", mythread()->tid, p->pid);
-  // #endif
   // Jump into the scheduler, never to return.
-  // sched();
   // thread_sched();
   // panic("zombie exit");
 }
@@ -849,7 +763,6 @@ pid_t wait4(pid_t pid, uint64 pstatus, int options) {
       release(&wait_lock);
       return 0;
     }
-    
     // Wait for a child to exit.
     // TODO: how to wait for a specific child process to exit??
     // TODO: bug here: any child process will wake up this parent process
@@ -986,4 +899,13 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int procs_cnt(void) {
+  int cnt = 0;
+
+  cnt += get_queue_count(&used_p_q);
+  cnt += get_queue_count(&zombie_p_q);
+
+  return cnt;
 }

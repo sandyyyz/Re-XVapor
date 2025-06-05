@@ -5,7 +5,7 @@
 #include "elf.h"
 #include "riscv.h"
 #include "defs.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "proc.h"
 #include "kalloc.h"
 
@@ -442,7 +442,6 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-  // copy可能跨页
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);

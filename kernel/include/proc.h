@@ -7,10 +7,12 @@
 #include "semaphore.h" 
 #include "mm.h"
 #include "thread.h"
+#include "vfs.h"
+#include "ext4.h"
+#include "rc.h"
 
 struct thread_group;
 struct tcb;
-
 
 // Per-CPU state.
 struct cpu {
@@ -23,7 +25,6 @@ struct cpu {
 };
 
 extern struct cpu cpus[NCPU];
-
 
 
 // enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE, PROC_STATEMAX };
@@ -41,7 +42,7 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
-
+  int pgid;                   // Process group ID
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
@@ -52,6 +53,9 @@ struct proc {
   // struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
+
+  struct cwdinfo cinfo;
+
   char name[16];               // Process name (debugging)
 
   // used for sys_times
@@ -70,10 +74,15 @@ struct proc {
   struct thread_group tg;
   // for clone
   pid_t ctid;
+
   // thread lock
   struct semaphore tlock;
 
   struct mm_struct mm;
+  
+  struct ext4_dir dir; // for ext4
+
+  struct rlimit rlim[RLIM_NLIMITS];
 
 };
 
@@ -85,5 +94,7 @@ struct proc {
 #define nextsibling(p) (list_first_entry(&(p->sibling_list), struct proc, sibling_list))
 
 void freeproc(struct proc *p);
+struct proc* myproc(void);
+int procs_cnt(void);
 
 #endif

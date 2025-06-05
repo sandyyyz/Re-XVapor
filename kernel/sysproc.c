@@ -6,7 +6,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "timer.h"
-
+#include "debug.h"
+#include "rc.h"
 
 uint64
 sys_nanosleep(void)
@@ -59,6 +60,24 @@ sys_exit(void)
   return 0;  // not reached
 }
 
+/**
+ * @brief This system call terminates all threads in the calling process's
+       thread group.
+ * 
+ * @return this function will not return
+ */
+uint64 sys_exit_group(void) {
+  int n;
+  argint(0, &n);
+  struct tcb *t = mythread();
+  if (t->tg->group_leader == t) {
+    free_allother_threads_group(t);
+    thread_exit(n);
+  } else {
+    thread_exit(n);
+  }
+  return 0; // not reached
+}
 uint64
 sys_getpid(void)
 {
@@ -66,15 +85,15 @@ sys_getpid(void)
 }
 
 uint64 sys_clone(void) {
-    int flags;
-    uint64 stack, tls, ctid;
-    pid_t ptid;
-    argint(0, &flags);
-    argaddr(1, &stack);
-    argint(2, &ptid);
-    argaddr(3, &tls);
-    argaddr(4, &ctid);
-    return do_clone(flags, stack, ptid, tls, (pid_t *) ctid);
+  int flags;
+  uint64 stack, tls, ctid;
+  pid_t ptid;
+  argint(0, &flags);
+  argaddr(1, &stack);
+  argint(2, &ptid);
+  argaddr(3, &tls);
+  argaddr(4, &ctid);
+  return do_clone(flags, stack, ptid, tls, (pid_t *) ctid);
 }
 
 uint64
@@ -115,6 +134,35 @@ sys_sbrk(void)
   return addr;
 }
 
+uint64 sys_brk(void) {
+  uint64 addr;
+  uint64 oldsz;
+
+  argaddr(0, &addr);
+  #ifdef __DEBUG_BRK
+  Log("[sys_brk] %p", addr);
+  Log("[sys_brk] oldsize %p", myproc()->sz);
+  #endif
+  
+  if(addr >= MAXVA || addr >= BRKTOP) {
+    Warn("brk %p failed\n", addr);
+    return -1;
+  }
+  oldsz = myproc()->sz;
+
+  if(addr == 0) {
+    return oldsz;
+  }
+  if(addr > oldsz) {
+    if (growproc(addr - oldsz) < 0)
+      return -1;
+    else
+      return myproc()->sz;
+  } 
+  return oldsz;
+  
+}
+
 uint64
 sys_sleep(void)
 {
@@ -142,8 +190,11 @@ uint64
 sys_kill(void)
 {
   int pid;
+  int sig;
 
   argint(0, &pid);
+  argint(1, &sig);
+  
   return kill(pid);
 }
 
@@ -158,4 +209,195 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+uint64 sys_set_tid_address(void) {
+  // printf("sys_set_tid_address\n");
+  uint64 addr;
+  argaddr(0, &addr);
+  struct tcb *t = mythread();
+  t->set_child_tid = addr;
+  return (uint64)t->tid;
+} 
+
+extern struct proc proc[NPROC];
+// TODO: implement this
+uint64 sys_set_robust_list(void) {
+  return 0;
+}
+
+static inline int rlim64_is_infinity(__u64 rlim64) { return rlim64 == RLIM64_INFINITY; }
+
+static void rlim64_to_rlim(const struct rlimit64 *rlim64, struct rlimit *rlim) {
+  if (rlim64_is_infinity(rlim64->rlim_cur))
+      rlim->rlim_cur = RLIM_INFINITY;
+  else
+      rlim->rlim_cur = (unsigned long) rlim64->rlim_cur;
+  if (rlim64_is_infinity(rlim64->rlim_max))
+      rlim->rlim_max = RLIM_INFINITY;
+  else
+      rlim->rlim_max = (unsigned long) rlim64->rlim_max;
+}
+
+static void rlim_to_rlim64(const struct rlimit *rlim, struct rlimit64 *rlim64) {  
+  if (rlim->rlim_cur == RLIM_INFINITY)
+      rlim64->rlim_cur = RLIM64_INFINITY;
+  else
+      rlim64->rlim_cur = rlim->rlim_cur;
+  if (rlim->rlim_max == RLIM_INFINITY)
+      rlim64->rlim_max = RLIM64_INFINITY;
+  else
+      rlim64->rlim_max = rlim->rlim_max;
+}
+
+// RLIMIT_NOFILE and RLIMIT_STACK
+static int do_prlimit(struct proc *p, uint32 resource, struct rlimit *new_rlim, struct rlimit *old_rlim) {
+  int retval = 0;
+
+  if (resource >= RLIM_NLIMITS)
+      return -EINVAL;
+
+  struct rlimit *rlim = p->rlim + resource;
+  if (!retval) {
+      if (old_rlim)
+          *old_rlim = *rlim;
+      if (new_rlim) {
+          *rlim = *new_rlim;
+      }
+  }
+  return retval;
+}
+
+// int prlimit(pid_t pid, int resource, const struct rlimit *new_limit, struct rlimit *old_limit);
+uint64 sys_prlimit64(void) {
+  pid_t pid;
+  int resource;
+  uint64 new_limit_addr;
+  uint64 old_limit_addr;
+  struct rlimit new_limit;
+  struct rlimit old_limit;
+  struct rlimit64 new_limit64;
+  struct rlimit64 old_limit64;
+  struct proc *p = NULL;
+  int ret = 0;
+
+  argint(0, &pid);
+  argint(1, &resource);
+  argaddr(2, &new_limit_addr);
+  argaddr(3, &old_limit_addr);
+  // printf("[sys_prlimit64] pid: %d, resource: %d, new_limit_addr: %p, old_limit_addr: %p\n", pid, resource, new_limit_addr, old_limit_addr);
+
+  if(new_limit_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&new_limit64, new_limit_addr, sizeof(struct rlimit)) < 0) {
+      printf("[sys_prlimit64] copyin new_limit failed\n");
+      return -1;
+    }
+    rlim64_to_rlim(&new_limit64, &new_limit);
+  }
+
+  if (pid) {
+    for (int i = 0; i < NPROC; i++) {
+        if (proc[i].pid == pid) {
+            p = &proc[i];
+            break;
+        }
+    }
+  } else {
+    p = myproc();
+  }
+
+  if (!p) {
+    panic("proc get error\n");
+  }
+  acquire(&p->lock);
+
+  ret = do_prlimit(p, resource, new_limit_addr ? &new_limit : NULL, old_limit_addr ? &old_limit : NULL);
+
+  if (!ret && old_limit_addr) {
+    rlim_to_rlim64(&old_limit, &old_limit64);
+    if (copyout(myproc()->mm.pagetable, old_limit_addr, (char *) &old_limit64, sizeof(old_limit64)) < 0) {
+        ret = -EFAULT;
+    }
+  }
+
+  release(&p->lock);
+  return ret;
+
+}
+
+uint64 sys_gettid(void) {
+  struct tcb *t = mythread();
+  if (t == NULL) {
+    return -1; // No thread found
+  }
+  return t->tid;
+}
+
+/**
+ * @brief getpgid — get the process group ID for a process
+ * 
+ * @property pid_t getpgid(pid_t pid);
+ * @return  Upon successful completion, getpgid() shall return a process group
+       ID. Otherwise, it shall return (pid_t)-1 and set errno to indicate
+       the error.
+ */
+uint64 sys_getpgid(void) {
+  pid_t pid,pgid;
+  struct proc *p = NULL;
+  argint(0, &pid); // Get the process ID from the syscall argument
+  
+  p = &proc[pid]; // Find the process by its ID
+  if (pid < 0 || pid >= NPROC || p == NULL) {
+    return -1; // Invalid process ID or process not found
+  }
+  if (p->state == UNUSED) {
+    return -1; // Process is not in use
+  }
+  acquire(&p->lock); // Acquire the process lock to ensure thread safety
+  pgid = p->pgid; // Get the process group ID
+  release(&p->lock); // Release the process lock
+  return pgid; // Return the process group ID
+}
+
+/**
+ * @brief  setpgid() sets the PGID of the process specified by pid to pgid.
+       If pid is zero, then the process ID of the calling process is
+       used.  If pgid is zero, then the PGID of the process specified by
+       pid is made the same as its process ID. 
+ * 
+  * @property int setpgid(pid_t pid, pid_t pgid);
+ * @return On success, setpgid() and setpgrp() return zero.  On error, -1 is
+       returned, and errno is set to indicate the error.
+ */
+uint64 sys_setpgid(void) {
+  pid_t pid, pgid;
+  struct proc *p = NULL;
+
+  argint(0, &pid); // Get the process ID from the syscall argument
+  argint(1, &pgid); // Get the process group ID from the syscall argument
+
+  if (pid < 0 || pid >= NPROCID) {
+    return -1; // Invalid process ID
+  }
+  if(pgid < 0 || pgid >= NPROC_GROUP) {
+    return -1; // Invalid process group ID
+  }
+  if(pid == 0) {
+    p = myproc(); // If pid is 0, use the current process
+  } else {
+    p = &proc[pid]; // Otherwise, find the process by its ID
+  }
+  if (p == NULL || p->state == UNUSED) {
+    return -1; // Process not found or not in use
+  }
+  acquire(&p->lock); // Acquire the process lock to ensure thread safety
+  if (pgid == 0) {
+    pgid = p->pid; // If pgid is 0, set it to the process ID
+  }
+  acquire(&p->lock);
+  p->pgid = pgid; // Set the process group ID
+  release(&p->lock); // Release the process lock
+
+  return 0; // Return success  
 }

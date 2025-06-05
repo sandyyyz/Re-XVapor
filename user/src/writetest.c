@@ -1,7 +1,7 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "fcntl.h"
 
 int

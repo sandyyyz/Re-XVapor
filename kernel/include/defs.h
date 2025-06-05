@@ -1,14 +1,17 @@
+#ifndef __DEFS_H__
+#define __DEFS_H__
+
 struct buf;
 struct context;
-struct file;
 struct inode;
 struct pipe;
 struct proc;
 struct spinlock;
 struct sleeplock;
 struct stat;
-struct superblock;
+struct xv6fs_superblock;
 struct tcb;
+struct file;
 
 // bio.c
 void            binit(void);
@@ -17,6 +20,7 @@ void            brelse(struct buf*);
 void            bwrite(struct buf*);
 void            bpin(struct buf*);
 void            bunpin(struct buf*);
+struct buf* bget(uint dev, uint blockno);
 
 // console.c
 void            consoleinit(void);
@@ -31,29 +35,14 @@ struct file*    filealloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);
 void            fileinit(void);
-int             fileread(struct file*, uint64, int n);
+int fileread(struct file *f, int user_dst, uint64 addr, int n, int off);
 int             filestat(struct file*, uint64 addr);
-int             filewrite(struct file*, uint64, int n);
+int filewrite(struct file *f, int user_src, uint64 addr, int n, int off);
 
 // fs.c
-void            fsinit(int);
-int             dirlink(struct inode*, char*, uint);
-struct inode*   dirlookup(struct inode*, char*, uint*);
-struct inode*   ialloc(uint, short);
 struct inode*   idup(struct inode*);
-void            iinit();
-void            ilock(struct inode*);
-void            iput(struct inode*);
-void            iunlock(struct inode*);
-void            iunlockput(struct inode*);
-void            iupdate(struct inode*);
-int             namecmp(const char*, const char*);
 struct inode*   namei(char*);
 struct inode*   nameiparent(char*, char*);
-int             readi(struct inode*, int, uint64, uint, uint);
-void            stati(struct inode*, struct stat*);
-int             writei(struct inode*, int, uint64, uint, uint);
-void            itrunc(struct inode*);
 
 // ramdisk.c
 void            ramdiskinit(void);
@@ -65,9 +54,13 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 void*           kzalloc(void);
-
+void*           kmalloc(uint size);
+void*           kcalloc(int n, uint size);
+uint64          freemem_pages(void);
+uint64          freemem_bytes(void);
+uint64          totalram_bytes(void);
 // log.c
-void            initlog(int, struct superblock*);
+void            initlog(int, struct xv6fs_superblock*);
 void            log_write(struct buf*);
 void            begin_op(void);
 void            end_op(void);
@@ -75,8 +68,8 @@ void            end_op(void);
 // pipe.c
 int             pipealloc(struct file**, struct file**);
 void            pipeclose(struct pipe*, int);
-int             piperead(struct pipe*, uint64, int);
-int             pipewrite(struct pipe*, uint64, int);
+int piperead(struct pipe *pi, int user_dst, uint64 addr, int n);
+int pipewrite(struct pipe *pi, int user_src, uint64 addr, int n);
 
 // printf.c
 void            printf(const char*, ...);
@@ -98,6 +91,7 @@ struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
 struct proc*    myproc();
 void            procinit(void);
+int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid);
 // void            scheduler(void) __attribute__((noreturn));
 // void            sched(void);
 void            thread_scheduler(void) __attribute__((noreturn));
@@ -117,7 +111,6 @@ pid_t waitpid(pid_t pid, uint64 wstatus, int options);
 
 void thread_sleep(void*, struct spinlock*);
 void thread_wakeup_chan(void *chan);
-void thread_wakeup_chan_atomic(void *chan);
 void thread_yield(void);
 
 // swtch.S
@@ -139,6 +132,7 @@ int             holdingsleep(struct sleeplock*);
 void            initsleeplock(struct sleeplock*, char*);
 
 // string.c
+void* memcpy(void *dst, const void *src, uint n);
 int             memcmp(const void*, const void*, uint);
 void*           memmove(void*, const void*, uint);
 void*           memset(void*, int, uint);
@@ -146,10 +140,17 @@ char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
 int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
+int strcmp(const char *p, const char *q);
+char * strcpy(char *s, const char *t);
+int substr_cmp(const char *p, const char *q);
+char *strcat(char *dest, const char *src);
 
 // syscall.c
+void            arglong(int, uint64*);
 void            argint(int, int*);
 int             argstr(int, char*, int);
+void arguint32(int n, uint32 *lip);
+void arguint64(int n, uint64 *lip);
 void            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
@@ -203,3 +204,7 @@ void            virtio_disk_intr(void);
 int do_clone(int flags, uint64 stack, pid_t p_tid, uint64 tls, const pid_t *c_tid);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+#define N2ADDR(x) ((void*)(x))
+#define ADDR2N(x) ((uint64)(x))
+
+#endif // __DEFS_H__

@@ -5,21 +5,44 @@
 #include "defs.h"
 #include "thread.h"
 #include "sched.h"
+#include "xv6fs.h"
+#include "vfs_mount.h"
+#include "vfs.h"
+#include "device.h"
+#include "ext4fs.h"
+#include "uname.h"
 
+extern struct utsname g_uts;
 volatile static int started = 0;
-int init_finished = 0;
-volatile static int cpunum = 4;
 // start() jumps here in supervisor mode on all CPUs.
+
+static void initfss() {
+  init_vfssw();   // init vfs switch list
+  init_vfsmlist();  // init mount list
+  mntinit();      //  init mount table , maybe duplicate with vfs_mount_table
+  bdev_table_init();  // init block device table
+  init_vfs_mtable(); // init vfs mount table
+  
+#ifdef __USE_XV6FS
+  if(init_xv6fs() < 0) {
+    panic("xv6fs_init failed");
+  }
+  #else 
+  if(init_ext4fs() < 0) {
+    panic("ext4fs_init failed");
+  }
+#endif
+  install_rootfs(); 
+}
 void
 main()
 {
   if(cpuid() == 0){
-    PCB_Q_ALL_INIT();
-    TCB_Q_ALL_INIT();
+
     consoleinit();
     printfinit();
     printf("\n");
-    printf("xv6 kernel is booting\n");
+    printf("xv6fs kernel is booting\n");
     printf("\n");
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
@@ -28,6 +51,7 @@ main()
     procinit();      // process table
     tcb_init();
     
+    INIT_UTS(g_uts); // initialize utsname structure
     trapinit();      // trap vectors
     trapinithart();  // install kernel trap vector
     plicinit();      // set up interrupt controller
@@ -35,11 +59,12 @@ main()
     binit();         // buffer cache
     iinit();         // inode table
     fileinit();      // file table
+    initfss();      // init all filesystems
     virtio_disk_init(); // emulated hard disk
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
-    cpunum--;
+    printf("hart %d started\n", cpuid());
   } else {
     while(started == 0)
       ;
@@ -48,10 +73,7 @@ main()
     kvminithart();    // turn on paging
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
-    cpunum--;
   }
-  if(!cpunum)
-    init_finished = 1;
-
   thread_scheduler();        
 }
+

@@ -111,12 +111,8 @@ void thread_yield(void) {
 void thread_sched(void) {
     int intena;
     struct tcb *t = mythread();
-#ifdef __DEBUG_THREAD_SCHED
-    if(t->tid == 36)
-        Log("thread %d is in thread_sched", t->tid);
-#endif
     if(!holding(&t->lock))
-    panic("sched t->lock");
+        panic("sched t->lock");
     if(mycpu()->noff != 1) {
         Info("noff %d\n", mycpu()->noff);
         panic("sched t locks");
@@ -142,18 +138,16 @@ void thread_scheduler(void) {
     for (;;) {
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
-
         t = (struct tcb *)queue_pop_atomic(g_tcb_queues[TCB_RUNNABLE], 1); // remove it
         if (t == NULL)
             continue;
         else 
 #ifdef __DEBUG_SCHED
-            printf("thread %d is ready to run\n", t->tid);
+        printf("thread %d is ready to run\n", t->tid);
 
         printf("try to get thread%d's lock\n",t->tid);
 #endif
         acquire(&t->lock);
-
 #ifdef __DEBUG_SCHED
         printf("get the lock of thread %d\n",t->tid);
 #endif

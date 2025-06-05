@@ -1,0 +1,79 @@
+# syscall_number function_name_for_user  function_name_in_kernel
+
+1   fork        sys_fork
+2   dev         sys_dev
+3   wait        sys_wait
+
+7   exec        sys_exec
+
+12  sbrk        sys_sbrk
+13  sleep       sys_sleep
+14  uptime      sys_uptime
+15  open        sys_open
+17  getcwd      sys_getcwd
+18  unlink      sys_unlink
+19  link        sys_link
+
+153 times       sys_times
+169 gettimeofday sys_gettimeofday
+160 uname       sys_uname
+124 sched_yield sys_sched_yield
+101 nanosleep   sys_nanosleep
+
+221 execve      sys_execve
+220 clone       sys_clone
+172 getpid      sys_getpid
+173 getppid     sys_getppid
+260 wait4       sys_wait4
+222 mmap        sys_mmap
+215 munmap      sys_munmap
+
+96 set_tid_address sys_set_tid_address
+99 set_robust_list sys_set_robust_list 
+261 prlimit64 sys_prlimit64
+56 openat sys_openat
+78 readlinkat sys_readlinkat
+278 getrandom sys_getrandom
+174 getuid sys_getuid
+79 fstatat sys_fstatat
+176 getgid sys_getgid
+144 setgid sys_setgid
+146 setuid sys_setuid
+134 sigaction sys_sigaction
+29 ioctl sys_ioctl
+25 fcntl sys_fcntl
+57 close sys_close
+175 geteuid sys_geteuid
+63 read sys_read
+64 write sys_write
+73 ppoll sys_ppoll
+94 exit_group sys_exit_group
+33 mknodat sys_mknodat
+34 mkdirat sys_mkdirat
+11 mknod sys_mknod
+20  mkdir sys_mkdir
+214 brk sys_brk
+113 clock_gettime sys_clock_gettime
+61 getdents64 sys_getdents64
+66 writev sys_writev
+49 chdir sys_chdir
+80  fstat       sys_fstat
+93  exit        sys_exit
+23  dup         sys_dup
+24  dup3    sys_dup3
+40  mount   sys_mount
+39  umount2    sys_umount2
+59   pipe        sys_pipe
+37  linkat  sys_linkat
+35  unlinkat    sys_unlinkat
+135 sigprocmask sys_sigprocmask
+178 getttid sys_gettid
+155 getpgid sys_getpgid
+129   kill        sys_kill
+116 sys_log sys_syslog
+48 faccessat sys_faccessat
+179 sysinfo sys_sysinfo
+88 utimensat sys_utimensat
+71 sendfile sys_sendfile
+65 readv    sys_readv
+62 lseek    sys_lseek

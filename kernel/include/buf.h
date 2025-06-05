@@ -1,3 +1,9 @@
+#ifndef __BUF_H
+#define __BUF_H
+#include "sleeplock.h"
+
+#define BSIZE 1024
+
 struct buf {
   int valid;   // has data been read from disk?
   int disk;    // does disk "own" buf?
@@ -8,5 +14,7 @@ struct buf {
   struct buf *prev; // LRU cache list
   struct buf *next;
   uchar data[BSIZE];
+
 };
 
+#endif 

@@ -1,40 +1,40 @@
+#include "cond.h"
 #include "semaphore.h"
 
-
 /// @brief init a semaphore
-/// @param S semaphore
+/// @param s semaphore
 /// @param value semaphore's value 
 /// @param name semaphore's name
-void sema_init(sem *S, int value, char *name) {
-    S->value = value;
-    S->wakeup = 0;
-    initlock(&S->sem_lock, name);
-    cond_init(&S->sem_cond, name);
+void sema_init(sem *s, int value, char *name) {
+    s->value = value;
+    s->wakeup = 0;
+    initlock(&s->sem_lock, name);
+    cond_init(&s->sem_cond, name);
 }
 
 /// @brief wait a semaphore (P operation)
-/// @param S semaphore waitting on
-void sema_wait(sem *S) {
-    acquire(&S->sem_lock);
-    S->value--;
-    if (S->value < 0) {
+/// @param s semaphore waitting on
+void sema_wait(sem *s) {
+    acquire(&s->sem_lock);
+    s->value--;
+    if (s->value < 0) {
         do {
-            cond_wait(&S->sem_cond, &S->sem_lock);
-        } while (S->wakeup == 0);
-        S->wakeup--;
+            cond_wait(&s->sem_cond, &s->sem_lock);
+        } while (s->wakeup == 0);
+        s->wakeup--;
     }
-    release(&S->sem_lock);
+    release(&s->sem_lock);
 }
 
 
 /// @brief signal a semaphore (V operation)
-/// @param S  semaphore signaling
-void sema_signal(sem *S) {
-    acquire(&S->sem_lock);
-    S->value++;
-    if (S->value <= 0) {
-        S->wakeup++;
-        cond_signal(&S->sem_cond);
+/// @param s  semaphore signaling
+void sema_signal(sem *s) {
+    acquire(&s->sem_lock);
+    s->value++;
+    if (s->value <= 0) {
+        s->wakeup++;
+        cond_signal(&s->sem_cond);
     }
-    release(&S->sem_lock);
+    release(&s->sem_lock);
 }

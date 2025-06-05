@@ -6,7 +6,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "param.h"
-#include "fs.h"
+#include "xv6fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
@@ -27,16 +27,34 @@ fileinit(void)
   initlock(&ftable.lock, "ftable");
 }
 
-// Allocate a file structure.
-struct file*
-filealloc(void)
+/**
+ * @brief allocate a file structure, not including the underlay filesystem-specific file structure
+ * 
+ * @return struct file* 
+ */
+struct file* filealloc(void)
 {
   struct file *f;
-
+  struct vfs_filesystem *fs;
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
     if(f->ref == 0){
+
+      // TODO: maybe change to dynamicly get fs 
+      fs = getfs("ext4");
+
+      if(!fs) {
+        release(&ftable.lock);
+        panic("filealloc: no fs");
+        return 0;
+      }
       f->ref = 1;
+      f->fops = fs->fops;
+      f->private_data = 0;
+      f->flags = 0;
+      f->omode = 0;
+      f->info.fs = fs;
+      f->fpos = 0;
       release(&ftable.lock);
       return f;
     }
@@ -50,8 +68,13 @@ struct file*
 filedup(struct file *f)
 {
   acquire(&ftable.lock);
-  if(f->ref < 1)
+  if(f->ref < 1){
+    printf("filedup: ref count < 1\n");
+    printf("filedup: file info: type=%d, flags=%d, omode=%d, fpos= %d ref = %d\n", 
+           f->type, f->flags, f->omode, f->fpos, f->ref);
+    printf("path %s\n", f->info.path);
     panic("filedup");
+  }
   f->ref++;
   release(&ftable.lock);
   return f;
@@ -63,6 +86,9 @@ fileclose(struct file *f)
 {
   struct file ff;
 
+#ifdef __DEBUG_FILE_CLOSE
+  Log("fileclose : f %p ref %d", f, f->ref);
+#endif
   acquire(&ftable.lock);
   if(f->ref < 1)
     panic("fileclose");
@@ -70,17 +96,25 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
+  if(f->private_data) {
+    f->fops->close(f);
+    f->fops->cleansf(f);
+  }
   ff = *f;
   f->ref = 0;
+  f->flags = 0;
+  f->omode = 0;
   f->type = FD_NONE;
+  f->fops = 0;
+  f->fpos = 0;
+  f->private_data = 0;
+  memset(&f->info, 0, sizeof(f->info));
+  memset(&f->dir, 0, sizeof(f->dir));
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){
-    pipeclose(ff.pipe, ff.writable);
-  } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
-    begin_op();
-    iput(ff.ip);
-    end_op();
+    pipeclose(ff.pipe, IS_WRITABLE(ff.flags));
+  } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){ 
   }
 }
 
@@ -93,9 +127,9 @@ filestat(struct file *f, uint64 addr)
   struct stat st;
   
   if(f->type == FD_INODE || f->type == FD_DEVICE){
-    ilock(f->ip);
-    stati(f->ip, &st);
-    iunlock(f->ip);
+    f->ip->iops->ilock(f->ip);
+    f->ip->iops->stati(f->ip, &st);
+    f->ip->iops->iunlock(f->ip);
     if(copyout(p->mm.pagetable, addr, (char *)&st, sizeof(st)) < 0)
       return -1;
     return 0;
@@ -103,33 +137,30 @@ filestat(struct file *f, uint64 addr)
   return -1;
 }
 
-// Read from file f.
-// addr is a user virtual address.
-int
-fileread(struct file *f, uint64 addr, int n)
+
+int fileread(struct file *f, int user_dst, uint64 addr, int n, int off)
 {
   int r = 0;
 
-  if(f->readable == 0)
+  if(!IS_READABLE(f->flags))
     return -1;
 
   if(f->type == FD_PIPE){
-    r = piperead(f->pipe, addr, n);
+    r = piperead(f->pipe, user_dst, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
       return -1;
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
-    ilock(f->ip);
-    if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
-      f->off += r;
-    iunlock(f->ip);
+    f->fops->read(f, user_dst, addr, off, n, &r);
   } else {
+    Log("file %p type = %d", f, f->type);
     panic("fileread");
   }
 
   return r;
 }
+
 
 /**
  * @brief write a file
@@ -137,60 +168,34 @@ fileread(struct file *f, uint64 addr, int n)
  * @param f file pointer 
  * @param addr virtual address
  * @param n length
+ * @param off offset in the file to write to. if you don't want to write to a specific offset, set it to fp->fpos. 
+ * only used for FD_INODE type file
  * @return int return the number of bytes written, -1 if failed 
  */
-int filewrite(struct file *f, uint64 addr, int n)
+int filewrite(struct file *f, int user_src, uint64 addr, int n, int off)
 {
-#ifdef __DEBUG_FILEWRITE
-  printf("thread %d file write\n", mythread()->tid);
-#endif
-
   int r, ret = 0;
 
-  if(f->writable == 0)
+  // Log("file path = %s", f->info.path);
+  // Log("file type = %d", f->type);
+  if(!(IS_WRITABLE(f->flags)))
     return -1;
 
   if(f->type == FD_PIPE){
-    ret = pipewrite(f->pipe, addr, n);
+    ret = pipewrite(f->pipe, user_src, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
       return -1;
-    ret = devsw[f->major].write(1, addr, n);
+    ret = devsw[f->major].write(user_src, addr, n);
   } else if(f->type == FD_INODE){
-    // write a few blocks at a time to avoid exceeding
-    // the maximum log transaction size, including
-    // i-node, indirect block, allocation blocks,
-    // and 2 blocks of slop for non-aligned writes.
-    // this really belongs lower down, since writei()
-    // might be writing a device like the console.
-    int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
-    int i = 0;
-    while(i < n){
-      int n1 = n - i;
-      if(n1 > max)
-        n1 = max;
-
-      begin_op();
-      ilock(f->ip);
-      if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0)
-        f->off += r;
-      iunlock(f->ip);
-      end_op();
-
-      if(r != n1){
-        // error from writei
-        break;
-      }
-      i += r;
-    }
-    ret = (i == n ? n : -1);
+    f->fops->write(f, user_src, addr, off, n, &r);
+    if(r > 0)
+      ret = r;
+    else
+      ret = -1;
   } else {
     panic("filewrite");
   }
-#ifdef __DEBUG_FILEWRITE
-  if(ret != 1)
-    Info("thread %d filewrite: ret %d\n", mythread()->tid, ret);
-#endif
   return ret;
+  
 }
-

@@ -47,8 +47,9 @@ static inline void INIT_LIST_HEAD(struct list_head *list) {
 
 #define LIST_HEAD_INIT(name) \
     { &(name), &(name) }
-#define LIST_HEAD(name) \
-    struct list_head name = LIST_HEAD_INIT(name)
+
+// #define LIST_HEAD(name) 
+//     struct list_head name = LIST_HEAD_INIT(name)
 
 // 初始化一个结构体
 

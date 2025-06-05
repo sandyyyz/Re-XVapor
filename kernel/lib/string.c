@@ -69,16 +69,23 @@ strncmp(const char *p, const char *q, uint n)
 }
 
 char*
-strncpy(char *s, const char *t, int n)
+strncpy(char *des, const char *src, int n)
 {
   char *os;
 
-  os = s;
-  while(n-- > 0 && (*s++ = *t++) != 0)
+  os = des;
+  while(n-- > 0 && (*des++ = *src++) != 0)
     ;
   while(n-- > 0)
-    *s++ = 0;
+    *des++ = 0;
   return os;
+}
+
+int strcmp(const char *p, const char *q)
+{
+    while (*p && *p == *q)
+        p++, q++;
+    return (uchar)*p - (uchar)*q;
 }
 
 // Like strncpy but guaranteed to NUL-terminate.
@@ -106,3 +113,43 @@ strlen(const char *s)
   return n;
 }
 
+char *
+strcpy(char *des, const char *src)
+{
+    char *os;
+
+    os = des;
+    while ((*des++ = *src++) != 0)
+        ;
+    return os;
+}
+
+/**
+ * @brief Compare if shorts is a substring of longs
+ * @param shorts the substring
+ * @param longs the string to be compared
+ * @return 0 if shorts is a substring of longs, -1 otherwise
+ */
+int substr_cmp(const char *shorts, const char *longs) {
+  while(*shorts && *shorts == *longs) {
+    shorts++;
+    longs++;
+  }
+  if(*shorts == '\0') {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+char *strcat(char *dest, const char *src) {
+  char *p = dest;
+  while (*p) {
+      ++p;
+  }
+  while (*src) {
+      *p++ = *src++;
+  }
+  *p = '\0';
+  return dest;
+}

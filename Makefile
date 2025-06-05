@@ -4,15 +4,20 @@ MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
 UTEST_DIR = user/test
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable -Wno-error=format
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -Iinclude 
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-
 QEMU = qemu-system-riscv64
 
+# FS_XV6FS = 1
+ifdef FS_XV6FS
+FSIMG := $(BUILD_DIR)/fs/fs.img
+else
+FSIMG := sdcard-rv.img
+endif
 UPROGS =
 
 test: $(UPROGS_TEST)
@@ -59,14 +64,24 @@ export CFLAGS
 export UPROGS
 
 .PHONY: all user kernel qemu qemu-gdb clean
+.default: kernel
 
-all: kernel user fs.img
+all: kernel user fs.img syscall_gen
 
-kernel:	user
+SYSTBL=scripts/syscall.tbl
+SYSDECL=kernel/include/sysdecl.h
+SYSNUM=kernel/include/sysnum.h
+SYSFUNC=kernel/include/sysfunc.h
+USYSPL=user/usys.pl
+syscall_gen:
+	@echo "Generating syscall files..."
+	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL)
+	@echo "Generating syscall files done."
+kernel:	user syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
 	$(MAKE) -C $(KERNEL_DIR)
 
-user:
+user: syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
 	$(MAKE) -C $(USER_DIR)
 
@@ -76,9 +91,8 @@ clean:
 	@if [ -d $(BUILD_DIR) ]; then rm -r $(BUILD_DIR); fi
 	@if [ -f mkfs/mkfs ]; then rm mkfs/mkfs; fi
 
-
-mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/fs.h $(KERNEL_DIR)/include/param.h 
-	gcc $(XCFLAGS) -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
+mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xv6fs.h $(KERNEL_DIR)/include/param.h 
+	gcc -Werror -Wall -fno-freestanding -o mkfs/mkfs mkfs/mkfs.c
 
 # $(USER_BUILD_DIR)/uprogs-list.mk:
 # 	$(MAKE) -C $(USER_DIR) uprogs-list.mk
@@ -107,21 +121,20 @@ CPUS := 4
 endif
 
 
-QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/kernel/kernel -m 128M -smp $(CPUS) -nographic
+QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/kernel/kernel -m 4G -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
-QEMUOPTS += -drive file=$(BUILD_DIR)/fs/fs.img,if=none,format=raw,id=x0
+QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 
-qemu: user kernel fs.img
+qemu: user kernel 
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: $(BUILD_DIR)/$(KERNEL_DIR)/kernel .gdbinit $(BUILD_DIR)/fs/fs.img
+qemu-gdb: kernel .gdbinit $(FSIMG)
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
 
 

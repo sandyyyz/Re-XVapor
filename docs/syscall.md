@@ -160,7 +160,14 @@ don't need rusage
 ![flags](image-34.png)
 
 
-## sys_execve
+### sys_mknod
+
+#### file type and mode
+
+![mode.1](image-124.png)
+![mode.2](image-125.png)
+
+### sys_execve
 
 ``` c
 int execve(const char *pathname, char *const _Nullable argv[],
@@ -215,3 +222,23 @@ int execve(const char *pathname, char *const _Nullable argv[],
 - [x] SYS_sched_yield    /// need to implement ``clone`` and ``wait`` first
 - [x] SYS_gettimeofday
 - [x] SYS_nanosleep  
+
+
+## 如何添加一个系统调用？
+
+1. user.h中添加对应的用户函数声明(optional)
+2. syscall.tbl添加对应信息
+3. 内核中添加对应实现
+
+## syscall table 规范
+
+参照Linux `include/uapi/asm-generic/unistd.h`
+
+## 为什么gdb无法找到源码？
+
+除了文件有调试信息之外，还必须使用dir指令指定搜索源码的目录
+
+## set_tid_address
+
+https://man7.org/linux/man-pages/man2/set_tid_address.2.html  
+

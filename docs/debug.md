@@ -624,3 +624,210 @@ test not-mapped unmap
 panic: uvmunmap: not mapped
 
 vma页可能因为还没被访问而未被分配和映射，所以加个判断
+
+
+## ext4
+
+### ext4.1
+奇怪的block_group
+![ext4.1](image-111.png)
+
+导致后续``ext4_fs_init_inode_bitmap(struct ext4_block_group_ref *bg_ref)``函数中bitmap_block_addr是一个非常夸张大的数字，导致``ext4_trans_block_get_noread()``失败。事实上这个block_group的数据应该就是错的。checksum时已经抛出了warning
+
+这个函数
+```c 
+static int
+__ext4_fs_get_inode_ref(struct ext4_fs *fs, uint32_t index,
+			struct ext4_inode_ref *ref,
+			bool initialized)
+      ```
+    会调用函数
+    ```c
+    int ext4_fs_get_block_group_ref(struct ext4_fs *fs, uint32_t bgid,
+				struct ext4_block_group_ref *ref)
+  ```
+
+只要调用
+```c
+int ext4_fs_get_block_group_ref(struct ext4_fs *fs, uint32_t bgid,
+				struct ext4_block_group_ref *ref)
+        ```
+就会有问题
+
+``` c
+int ext4_block_get(struct ext4_blockdev *bdev, struct ext4_block *b,
+		   uint64_t lba)
+{
+	int r = ext4_block_get_noread(bdev, b, lba);
+
+  ```
+
+  最后居然发现是
+  ```c
+  void *kalloc(void) {
+  struct run *r;
+
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  if (r)
+    kmem.freelist = r->next;
+  release(&kmem.lock);
+
+  if (r)
+    memset((char *)r, 5, PGSIZE); // fill with junk
+  return (void *)r;
+}
+```
+塞的junk的问题哈哈哈:(
+
+### init.1
+
+![init.1.1](image-126.png)
+
+执行execve时卡死。。。。。。。
+
+not align version?:
+![init.1.2](image-127.png)
+![init.1.3](image-128.png)
+出错位置:(实在是难以定位只能print大法了)
+似乎是函数`ext4_bdif_bread()`问题
+![init.1.4](image-142.png)
+![init.1.5](image-143.png)
+![init.1.6](image-144.png)
+从磁盘读的问题
+
+![init.1.7](image-145.png)
+
+这么看应该是lostwakeup问题
+![init.1.8](image-146.png)
+wakeup结束了才sleep??  
+好像发现问题所在了。原本xv6使用p->lock保证sleep和wakeup之间的竞态不会发生，也就是保证不会先唤醒再睡眠，但是此时我改成了直接遍历sleeping queue。这会导致有可能还未修改好状态为sleeping，就直接遍历了一个不存在目标即将睡眠线程的sleeping queue.此时该队列中不存在目标线程，自然t->lock对wakeup的约束根本不存在，导致丢失唤醒  
+那么存不存在一种情况，就是wakeup先于sleep获取了进程锁和对应状态，导致lost wakeup呢？？  
+答案是不可能！这就是条件锁的意义，也是设计精妙之处  
+- sleep在获取线程锁之后才会释放条件锁
+- wakeup整个过程必须持有条件锁，也就是调用wakeup之前必须持有sleep相关的条件锁！
+- wakeup只有同时持有条件锁和线程锁才可以访问线程状态
+- 如果二者不存在一个条件锁约束，就有可能导致lostwakeup！
+
+### busybox.1
+
+![busybox.1.1](image-112.png)
+
+![busybox.1.2](image-113.png)
+
+修改栈布局：  
+https://refspecs.linuxbase.org/LSB_3.1.0/LSB-generic/LSB-generic/baselib---libc-start-main-.html  
+https://stackoverflow.com/questions/62709030/what-is-libc-start-main-and-start  
+http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
+
+### busybox.2
+
+![busybox.2.1](image-119.png)
+![busybox.2.2](image-118.png)
+
+__libc_setup_tls尝试syscall 214, 即 SYS_brk,添加对应syscall即可
+
+### busybox.3
+
+![busybox.3.1](image-120.png)
+![busybox.3.2](image-121.png)
+brk后最终调用了syscall 17，然后卡死。（在这之前还有很多的syscall也失败了)  
+一个个修吧=-=
+
+### busybox.4
+![busybox.4.1](image-122.png)
+![busybox.4.2](image-123.png)
+居然写了一个代码段的地址？？
+
+
+### busybox.5
+exit_group之后会不断重试执行init
+
+ash_main 没有解析到命令，然后退出了？事实上非login_sh时，也不需要/dev/tty  
+
+`cmd_loop()` --> `parsecmd()` 
+
+`ls_main()` --> `scan_and_display_dir_cur`  
+
+
+### busybox.6
+
+![busybox.6.1](image-129.png)
+问题是getdents传入的f->dir == null
+
+### busybox.7
+
+![busybox.7.1](image-130.png)
+![busybox.7.2](image-131.png)
+
+open的返回值写错了，导致每次都返回fd == 0
+
+### busybox.8
+
+![busybox.8.1](image-132.png)
+ls一直getdents,怎么解析到读取所有目录项结束呢？，
+
+getdents return 0!! 吗？？？
+``ext4_dir_entry_next()``中会改变dir的off,这是判断目录项是否遍历完成的依据。  
+传入了临时变量dir指针，导致fp的dir off没有更新。
+
+
+### busybox.9
+
+![busybox.9.1](image-133.png)
+![busybox.9.2](image-134.png)
+![busybox.9.3](image-135.png)
+![busybox.9.4](image-136.png)
+![busybox.9.5](image-137.png)
+![busybox.9.6](image-138.png)
+`ls_main()` 
+nfiles == 0, !cur??
+`scan_and_display_dirs_recur()`
+
+![busybox.9.7](image-139.png)
+![busybox.9.8](image-140.png)
+![busybox.9.9](image-141.png)
+
+第一次到`__bswapdi2()`
+第二次到这个地址0xd585c
+`__run_exit_handler()`
+
+要不还是先支持musl busybox吧
+
+### busybox.10
+
+![busybox.10.1](image-147.png)
+ls为啥一直在写0个字节？？？  
+跳过非法vector就好了
+
+### busybox.11
+为什么一直无法退出shell?  
+- 没有到达exitshell
+- 没有退出cmdloop
+![busybox.11.1](image-148.png)
+
+执行完一轮之后再hit parsecmd()， n == 0x0?why?  
+![busybox.11.2](image-149.png)
+![busybox.11.3](image-150.png)
+
+除了第一次，好像从来没有执行inter++这行，一直在重复解析一个指令  mnb 
+![busybox.11.4](image-151.png)
+
+就改了两次？？。。。
+![busybox.11.5](image-152.png)
+
+### busybox.12
+
+虽然我现在没有把sendfile写完，但是为什么他在源源不断地把一个文件内容拷贝到标准输出？难道我fp->pos忘记修改了？？
+![busybox.12.1](image-153.png)
+
+看样子是的……，难道这就是之前shell一直无限执行一个指令，并且不退出的原因吗？
+![busybox.12.2](image-154.png)
+
+
+### busybox.13
+
+这是爆栈了吗？
+![busybox.13.1](image-155.png)
+![busybox.13.2](image-156.png)
+回来的时候s0居然和原本的值不一样；；；

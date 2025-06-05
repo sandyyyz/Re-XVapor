@@ -45,7 +45,7 @@
 // for use by the kernel and user pages
 // from physical address 0x80000000 to PHYSTOP.
 #define KERNBASE 0x80000000L
-#define PHYSTOP (KERNBASE + 128 * 1024 * 1024)
+#define PHYSTOP (KERNBASE + 512 * 1024 * 1024)
 
 
 // map the trampoline page to the highest address,
@@ -62,9 +62,11 @@
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.'
 // KSTACK means KSTACK_BASE actrually 
-#define KSTACK(t) (TRAMPOLINE - ((t)+1)* (KSTACK_PAGE + 1) *PGSIZE)
+#define KSTACK(t) (TRAMPOLINE - ((t) + 1) * (KSTACK_PAGE + 1) * PGSIZE)
 
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
 // thread-exclusive
 #define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx)*PGSIZE)
 #define MAX_THREAD 8 // max thread number in a process
+
+#define BRKTOP (TRAMPOLINE - (MAX_THREAD + 1) * PGSIZE)

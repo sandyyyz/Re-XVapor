@@ -117,19 +117,22 @@ usertrap(void)
 #endif
       struct file* fp = vma->file;
       int offset = va - vma->vm_start;
-      ilock(fp->ip);
-      readi(fp->ip, 1, va, offset, PGSIZE);
-      iunlock(fp->ip);
+      int rcnt = 0;
+      if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
+        printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
+        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+        printf("scause=%p\n", r_scause());
+        printf("sstatus=%p\n", r_sstatus());
+        printf("satp=%p\n", r_satp());
+        panic("usertrap: read file failed");
+      }
       release(&p->mm.lock);
     }
   } else {
     
-#ifdef __DEBUG_UTRAP
-    Info("thread %d usertrap: unexpected scause %p pid=%d\n", r_scause(), p->pid);
-#endif
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-
+    panic("unexpected usertrap");
     list_for_each_entry(t, &p->tg.threads, threads) {
       thread_setkilled(t);
     }
@@ -283,6 +286,15 @@ kerneltrap()
     thread_yield();
   }
 
+  if(which_dev == 3) {
+    // read/write page fault
+    printf("thread %d kerneltrap: page fault at %p\n", mythread()->tid, r_stval());
+    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("scause=%p\n", r_scause());
+    printf("sstatus=%p\n", r_sstatus());
+    printf("satp=%p\n", r_satp());
+    panic("kerneltrap: page fault");
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
