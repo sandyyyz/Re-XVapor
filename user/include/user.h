@@ -15,7 +15,7 @@ int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
-int kill(int);
+int kill(int pid, sig_t sig);
 int exec(char*, char**);
 int execve(char *path, char **argv, char **envp);
 int open(const char*, int);

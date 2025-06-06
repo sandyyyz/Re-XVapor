@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "debug.h"
 #include "rc.h"
+#include "futex.h"
 
 /**
  * @brief clock_nanosleep() allows the calling thread to
@@ -149,7 +150,6 @@ uint64 sys_nanosleep(void)
     release(&tickslock);
     return 0;
 }
-
 
 uint64
 sys_getppid(void) {
@@ -313,16 +313,72 @@ sys_sleep(void)
   return 0;
 }
 
-uint64
-sys_kill(void)
+/**
+ * @brief The kill() system call can be used to send any signal to any
+       process group or process.
+
+ *     If pid is positive, then signal sig is sent to the process with
+       the ID specified by pid.
+
+       If pid equals 0, then sig is sent to every process in the process
+       group of the calling process.
+
+       If pid equals -1, then sig is sent to every process for which the
+       calling process has permission to send signals, except for process
+       1 (init), but see below.
+
+       If pid is less than -1, then sig is sent to every process in the
+       process group whose ID is -pid.
+
+       If sig is 0, then no signal is sent, but existence and permission
+       checks are still performed; this can be used to check for the
+       existence of a process ID or process group ID that the caller is
+       permitted to signal.
+
+   @property int kill(pid_t pid, int sig);
+
+ * @return On success (at least one signal was sent), zero is returned.  On
+       error, -1 is returned, and errno is set to indicate the error.
+ */
+uint64 sys_kill(void)
 {
   int pid;
-  int sig;
+  sig_t sig;
 
   argint(0, &pid);
-  argint(1, &sig);
+  arglong(1, &sig);
   
-  return kill(pid);
+  return proc_kill(pid, sig);
+}
+
+uint64 sys_tkill(void) {
+  int tid;
+  sig_t sig;
+
+  argint(0, &tid);
+  arglong(1, &sig);
+#ifdef __DEBUG_SYS_TKILL
+  Log("[sys_tkill] tid: %d, sig: %d", tid, sig);
+#endif
+  return thread_kill(tid, sig);
+}
+/**
+ * @brief tgkill() sends the signal sig to the thread with the thread ID tid
+       in the thread group tgid.
+ * @property int tgkill(pid_t tgid, pid_t tid, int sig);
+ * @return   On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_tgkill(void) {
+  pid_t tgid, tid;
+  int sig;
+  argint(0, &tgid);
+  argint(1, &tid);
+  argint(2, &sig);
+#ifdef __DEBUG_SYS_TGKILL
+  Log("[sys_tgkill] tgid: %d, tid: %d, sig: %d", tgid, tid, sig);
+#endif
+  return thread_group_kill(tgid, tid, sig);
 }
 
 // return how many clock tick interrupts have occurred
@@ -537,4 +593,41 @@ uint64 sys_setpgid(void) {
   release(&p->lock); // Release the process lock
 
   return 0; // Return success  
+}
+
+/**
+ * @brief  The futex() system call provides a method for waiting until a
+       certain condition becomes true.
+ * @property   long syscall(SYS_futex, uint32_t *uaddr, int futex_op, uint32_t val,
+                    const struct timespec *timeout,   or: uint32_t val2 
+                    uint32_t *uaddr2, uint32_t val3);
+ * @return uint64 
+ */
+uint64 sys_futex(void) {
+  int futex_op;
+  uint32_t val, val2, val3, uaddr, uaddr2;
+  uint64 timeout_addr;
+  struct timespec timeout;
+
+  arguint32(0, &uaddr);
+  argint(1, &futex_op);
+  arguint32(2, &val);
+  arguint64(3, &timeout_addr);
+  arguint32(3, &val2);
+  arguint32(4, &uaddr2);
+  arguint32(5, &val3);
+
+#ifdef __DEBUG_SYS_FUTEX
+  Log("[sys_futex] uaddr: %p, futex_op: %d, val: %u, timeout_addr: %p, val2: %u, uaddr2: %p, val3: %u", 
+      (void *)uaddr, futex_op, val, (void *)timeout_addr, val2, (void *)uaddr2, val3);
+#endif
+  if(futex_need_timeout(futex_op) && timeout_addr) {
+      if (copyin(myproc()->mm.pagetable, (char *)&timeout, timeout_addr, sizeof(struct timespec)) < 0) {
+          Warn("sys_futex: copyin timeout failed\n");
+          return -1;
+      }
+  }
+  return do_futex(uaddr, futex_op, val, timeout_addr ? &timeout : NULL, 
+                  uaddr2, val2, val3);
+
 }

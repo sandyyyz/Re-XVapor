@@ -106,7 +106,9 @@ int signal_handle(struct tcb *t) {
     if(t->pending_cnt == 0) {
         return 0; // No pending signals
     }
-
+#ifdef __DEBUG_SIGNAL_HANDLE
+    Log("signal_handle: thread %d has %d pending signals", t->tid, t->pending_cnt);
+#endif
     acquire(&t->sigs.siglock);
     list_for_each_entry_safe(sig_cur, sig_tmp, &t->sig_pending.list, list) {
         sig_no = sig_cur->info.si_signo;

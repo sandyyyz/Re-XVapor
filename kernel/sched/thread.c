@@ -11,6 +11,7 @@
 #include "proc.h"
 #include "vfs.h"
 #include "signal.h"
+#include "futex.h"
 
 queue_t unused_t_queue, used_t_queue, runnable_t_queue, sleeping_t_queue;
 
@@ -116,6 +117,7 @@ struct tcb *alloc_thread(thread_callback callback) {
     t->clear_child_tid = 0;
     t->killed = 0;
     t->chan = NULL;
+    t->timeout = 0; // for futex
     t->wait_chan_entry = NULL;
     
 #ifdef __DEBUG_ALLOCATE_THREAD
@@ -180,6 +182,7 @@ void free_thread(struct tcb *t) {
     t->killed = 0;  
     t->pending_cnt = 0;
     t->sig_processing = 0;
+    t->timeout = 0;
     signal_queue_flush(&t->sig_pending);
     tcb_q_change_state(t, TCB_UNUSED);
 }
@@ -263,7 +266,8 @@ void thread_exit(int status) {
     }
     if(t->clear_child_tid) {
         tid_t clear = 0;
-        thread_wakeup_chan((void*)t->clear_child_tid);
+        // thread_wakeup_chan((void*)t->clear_child_tid);
+        futex_wake(t->clear_child_tid, 1);
         copyout(p->mm.pagetable, t->clear_child_tid, (char *)&clear, sizeof(t->tid));
     }
 
@@ -343,7 +347,24 @@ thread_sleep(void *chan, struct spinlock *lk)
   release(&t->lock);
   acquire(lk);
 }
-
+void thread_wakeup_timeout(uint ticks_now)
+ {
+    struct tcb *t;
+    struct tcb *cur_thread = mythread();
+    for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {
+        if(t != cur_thread) {
+            acquire(&t->lock);
+            if(t->state == TCB_SLEEPING && t->timeout == ticks_now) {
+                tcb_q_change_state(t, TCB_RUNNABLE);
+                // t->timeout = UINT64_MAX; // reset timeout
+                release(&t->lock);
+                break;
+            }
+            release(&t->lock);
+        }
+    }
+    return;
+}
 /**
  * @brief // Wake up all threads sleeping on chan. Must be called without any p->lock.
  * 
@@ -388,7 +409,7 @@ thread_wakeup_chan(void *chan)
     for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {
         if(t!= cur_threads) {
             acquire(&t->lock);
-            if(t->chan == chan) {
+            if(t->chan == chan && t->state == TCB_SLEEPING) {
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 // queue_t *tcb_q_new = g_tcb_queues[TCB_RUNNABLE];
                 // queue_t *tcb_q_old = g_tcb_queues[TCB_SLEEPING];
@@ -526,4 +547,46 @@ void thread_send_signal(struct tcb *t_given, siginfo_t *info) {
     }
     
     return;
+}
+
+int thread_kill(int tid, int sig) {
+    struct tcb *t = NULL;
+    siginfo_t info;
+    if(tid < 0 || tid >= NTHREADS) {
+        Warn("thread_kill: invalid tid %d", tid);
+        return -1;
+    }
+    for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {
+        acquire(&t->lock);
+        if(t->tid == tid) {
+            signal_info_init(sig, &info, 0);
+            thread_send_signal(t, &info);
+            release(&t->lock);
+            return 0;
+        }
+        release(&t->lock);
+    }
+    Warn("thread_kill: thread %d not found", tid);
+    return -1;
+}
+
+int thread_group_kill(int tgid, int tid, int sig) {
+    struct tcb *t = NULL;
+    siginfo_t info;
+    if(tid < 0 || tid >= NTHREADS) {
+        Warn("thread_group_kill: invalid tid %d", tid);
+        return -1;
+    }
+    for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {
+        acquire(&t->lock);
+        if(t->tg->tgid == tgid && t->tid == tid) {
+            signal_info_init(sig, &info, 0);
+            thread_send_signal(t, &info);
+            release(&t->lock);
+            return 0;
+        }
+        release(&t->lock);
+    }
+    Warn("thread_group_kill: thread %d not found in group %d", tid, tgid);
+    return -1;
 }

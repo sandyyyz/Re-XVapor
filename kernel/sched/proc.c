@@ -893,28 +893,25 @@ pid_t waitpid(pid_t pid, uint64 wstatus, int options) {
 // The victim won't exit until it tries to return
 // to user space (see usertrap() in trap.c).
 int
-kill(int pid)
+proc_kill(int pid, sig_t sig)
 {
   struct proc *p;
 
-  for(p = proc; p < &proc[NPROC]; p++){
-    acquire(&p->lock);
-    if(p->pid == pid){
-#ifdef __DEBUG_KILL
-      Info("kill: pid %d, name %s", p->pid, p->name);
-#endif //__DEBUG_KILL
-      p->killed = 1;
-      // if(p->state == SLEEPING){
-      //   // Wake process from sleep().
-      //   p->state = RUNNABLE;
-      // }
-      
-      // kill all threads then
-      
+  if(pid > 0) {
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+      if(p->pid == pid){
+  #ifdef __DEBUG_PROC_KILL
+        Info("kill: pid %d, name %s, sig %d ", p->pid, p->name, sig);
+  #endif //__DEBUG_KILL
+        proc_sendsignal_all_thread(p, sig, 0); // send signal to all threads in the process
+        release(&p->lock);
+        return 0;
+      }
       release(&p->lock);
-      return 0;
     }
-    release(&p->lock);
+  } else {
+    Warn("proc_kill: pid <= 0, not support right now!");
   }
   return -1;
 }

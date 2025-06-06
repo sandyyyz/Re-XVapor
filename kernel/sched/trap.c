@@ -12,9 +12,8 @@
 #include "mmap.h"
 #include "signal.h"
 
-struct spinlock tickslock;
+struct spinlock tickslock, timeout_lock;
 uint ticks;
-
 extern char trampoline[], uservec[], userret[];
 extern char debug_uservec[];
 // in kernelvec.S, calls kerneltrap().
@@ -26,6 +25,8 @@ void
 trapinit(void)
 {
   initlock(&tickslock, "time");
+  initlock(&timeout_lock, "timeout");
+
 }
 
 // set up to take exceptions and traps while in the kernel.
@@ -311,6 +312,16 @@ clockintr()
   ticks++;
   thread_wakeup_chan(&ticks);
   release(&tickslock);
+  
+  /*
+    I think here is a potential lost wakeup if we don't use a condition lock to constrain the 
+    futex sleep in futex_wait. if we wakeup timeout here before a potential futex_wait,
+    which haven't changed the thread state, we will lost the timeout wakeup.
+  */
+  acquire(&timeout_lock);
+  // wakeup all threads that are sleeping on timeout
+  thread_wakeup_timeout(ticks);
+  release(&timeout_lock);
 }
 
 // check if it's an external interrupt or software interrupt,

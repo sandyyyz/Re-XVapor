@@ -84,7 +84,7 @@ int             growproc(int);
 void            thread_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf);
-int             kill(int);
+int proc_kill(int pid, sig_t sig);
 int             proc_killed(struct proc*);
 void            proc_setkilled(struct proc*);
 struct cpu*     mycpu(void);
