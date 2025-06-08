@@ -1692,13 +1692,17 @@ uint64 sys_lseek(void) {
     printf("[sys_lseek] argfd failed\n");
     return -1;
   }
-  argint(1, (int *)&offset);
+  arglong(1, (uint64*)&offset);
   argint(2, &whence);
 #ifdef __DEBUG_SYS_LSEEK
   Log("[sys_lseek] fd = %d, offset = %d, whence = %d", fd, offset, whence);
 #endif  
   if(f == NULL) {
     printf("[sys_lseek] f is NULL\n");
+    return -1;
+  }
+  if(f->type != FD_INODE) {
+    printf("[sys_lseek] f->type is not FD_INODE, f->type = %d\n", f->type);
     return -1;
   }
   if(f->fops == NULL) {

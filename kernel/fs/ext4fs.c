@@ -1045,6 +1045,7 @@ int ext4_vlseek(struct file *fp, off_t offset, int whence) {
     int r = ext4_fseek(efp, offset, whence);
     if(r != EOK) {
         printf("[ext4] ext4_fseek error! r=%d\n", r);
+        printf("[ext4] whence = %d, offset = %d\n", whence, offset);
         return -1;
     }
     fp->fpos = efp->fpos;
