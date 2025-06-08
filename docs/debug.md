@@ -839,4 +839,5 @@ ls为啥一直在写0个字节？？？
 
 ### busybox.14
 为什么sleep 1 会传进来这么奇怪一个数字 0x7fff ffff
-![busybox.14.1](image-158.png)
+![busybox.14.1](image-158.png)  
+是INT_MAX  

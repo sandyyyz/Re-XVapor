@@ -120,7 +120,8 @@
         "termios.h": "c",
         "ext4_inode.h": "c",
         "signal.h": "c",
-        "atomic.h": "c"
+        "atomic.h": "c",
+        "futex.h": "c"
     },
 
     "multiCommand.commands": [

@@ -41,6 +41,7 @@
 #define SYS_exit 93
 #define SYS_exit_group 94
 #define SYS_set_tid_address 96
+#define SYS_futex 98
 #define SYS_set_robust_list 99
 #define SYS_nanosleep 101
 #define SYS_clock_gettime 113
@@ -48,8 +49,11 @@
 #define SYS_sys_log 116
 #define SYS_sched_yield 124
 #define SYS_kill 129
+#define SYS_tkill 130
+#define SYS_tgkill 131
 #define SYS_sigaction 134
 #define SYS_sigprocmask 135
+#define SYS_sigtimedwait 137
 #define SYS_sigreturn 139
 #define SYS_setgid 144
 #define SYS_setuid 146

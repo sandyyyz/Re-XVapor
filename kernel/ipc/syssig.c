@@ -91,3 +91,58 @@ uint64 sys_sigreturn() {
 
     return t->trapframe->a0; 
 }
+
+/**
+ * @brief The sigwaitinfo() function selects the pending signal from the set
+       specified by set.  Should any of multiple pending signals in the
+       range SIGRTMIN to SIGRTMAX be selected, it shall be the lowest
+       numbered one.
+       The sigtimedwait() function shall be equivalent to sigwaitinfo()
+       except that if none of the signals specified by set are pending,
+       sigtimedwait() shall wait for the time interval specified in the
+       timespec structure referenced by timeout.
+ * @property int sigtimedwait(const sigset_t *restrict set,
+           siginfo_t *restrict info,
+           const struct timespec *restrict timeout);
+ * @return Upon successful completion (that is, one of the signals specified
+       by set is pending or is generated) sigwaitinfo() and
+       sigtimedwait() shall return the selected signal number. Otherwise,
+       the function shall return a value of -1 and set errno to indicate
+       the error.
+ */
+uint64 sys_sigtimedwait(void) {
+    sigset_t set;
+    siginfo_t info;
+    uint64 set_addr, info_addr, timeout_addr;
+    struct timespec timeout;
+    int ret;
+
+    argaddr(0, &set_addr);
+    argaddr(1, &info_addr);
+    argaddr(2, &timeout_addr);
+#ifdef __DEBUG_SYS_SIGTIMEDWAIT
+    Log("[sys_sigtimedwait] set_addr: %p, info_addr: %p, timeout_addr: %p", set_addr, info_addr, timeout_addr);
+#endif
+
+    if(set_addr) {
+        if(copyin(myproc()->mm.pagetable, (char*) &set, set_addr, sizeof(set)) < 0) {
+            return -1;
+        }
+    }
+    if(timeout_addr) {
+        if(copyin(myproc()->mm.pagetable, (char*) &timeout, timeout_addr, sizeof(timeout)) < 0) {
+            return -1;
+        }
+    }
+
+    ret = do_sigtimedwait(set_addr ? &set : NULL, info_addr ? &info : NULL, timeout_addr ? &timeout : NULL);
+    if(ret < 0) {
+        return ret;
+    }
+    if(info_addr) {
+        if(copyout(myproc()->mm.pagetable, info_addr, (char*) &info, sizeof(info)) < 0) {
+            return -1;
+        }
+    }
+    return ret;
+}

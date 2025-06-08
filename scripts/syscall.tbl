@@ -79,3 +79,7 @@
 62 lseek    sys_lseek
 139 sigreturn sys_sigreturn
 115 clock_nanosleep sys_clock_nanosleep
+98 futex    sys_futex
+131 tgkill  sys_tgkill
+130 tkill   sys_tkill
+137 sigtimedwait    sys_sigtimedwait

@@ -96,5 +96,6 @@ struct proc {
 void freeproc(struct proc *p);
 struct proc* myproc(void);
 int procs_cnt(void);
+void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt);
 
 #endif

@@ -94,7 +94,7 @@ consoleread(int user_dst, uint64 dst, int n)
         release(&cons.lock);
         return -1;
       }
-      thread_sleep(&cons.r, &cons.lock);
+      thread_sleep(&cons.r, &cons.lock, NULL);
     }
 
     c = cons.buf[cons.r++ % INPUT_BUF_SIZE];

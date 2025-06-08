@@ -45,7 +45,6 @@ void pcb_q_change_state(struct proc *, enum procstate);
 void TCB_Q_ALL_INIT(void);
 void tcb_q_change_state(struct tcb *t, enum thread_state state_new);
 
-
 void thread_yield(void);
 
 void thread_sched(void);

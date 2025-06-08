@@ -7,6 +7,7 @@
 // #include "proc.h"
 #include "signal.h"
 #include "trapframe.h"
+#include "timer.h"
 
 struct context;
 // callback for the first scheduled of thread
@@ -92,12 +93,14 @@ struct tcb {
     // thread group
     struct thread_group *tg;
 
-    // waiting queue entry
+    // waiting queue entry, just used for futex right now
     struct queue *wait_chan_entry;  
   // waiting queue list, used to hang the threads into the same waiting queue  
     struct list_head wait_list; 
 
     void  *chan; // if not zero sleeping on chan,temporary used before using the condition variable 
+
+    uint64 timeout; // timeout for futex, used in futex_wait. ticks
 
     // exit state
     int xstate;
@@ -106,7 +109,6 @@ struct tcb {
     uint64 set_child_tid;
     /* CLONE_CHILD_CLEARTID: */
     uint64 clear_child_tid;   
-
     
     struct sighand sigs; // store all signal action
     sigset_t blocked; // the blocked signal
@@ -125,7 +127,7 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
 struct tcb *alloc_thread(thread_callback callback);
 tcb_t* mythread(void);
 void tcb_init(void);
-void thread_sleep(void *chan, struct spinlock *lk);
+void thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *timeout);
 int thread_killed(struct tcb *t);
 void thread_wakeup_chan(void *chan);
 void thread_wakeup_specific_atomic(struct tcb *t);
@@ -136,5 +138,10 @@ void thread_exit(int status);
 void transfer_trapframe(struct tcb* t, pagetable_t newpgtble, int unmmap_old);
 int free_allother_threads_group(struct tcb *t);
 void thread_send_signal(struct tcb *t_given, siginfo_t *info);
+int thread_kill(int tid, sig_t sig);
+int thread_group_kill(int tgid, int tid, sig_t sig);
+void thread_wakeup_timeout(uint ticks_now);
+void thread_wakeup_chan_timeout(void *chan, uint ticks_now);
+uint get_timeout_ticks(const struct timespec *ts);
 
 #endif

@@ -12,6 +12,7 @@ struct stat;
 struct xv6fs_superblock;
 struct tcb;
 struct file;
+struct timespec;
 
 // bio.c
 void            binit(void);
@@ -84,7 +85,7 @@ int             growproc(int);
 void            thread_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf);
-int             kill(int);
+int proc_kill(int pid, sig_t sig);
 int             proc_killed(struct proc*);
 void            proc_setkilled(struct proc*);
 struct cpu*     mycpu(void);
@@ -109,7 +110,7 @@ void            procdump(void);
 int wait4(pid_t pid, uint64 pstatus, int options);
 pid_t waitpid(pid_t pid, uint64 wstatus, int options);
 
-void thread_sleep(void*, struct spinlock*);
+void thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *timeout);
 void thread_wakeup_chan(void *chan);
 void thread_yield(void);
 
