@@ -336,15 +336,17 @@ thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *
   tcb_q_change_state(t, TCB_SLEEPING);
   // sched();
 #ifdef __DEBUG_TSLEEP
-    Log("thread %d sleep on chan %p", t->tid, chan);
+    if(t->timeout)
+        Log("thread %d sleep on chan %p, timeout %d", t->tid, chan, t->timeout);
 #endif
   thread_sched();
 #ifdef __DEBUG_TSLEEP
-    Log("thread %d wakeup on chan %p", t->tid, chan);
+    Log("thread %d wakeup on chan %p, timeout %d", t->tid, chan, t->timeout);
 #endif
   // Tidy up.
   // p->chan = 0;
   t->chan = 0;
+  t->timeout = 0; // reset timeout
   
   // Reacquire original lock.
   release(&t->lock);
@@ -358,6 +360,9 @@ void thread_wakeup_timeout(uint ticks_now)
         if(t != cur_thread) {
             acquire(&t->lock);
             if(t->state == TCB_SLEEPING && t->timeout == ticks_now) {
+#ifdef __DEBUG_WAKEUP_TIMEOUT
+                Log("thread_wakeup_timeout: thread %d wakeup on timeout %d", t->tid, t->timeout);
+#endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 // t->timeout = UINT64_MAX; // reset timeout
                 release(&t->lock);
@@ -377,6 +382,9 @@ void thread_wakeup_chan_timeout(void *chan, uint ticks_now)
         if(t != cur_thread) {
             acquire(&t->lock);
             if(t->state == TCB_SLEEPING && t->chan == chan && t->timeout == ticks_now) {
+#ifdef __DEBUG_WAKEUP_CHAN_TIMEOUT
+                Log("thread_wakeup_chan_timeout: thread %d wakeup on chan %p, timeout %d", t->tid, chan, t->timeout);
+#endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 t->timeout = 0; // reset timeout
                 release(&t->lock);

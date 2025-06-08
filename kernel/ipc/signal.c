@@ -424,6 +424,8 @@ int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space sig
     acquire(&t->sig_pending.siglock);
     if (!sig_existed(t, sig_no)) {
         // No pending signal in the set
+        t->timeout = INT_MAX; // Set a large timeout value
+        // sleep on the signal pending queue
         while(t->timeout != 0) {
             thread_sleep((void *) sig_no, &t->sig_pending.siglock, timeout);
         }
