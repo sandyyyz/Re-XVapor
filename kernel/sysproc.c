@@ -74,7 +74,7 @@ uint64 sys_clock_nanosleep(void) {
           release(&tickslock);
           return -1;
       }
-      thread_sleep(&ticks, &tickslock);
+      thread_sleep(&ticks, &tickslock, NULL);
   }
   if(addr1) {
     rem.tv_sec = 0;
@@ -136,7 +136,7 @@ uint64 sys_nanosleep(void)
             release(&tickslock);
             return -1;
         }
-        thread_sleep(&ticks, &tickslock);
+        thread_sleep(&ticks, &tickslock, NULL);
     }
     if(addr1) {
       rem.tv_sec = 0;
@@ -307,7 +307,7 @@ sys_sleep(void)
       release(&tickslock);
       return -1;
     }
-    thread_sleep(&ticks, &tickslock);
+    thread_sleep(&ticks, &tickslock, NULL);
   }
   release(&tickslock);
   return 0;
@@ -601,7 +601,7 @@ uint64 sys_setpgid(void) {
  * @property   long syscall(SYS_futex, uint32_t *uaddr, int futex_op, uint32_t val,
                     const struct timespec *timeout,   or: uint32_t val2 
                     uint32_t *uaddr2, uint32_t val3);
- * @return uint64 
+ * @return depends on the futex operation:
  */
 uint64 sys_futex(void) {
   int futex_op;
@@ -618,8 +618,8 @@ uint64 sys_futex(void) {
   arguint32(5, &val3);
 
 #ifdef __DEBUG_SYS_FUTEX
-  Log("[sys_futex] uaddr: %p, futex_op: %d, val: %u, timeout_addr: %p, val2: %u, uaddr2: %p, val3: %u", 
-      (void *)uaddr, futex_op, val, (void *)timeout_addr, val2, (void *)uaddr2, val3);
+  Log("[sys_futex] uaddr: %p, futex_op: %d, val: %d, timeout_addr: %p, val2: %d, uaddr2: %p, val3: %d", 
+      uaddr, futex_op, val, timeout_addr, val2, uaddr2, val3);
 #endif
   if(futex_need_timeout(futex_op) && timeout_addr) {
       if (copyin(myproc()->mm.pagetable, (char *)&timeout, timeout_addr, sizeof(struct timespec)) < 0) {

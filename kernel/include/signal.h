@@ -131,6 +131,7 @@ struct sighand {
 };
 // pending signal queue head of proc
 struct sigpending {
+    struct spinlock siglock; // lock for the pending signal queue
     struct list_head list;
     sigset_t signal; /* pending signal set */
 };
@@ -321,6 +322,27 @@ struct rt_sigframe {
  */
 #define sig_action(t, signo) (t->sigs.actions[signo - 1])
 
+/**
+ * @brief get the first member of a sigset
+ * 
+ */
+#define sig_first_member(set) ({ \
+    int i; \
+    for (i = 0; i < _NSIG; i++) { \
+        if (sig_is_member((set), i + 1)) { \
+            break; \
+        } \
+    } \
+    i + 1; \
+})
+
+/**
+ * @brief check if the sigset is empty
+ * 
+ */
+#define sig_test_empty(set) ((set).sig == 0)
+
+
 int do_sigaction(int signum, __nullable struct sigaction *act, __nullable struct sigaction *oldact);
 int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t *oldset);
 int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf);
@@ -328,8 +350,9 @@ void signal_info_init(sig_t sig, siginfo_t *info, int opt);
 int signal_queue_delete(uint64 mask, struct sigpending *pending);
 int signal_queue_flush(struct sigpending *pending);
 void sigpending_init(struct sigpending *sig);
-int signal_handle(struct tcb *t);
+int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo);
 int signal_send(siginfo_t *info, struct tcb *t);
 int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf, sig_t signo);
+int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space siginfo_t *info, __nullable __kernel_space struct timespec *timeout);
 
 #endif

@@ -53,6 +53,7 @@ extern uint64 sys_tkill(void);
 extern uint64 sys_tgkill(void);
 extern uint64 sys_sigaction(void);
 extern uint64 sys_sigprocmask(void);
+extern uint64 sys_sigtimedwait(void);
 extern uint64 sys_sigreturn(void);
 extern uint64 sys_setgid(void);
 extern uint64 sys_setuid(void);

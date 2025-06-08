@@ -95,7 +95,7 @@ uartputc(int c)
   while(uart_tx_w == uart_tx_r + UART_TX_BUF_SIZE){
     // buffer is full.
     // wait for uartstart() to open up space in the buffer.
-    thread_sleep(&uart_tx_r, &uart_tx_lock);
+    thread_sleep(&uart_tx_r, &uart_tx_lock, NULL);
   }
   uart_tx_buf[uart_tx_w % UART_TX_BUF_SIZE] = c;
   uart_tx_w += 1;

@@ -12,6 +12,7 @@ struct stat;
 struct xv6fs_superblock;
 struct tcb;
 struct file;
+struct timespec;
 
 // bio.c
 void            binit(void);
@@ -109,7 +110,7 @@ void            procdump(void);
 int wait4(pid_t pid, uint64 pstatus, int options);
 pid_t waitpid(pid_t pid, uint64 wstatus, int options);
 
-void thread_sleep(void*, struct spinlock*);
+void thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *timeout);
 void thread_wakeup_chan(void *chan);
 void thread_yield(void);
 

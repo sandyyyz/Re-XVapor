@@ -111,13 +111,6 @@ static void __futex_hash_delete(struct hash_table *table, void *uaddr) {
     return;
 }
 
-static uint get_timeout_ticks(const struct timespec *ts) {
-    acquire(&tickslock);
-    uint ticks0 = ticks;
-    release(&tickslock);
-    uint rticks = TIMESPEC2TICKS(*ts);
-    return rticks + ticks0;
-}  
 /**
  * @brief free the futex structure and its hash node with the user address addr.
  * 

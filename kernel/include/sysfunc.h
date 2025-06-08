@@ -53,6 +53,7 @@
 [SYS_tgkill] sys_tgkill,
 [SYS_sigaction] sys_sigaction,
 [SYS_sigprocmask] sys_sigprocmask,
+[SYS_sigtimedwait] sys_sigtimedwait,
 [SYS_sigreturn] sys_sigreturn,
 [SYS_setgid] sys_setgid,
 [SYS_setuid] sys_setuid,

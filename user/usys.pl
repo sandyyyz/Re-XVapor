@@ -66,6 +66,7 @@ entry("tkill");
 entry("tgkill");
 entry("sigaction");
 entry("sigprocmask");
+entry("sigtimedwait");
 entry("sigreturn");
 entry("setgid");
 entry("setuid");

@@ -91,7 +91,7 @@ pipewrite(struct pipe *pi, int user_src, uint64 addr, int n)
     }
     if(pi->nwrite == pi->nread + PIPESIZE){ //DOC: pipewrite-full
       thread_wakeup_chan(&pi->nread);
-      thread_sleep(&pi->nwrite, &pi->lock);
+      thread_sleep(&pi->nwrite, &pi->lock, NULL);
     } else {
       char ch;
       if(either_copyin(&ch, user_src, addr + i, 1) == -1)
@@ -119,7 +119,7 @@ piperead(struct pipe *pi, int user_dst, uint64 addr, int n)
       release(&pi->lock);
       return -1;
     }
-    thread_sleep(&pi->nread, &pi->lock); //DOC: piperead-sleep
+    thread_sleep(&pi->nread, &pi->lock, NULL); //DOC: piperead-sleep
   }
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(pi->nread == pi->nwrite)

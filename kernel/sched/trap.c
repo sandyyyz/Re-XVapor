@@ -14,6 +14,15 @@
 
 struct spinlock tickslock, timeout_lock;
 uint ticks;
+
+uint get_ticksnow(void) {
+  uint t;
+  acquire(&tickslock);
+  t = ticks;
+  release(&tickslock);
+  return t;
+}
+
 extern char trampoline[], uservec[], userret[];
 extern char debug_uservec[];
 // in kernelvec.S, calls kerneltrap().
@@ -155,7 +164,7 @@ usertrap(void)
     thread_yield();
   }
 
-  signal_handle(t);
+  signal_handle(t, 0, NULL); // handle the signal, if any
   // each of the syscall, interrupt, exceptions from userspace will return from here
   // because we have set the t->tramframe->kernel_trap = (uint64)usertrap
   // and set the stvec to uservec before returned to userspace last time

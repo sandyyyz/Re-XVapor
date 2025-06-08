@@ -801,7 +801,7 @@ wait_one(uint64 addr)
     Info("thread %d wait, ready to sleep\n", mythread()->tid);
 #endif
     // Wait for a child to exit.
-    thread_sleep(p, &wait_lock);  //DOC: wait-sleep
+    thread_sleep(p, &wait_lock, NULL);  //DOC: wait-sleep
 #ifdef __DEBUG_WAIT
     Info("thread %d wait, waked up\n", mythread()->tid);
 #endif
@@ -863,7 +863,7 @@ pid_t wait4(pid_t pid, uint64 pstatus, int options) {
     // Wait for a child to exit.
     // TODO: how to wait for a specific child process to exit??
     // TODO: bug here: any child process will wake up this parent process
-    thread_sleep(p, &wait_lock);  //DOC: wait-sleep
+    thread_sleep(p, &wait_lock, NULL);  //DOC: wait-sleep
   }
   
 }
@@ -902,7 +902,7 @@ proc_kill(int pid, sig_t sig)
       acquire(&p->lock);
       if(p->pid == pid){
   #ifdef __DEBUG_PROC_KILL
-        Info("kill: pid %d, name %s, sig %d ", p->pid, p->name, sig);
+        Log("kill: pid %d, name %s, sig %d ", p->pid, p->name, sig);
   #endif //__DEBUG_KILL
         proc_sendsignal_all_thread(p, sig, 0); // send signal to all threads in the process
         release(&p->lock);
@@ -1010,6 +1010,7 @@ int procs_cnt(void) {
  * @param p process
  * @param signo signal number
  * @param opt options for the signal, see signal.h
+ * @attention call with the process' lock held
  */
 void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
   struct tcb *t_cur = NULL;
@@ -1022,9 +1023,15 @@ void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
       acquire(&t_cur->lock);
       thread_send_signal(t_cur, &info);
       release(&t_cur->lock);
+
+      // one thread may wait for the sig
+      acquire(&t_cur->sig_pending.siglock);
+      thread_wakeup_chan_timeout((void*) signo, get_ticksnow());
+      release(&t_cur->sig_pending.siglock);
   }
   release(&p->tg.lock);
   if (signo == SIGKILL || signo == SIGSTOP) {
-      proc_setkilled(p);
+      // proc_setkilled(p);
+      p->killed = 1; // set the killed flag
   }
 }

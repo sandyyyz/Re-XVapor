@@ -35,7 +35,7 @@ acquiresleep(struct sleeplock *lk)
       iswaken = 0;
 #endif
 
-    thread_sleep(lk, &lk->lk);
+    thread_sleep(lk, &lk->lk, NULL);
   }
 #ifdef __DEBUG_SLEEPLOCK
   Info("acuiresleep wakeup %p\n", lk);

@@ -12,6 +12,7 @@
 #include "vfs.h"
 #include "signal.h"
 #include "futex.h"
+#include "trap.h"
 
 queue_t unused_t_queue, used_t_queue, runnable_t_queue, sleeping_t_queue;
 
@@ -310,7 +311,7 @@ void tginit(struct thread_group *tg) {
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
 void
-thread_sleep(void *chan, struct spinlock *lk)
+thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *timeout)
 {
 //   struct proc *p = myproc();
   struct tcb *t  = mythread();
@@ -329,6 +330,8 @@ thread_sleep(void *chan, struct spinlock *lk)
 
   // Go to sleep.
   t->chan = chan;
+  if(timeout)
+    t->timeout = get_timeout_ticks(timeout);
   // p->state = SLEEPING;
   tcb_q_change_state(t, TCB_SLEEPING);
   // sched();
@@ -365,6 +368,25 @@ void thread_wakeup_timeout(uint ticks_now)
     }
     return;
 }
+
+void thread_wakeup_chan_timeout(void *chan, uint ticks_now)
+{
+    struct tcb *t;
+    struct tcb *cur_thread = mythread();
+    for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {
+        if(t != cur_thread) {
+            acquire(&t->lock);
+            if(t->state == TCB_SLEEPING && t->chan == chan && t->timeout == ticks_now) {
+                tcb_q_change_state(t, TCB_RUNNABLE);
+                t->timeout = 0; // reset timeout
+                release(&t->lock);
+                break;
+            }
+            release(&t->lock);
+        }
+    }
+}
+
 /**
  * @brief // Wake up all threads sleeping on chan. Must be called without any p->lock.
  * 
@@ -549,7 +571,7 @@ void thread_send_signal(struct tcb *t_given, siginfo_t *info) {
     return;
 }
 
-int thread_kill(int tid, int sig) {
+int thread_kill(int tid, sig_t sig) {
     struct tcb *t = NULL;
     siginfo_t info;
     if(tid < 0 || tid >= NTHREADS) {
@@ -562,6 +584,10 @@ int thread_kill(int tid, int sig) {
             signal_info_init(sig, &info, 0);
             thread_send_signal(t, &info);
             release(&t->lock);
+            // one thread may wait for the sig
+            acquire(&t->sig_pending.siglock);
+            thread_wakeup_chan_timeout((void*) sig, get_ticksnow());
+            release(&t->sig_pending.siglock);
             return 0;
         }
         release(&t->lock);
@@ -570,7 +596,7 @@ int thread_kill(int tid, int sig) {
     return -1;
 }
 
-int thread_group_kill(int tgid, int tid, int sig) {
+int thread_group_kill(int tgid, int tid, sig_t sig) {
     struct tcb *t = NULL;
     siginfo_t info;
     if(tid < 0 || tid >= NTHREADS) {
@@ -583,6 +609,11 @@ int thread_group_kill(int tgid, int tid, int sig) {
             signal_info_init(sig, &info, 0);
             thread_send_signal(t, &info);
             release(&t->lock);
+
+            // one thread may wait for the sig
+            acquire(&t->sig_pending.siglock);
+            thread_wakeup_chan_timeout((void*) sig, get_ticksnow());
+            release(&t->sig_pending.siglock);
             return 0;
         }
         release(&t->lock);
@@ -590,3 +621,11 @@ int thread_group_kill(int tgid, int tid, int sig) {
     Warn("thread_group_kill: thread %d not found in group %d", tid, tgid);
     return -1;
 }
+
+uint get_timeout_ticks(const struct timespec *ts) {
+    acquire(&tickslock);
+    uint ticks0 = ticks;
+    release(&tickslock);
+    uint rticks = TIMESPEC2TICKS(*ts);
+    return rticks + ticks0;
+}  

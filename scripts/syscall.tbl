@@ -82,4 +82,4 @@
 98 futex    sys_futex
 131 tgkill  sys_tgkill
 130 tkill   sys_tkill
-
+137 sigtimedwait    sys_sigtimedwait

@@ -238,7 +238,7 @@ virtio_disk_rw(struct buf *b, int write)
     if(alloc3_desc(idx) == 0) {
     break;
     }
-    thread_sleep(&disk.free[0], &disk.vdisk_lock);
+    thread_sleep(&disk.free[0], &disk.vdisk_lock, NULL);
   }
 #ifdef __DEBUG_VDISKRW
   Log("pass sleep point %p",&disk.vdisk_lock);
@@ -297,7 +297,7 @@ virtio_disk_rw(struct buf *b, int write)
   Log("reach sleep point %p",(void*)b);
 #endif
   while(b->disk == 1) {
-    thread_sleep(b, &disk.vdisk_lock);
+    thread_sleep(b, &disk.vdisk_lock, NULL);
   }
 #ifdef __DEBUG_VDISKRW
   Log("pass sleep point %p",(void*)b);
