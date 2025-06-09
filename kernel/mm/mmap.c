@@ -249,3 +249,69 @@ int do_munmap(uint64 addr, int len) {
     release(&p->mm.lock);
     return 0;
 }
+
+static int setperm(pagetable_t pagetable, uint64 va, uint64 perm)
+{
+    pte_t *pte;
+
+    if (va >= MAXVA)
+        return -1;
+
+    pte = walk(pagetable, va, 0);
+    if (pte == 0 || (*pte & PTE_V) == 0)
+        return 0;
+    if ((*pte & PTE_U) == 0)
+        return -1;
+    *pte |= perm;
+    return 0;
+}
+
+int do_mprotect(uint64 addr, int size, int prot) {
+    struct proc *p = myproc();
+    struct vma_struct *vma;
+    int perm;
+    int pgnum;
+    uint64 va = addr;
+
+    acquire(&p->mm.lock);
+    vma = find_vma(p, addr);
+    if(vma == 0 || vma->vm_start > addr || vma->vm_end < addr + size) {
+        release(&p->mm.lock);
+        return -1; // not found or not in the range
+    }
+    vma->prot = prot;
+    release(&p->mm.lock);
+
+    pgnum = PGROUNDDOWN(size) / PGSIZE;
+    perm = PROT2PTE_FLAGS(prot);
+    perm |= PTE_U;
+    for(int i = 0; i < pgnum; i++) {
+        if (setperm(p->mm.pagetable, va, perm) != 0)
+            panic("out of maxva or not user page");
+        va += PGSIZE;
+    }
+    return 0;
+}
+/**
+ * @brief mprotect() changes the access protections for the calling
+       process's memory pages containing any part of the address range in
+       the interval [addr, addr+size-1].  addr must be aligned to a page
+       boundary.
+ * @property int mprotect(void addr[.size], size_t size, int prot);
+ * @return On success, mprotect() return zero.  On error,
+       these system calls return -1, and errno is set to indicate the
+       error.
+ */
+uint64 sys_mprotect(void) {
+    uint64 addr;
+    int size;
+    int prot;
+
+    argaddr(0, &addr);
+    argint(1, &size);
+    argint(2, &prot);
+#ifdef __DEBUG_SYS_MPROTECT
+    Log("sys_mprotect: addr %p, size %d, prot %d", addr, size, prot);
+#endif
+    return do_mprotect(addr, size, prot);
+}

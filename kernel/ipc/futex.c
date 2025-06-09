@@ -196,11 +196,13 @@ int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space c
 
     switch(futex_op) {
         case FUTEX_WAIT:
+        case FUTEX_WAIT_PRIVATE:
         // case FUTEX_WAIT_BITSET:
         // case FUTEX_WAIT_REQUEUE_PI:
             ret = futex_wait(uaddr, val, timeout);
             break;
         case FUTEX_WAKE:
+        case FUTEX_WAKE_PRIVATE:
             ret = futex_wake(uaddr, val);
             break;
         // case FUTEX_REQUEUE:

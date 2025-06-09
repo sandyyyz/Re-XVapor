@@ -73,6 +73,7 @@
 [SYS_clone] sys_clone,
 [SYS_execve] sys_execve,
 [SYS_mmap] sys_mmap,
+[SYS_mprotect] sys_mprotect,
 [SYS_wait4] sys_wait4,
 [SYS_prlimit64] sys_prlimit64,
 [SYS_getrandom] sys_getrandom,

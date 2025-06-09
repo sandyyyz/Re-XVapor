@@ -83,3 +83,4 @@
 131 tgkill  sys_tgkill
 130 tkill   sys_tkill
 137 sigtimedwait    sys_sigtimedwait
+226 mprotect    sys_mprotect

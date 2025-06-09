@@ -86,6 +86,7 @@ entry("munmap");
 entry("clone");
 entry("execve");
 entry("mmap");
+entry("mprotect");
 entry("wait4");
 entry("prlimit64");
 entry("getrandom");

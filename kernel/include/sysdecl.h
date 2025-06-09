@@ -73,6 +73,7 @@ extern uint64 sys_munmap(void);
 extern uint64 sys_clone(void);
 extern uint64 sys_execve(void);
 extern uint64 sys_mmap(void);
+extern uint64 sys_mprotect(void);
 extern uint64 sys_wait4(void);
 extern uint64 sys_prlimit64(void);
 extern uint64 sys_getrandom(void);

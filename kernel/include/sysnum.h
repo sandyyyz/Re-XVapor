@@ -73,6 +73,7 @@
 #define SYS_clone 220
 #define SYS_execve 221
 #define SYS_mmap 222
+#define SYS_mprotect 226
 #define SYS_wait4 260
 #define SYS_prlimit64 261
 #define SYS_getrandom 278
