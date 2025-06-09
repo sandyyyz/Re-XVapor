@@ -191,7 +191,7 @@ int futex_need_timeout(int futex_op) {
             futex_op == FUTEX_LOCK_PI2);
 }
 
-int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space const struct timespec *timeout, uint32 val2, uint32 uaddr2, uint32 val3) {
+int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space const struct timespec *timeout, uint32 val2, uint64 uaddr2, uint32 val3) {
     int ret = -1;
 
     switch(futex_op) {
@@ -246,7 +246,7 @@ static int futex_wait(uint64 uaddr, uint32 val, __nullable __kernel_space const 
     struct tcb *t = mythread();
     struct futex *fp = NULL;
 
-    if(copyin(p->mm.pagetable, (char*)uaddr, (uint64)&uval, sizeof(uval)) < 0) {
+    if(copyin(p->mm.pagetable, (char*)&uval, uaddr, sizeof(uval)) < 0) {
         Warn("futex_wait: failed to read value from user address %p\n", (void *)uaddr);
         return -1;
     }

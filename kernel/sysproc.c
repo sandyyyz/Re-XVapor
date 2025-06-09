@@ -605,16 +605,16 @@ uint64 sys_setpgid(void) {
  */
 uint64 sys_futex(void) {
   int futex_op;
-  uint32_t val, val2, val3, uaddr, uaddr2;
-  uint64 timeout_addr;
+  uint32_t val, val2, val3;
+  uint64 timeout_addr, uaddr, uaddr2;
   struct timespec timeout;
 
-  arguint32(0, &uaddr);
+  argaddr(0, &uaddr);
   argint(1, &futex_op);
   arguint32(2, &val);
-  arguint64(3, &timeout_addr);
+  argaddr(3, &timeout_addr);
   arguint32(3, &val2);
-  arguint32(4, &uaddr2);
+  argaddr(4, &uaddr2);
   arguint32(5, &val3);
 
 #ifdef __DEBUG_SYS_FUTEX

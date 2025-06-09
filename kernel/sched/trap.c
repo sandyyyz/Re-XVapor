@@ -64,8 +64,8 @@ static void pgfault_handler() {
   if(!(mem = kzalloc())) {
     panic("usertrap: kalloc");
   }
-#ifdef __DEBUG_UTRAP
-  Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot %p\n", p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
+#ifdef __DEBUG_PGFAULT
+  Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prem %p\n", p->pid, t->tid, va, PGSIZE, mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X);
 #endif
   if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
     panic("usertrap: mappages");
