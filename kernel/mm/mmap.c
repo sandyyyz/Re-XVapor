@@ -85,11 +85,20 @@ uint64 sys_mmap(void) {
     argint(1, &length);
     argint(2, &prot);
     argint(3, &flags);
-    if(argfd(4, &fd, &fp) < 0) {
-        return -1;
+    if(flags & MAP_ANONYMOUS) {
+        fd = -1;
+        fp = NULL;
+    } else {
+        if(argfd(4, &fd, &fp) < 0) {
+            Warn("sys_mmap: argfd failed");
+            return -1;
+        }
     }
     argint(5, &offset);
 
+#ifdef __DEBUG_SYS_MMAP
+    Log("sys_mmap: addr %p, length %d, prot %d, flags %d, fd %d, offset %d", addr, length, prot, flags, fd, offset);
+#endif
     return do_mmap(addr, length, prot, flags, fd, fp, offset);
 
 
@@ -105,6 +114,9 @@ uint64 sys_munmap(void) {
 
     argaddr(0, &addr);
     argint(1, &len);
+#ifdef __DEBUG_SYS_MUNMAP
+    Log("sys_munmap: addr %p, len %d", addr, len);
+#endif
     return do_munmap(addr, len);
     
 }
@@ -115,18 +127,19 @@ uint64 sys_munmap(void) {
  * @param length length of the file
  * @param prot protection of the memory
  * @param flags mapping flags, use to determine the behavior of the mapping
- * @param fd file descriptor
- * @param fp file pointer
+ * @param fd file descriptor, if -1, the mapping is anonymous
+ * @param fp file pointer, NUll if fd is -1
  * @param offset offset in the file
  * @return return the start address of the mapping, -1 if failed
  */
-uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, struct file *fp, uint64 offset) {
+uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd, __nullable struct file *fp, uint64 offset) {
 
     struct proc *p = myproc();
     struct vma_struct *vma;
     // printf("fp->writeable: %d\n", fp->writable);
     // printf("fp->flags: %d\n", fp->flags);
-    if(!IS_WRITABLE(fp->flags) && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
+
+    if(fp && !IS_WRITABLE(fp->flags) && ((prot & PROT_WRITE) && flags & MAP_SHARED)) {
         return -1;
     }
 
@@ -142,13 +155,20 @@ uint64 do_mmap(uint64 addr, uint64 length, uint64 prot, uint64 flags, uint64 fd,
     vma->fd = fd;
     vma->file = fp;
     vma->offset = offset;
-    vma->file->ref++;
     p->mm.max_vma = vma->vm_start;
+    if(flags & MAP_ANONYMOUS) {
+        // fp = NULL. fd = -1 or 0. just ignore
+        vma->type = VMA_ANONYMOUS;
+    } else {
+        vma->type = VMA_FILE;
+        vma->file->ref++;
+    }
     // TODO: here has a problem that the max_vma is always going down for a given process...
     // just make a check right now...
     if(p->mm.max_vma < MMAP_END_ADDRESS) {
         release(&p->mm.lock);
         Warn("mmap: out of memory\n");
+        kfree((void *)vma);
         return -1;
     }
     list_add_tail(&vma->vma_list, &p->mm.vma_list);
@@ -179,7 +199,8 @@ int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len) 
         if(!(*pte) || !(*pte & PTE_V)) {
             continue;
         }
-        if((*pte & PTE_D) && vma->flags & MAP_SHARED) {
+        if((*pte & PTE_D) && (vma->flags & MAP_SHARED) && (vma->type == VMA_FILE)) {
+        // dirty page, write back to file
         // write back 
         filewrite(fp, 1, va, PGSIZE, fp->fpos);
         }
@@ -220,7 +241,8 @@ int do_munmap(uint64 addr, int len) {
     // free vma if it's empty
     acquire(&p->mm.lock);
     if(vma->vm_start >= vma->vm_end) {
-        vma->file->ref--;
+        if(vma->type == VMA_FILE)
+            vma->file->ref--;
         list_del(&vma->vma_list);
         kfree((void *)vma);
     }

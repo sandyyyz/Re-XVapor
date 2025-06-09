@@ -45,6 +45,53 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+static void pgfault_handler() {
+  uint64 va = PGROUNDDOWN(r_stval());
+  struct vma_struct *vma;
+  struct proc *p = myproc();
+  struct tcb *t = mythread();
+
+  acquire(&p->mm.lock);
+  if(!(vma = find_vma(p, va))) {
+    printf("thread %d usertrap: page fault at %p\n", t->tid, va);
+    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("scause=%p\n", r_scause());
+    printf("sstatus=%p\n", r_sstatus());
+    printf("satp=%p\n", r_satp());
+    panic("usertrap: page fault");
+  }
+  char* mem;
+  if(!(mem = kzalloc())) {
+    panic("usertrap: kalloc");
+  }
+#ifdef __DEBUG_UTRAP
+  Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot %p\n", p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
+#endif
+  if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
+    panic("usertrap: mappages");
+  }
+#ifdef __DEBUG_UTRAP
+  // vmprint(p->mm.pagetable);
+#endif
+  if(vma->type != VMA_FILE) {
+    // anonymous vma, just return
+    release(&p->mm.lock);
+    return;
+  }
+  struct file* fp = vma->file;
+  int offset = va - vma->vm_start;
+  int rcnt = 0;
+  if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
+    printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
+    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("scause=%p\n", r_scause());
+    printf("sstatus=%p\n", r_sstatus());
+    printf("satp=%p\n", r_satp());
+    panic("usertrap: read file failed");
+  }
+  release(&p->mm.lock);
+}
+
 // trampoline已经换栈和页表
 //
 // handle an interrupt, exception, or system call from user space.
@@ -102,44 +149,10 @@ usertrap(void)
     if(which_dev == 3) {
       // read/write pagefault,maybe mmap cause
       // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
-      uint64 va = PGROUNDDOWN(r_stval());
-      struct vma_struct *vma;
-      acquire(&p->mm.lock);
-      if(!(vma = find_vma(p, va))) {
-        printf("thread %d usertrap: page fault at %p\n", t->tid, va);
-        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-        printf("scause=%p\n", r_scause());
-        printf("sstatus=%p\n", r_sstatus());
-        printf("satp=%p\n", r_satp());
-        panic("usertrap: page fault");
-      }
-      char* mem;
-      if(!(mem = kzalloc())) {
-        panic("usertrap: kalloc");
-      }
-#ifdef __DEBUG_UTRAP
-      Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot %p\n", p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
-#endif
-      if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
-        panic("usertrap: mappages");
-      }
-#ifdef __DEBUG_UTRAP
-      // vmprint(p->mm.pagetable);
-#endif
-      struct file* fp = vma->file;
-      int offset = va - vma->vm_start;
-      int rcnt = 0;
-      if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
-        printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
-        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-        printf("scause=%p\n", r_scause());
-        printf("sstatus=%p\n", r_sstatus());
-        printf("satp=%p\n", r_satp());
-        panic("usertrap: read file failed");
-      }
-      release(&p->mm.lock);
+      pgfault_handler();
     }
-  } else {
+  } else{
+    // devintr unrecognized
 #ifdef __SHOW_UNEXPECTED_UTRAP
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
