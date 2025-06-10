@@ -17,6 +17,7 @@
 #include "fcntl.h"
 #include "timer.h"
 #include "riscv.h"
+#include "ext4_super.h"
 
 void ext4_ilock(struct inode *ip);
 int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
@@ -26,6 +27,7 @@ int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev);
 int ext4_vcleansf(struct file *fp);
 int ext4_vmkdir(const char *pathname, mode_t mode);
 int ext4_vgetdents(struct file *fp, struct linux_dirent64 *dirp, int count);
+int ext4_vstatfs(struct vfs_filesystem *fs, struct statfs *buf);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -64,6 +66,7 @@ struct fs_ops ext4_fs_ops = {
     .faccess = ext4_vfaccess,
     .utimens = ext4_vutimens,
     .file_exist = ext4_vfile_exist,
+    .statfs = ext4_vstatfs,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -72,6 +75,7 @@ struct vfs_filesystem ext4_fs = {
     .iops = &ext4_inode_ops,
     .fops = &ext4_file_ops,
     .fsops = &ext4_fs_ops,
+    .path = "/",
 };
 
 
@@ -1050,4 +1054,28 @@ int ext4_vlseek(struct file *fp, off_t offset, int whence) {
     }
     fp->fpos = efp->fpos;
     return fp->fpos;
+}
+
+int ext4_vstatfs(struct vfs_filesystem *fs, struct statfs *buf) {
+    struct ext4_sblock *sb = NULL;
+    int err = EOK;
+
+    err = ext4_get_sblock(fs->path, &sb);
+    if (err != EOK) {
+        return err;
+    }
+
+    buf->f_bsize = ext4_sb_get_block_size(sb);
+    buf->f_blocks = ext4_sb_get_blocks_cnt(sb);
+    buf->f_bfree = ext4_sb_get_free_blocks_cnt(sb);
+    buf->f_bavail = ext4_sb_get_free_blocks_cnt(sb);
+    buf->f_type = sb->magic;
+    buf->f_files = sb->inodes_count;
+    buf->f_ffree = sb->free_inodes_count;
+    buf->f_frsize = ext4_sb_get_block_size(sb);
+    buf->f_bavail = sb->free_inodes_count;
+    buf->f_fsid.val[0] = 2; /* why 2? */
+    buf->f_flags = 0;
+    buf->f_namelen = 32;
+    return err;
 }

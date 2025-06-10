@@ -188,7 +188,7 @@ bad:
 int futex_need_timeout(int futex_op) {
     return (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT_BITSET ||
             futex_op == FUTEX_WAIT_REQUEUE_PI || futex_op == FUTEX_LOCK_PI ||
-            futex_op == FUTEX_LOCK_PI2);
+            futex_op == FUTEX_LOCK_PI2 || futex_op == FUTEX_WAIT_PRIVATE);
 }
 
 int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space const struct timespec *timeout, uint32 val2, uint64 uaddr2, uint32 val3) {
@@ -252,6 +252,7 @@ static int futex_wait(uint64 uaddr, uint32 val, __nullable __kernel_space const 
     }
     if(uval != val) {
         // the value has changed, no need to wait
+        Warn("futex_wait: value at address %p is %d, expected %d\n", (void *)uaddr, uval, val);
         return 0;
     }
 
@@ -270,7 +271,13 @@ static int futex_wait(uint64 uaddr, uint32 val, __nullable __kernel_space const 
     if(timeout) {
         t->timeout = get_timeout_ticks(timeout);
     }
+#ifdef __DEBUG_FUTEX_WAIT
+    Log("futex_wait: thread %d waiting on futex at address %p with value %d, timeout %d ticks\n", t->tid, (void *)uaddr, val, t->timeout);
+#endif
     thread_sched();
+#ifdef __DEBUG_FUTEX_WAIT
+    Log("futex_wait: thread %d woke up from futex wait on address %p\n", t->tid, (void *)uaddr);
+#endif
     release(&t->lock);
 
     return 0;
@@ -287,7 +294,9 @@ int futex_wake(uint64 uaddr, int nr_wake) {
     struct tcb *t = NULL;
     struct futex *fp = NULL;
     int ret = 0;
-
+#ifdef __DEBUG_FUTEX_WAKE
+    Log("futex_wake: waking up at most %d waiters on futex at address %p\n", nr_wake, (void *)uaddr);
+#endif
     fp = get_futex(uaddr, 1);
     if (fp == NULL) {
         Warn("futex_wake: futex not found for address %p\n", (void *)uaddr);

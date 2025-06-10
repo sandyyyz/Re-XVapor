@@ -503,7 +503,7 @@ fork(void)
       np->ofile[i] = filedup(p->ofile[i]);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
-
+  sighandinit(np->tg.group_leader); // init the signal handler
   pid = np->pid;
   strncpy(np->cinfo.path, p->cinfo.path, MAXPATH);
   // release(&np->tg.group_leader->lock);
@@ -565,6 +565,7 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
 
   if(flags & CLONE_THREAD) {
     // if CLONE_THREAD, we just create a new thread in the same process
+    printf("CLONE_THREAD\n");
     if((t = alloc_thread(thread_forkret)) == 0)
       return -1; 
     if(proc_join_thread(p, t, NULL) < 0) {
@@ -605,8 +606,11 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     t->trapframe->sp = stack;
   }
   if(flags & CLONE_SIGHAND) {
-    // not support yet
     printf("CLONE_SIGHAND\n");
+    t->sigs = p->tg.group_leader->sigs; // share the signal handler
+    atomic_add_return(&t->sigs->ref, 1); // increment the reference count
+  } else {
+    sighandinit(t); // init the signal handler
   }
   if(flags & CLONE_PARENT_SETTID) {
     printf("CLONE_PARENT_SETTID\n");

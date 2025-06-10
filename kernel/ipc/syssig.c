@@ -52,22 +52,29 @@ uint64 sys_sigaction() {
 /**
  * @brief sigprocmask() is used to fetch and/or change the signal mask of
        the calling thread.
- * @property int sigprocmask(int how, const sigset_t *_Nullable restrict set,
-                                  sigset_t *_Nullable restrict oldset);
+ * @property int syscall(SYS_rt_sigprocmask, int how,
+                                  const kernel_sigset_t *_Nullable set,
+                                  kernel_sigset_t *_Nullable oldset,
+                                  size_t sigsetsize);
  * @return  sigprocmask() returns 0 on success.  On failure, -1 is returned
        and errno is set to indicate the error.
  */
-uint64 sys_sigprocmask() {
+uint64 sys_rt_sigprocmask() {
     int how, ret;
-    uint64 set_addr, oldset_addr;
+    uint64 set_addr, oldset_addr, size;
     sigset_t set, oldset;
 
     argint(0, &how);
     argaddr(1, &set_addr);
     argaddr(2, &oldset_addr);
+    arglong(3, &size);
 #ifdef __DEBUG_SYS_SIGPROCMASK
-    Log("[sys_sigprocmask] how: %d, set_addr: %p, oldset_addr: %p", how, set_addr, oldset_addr);
+    Log("[sys_sigprocmask] how: %d, set_addr: %p, oldset_addr: %p, size %d", how, set_addr, oldset_addr, size);
 #endif
+    if(size != sizeof(sigset_t)) {
+        Warn("sys_rt_sigprocmask: invalid size %d, expected %d", size, sizeof(sigset_t));
+        return -1;
+    }
     if(set_addr) {
         if(copyin(myproc()->mm.pagetable, (char*) &set, set_addr, sizeof(set)) < 0) {
             return -1;

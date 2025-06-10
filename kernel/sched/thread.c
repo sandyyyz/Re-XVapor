@@ -185,6 +185,16 @@ void free_thread(struct tcb *t) {
     t->sig_processing = 0;
     t->timeout = 0;
     signal_queue_flush(&t->sig_pending);
+    t->chan = NULL;
+    t->wait_chan_entry = NULL;
+    if(t->sigs) {
+        int ref = atomic_dec_return(&t->sigs->ref);
+        if(ref == 1) {
+            // last thread using this sighand, free it
+            kfree(t->sigs);
+        }
+        t->sigs = NULL;
+    }
     tcb_q_change_state(t, TCB_UNUSED);
 }
 
@@ -258,6 +268,7 @@ void thread_exit(int status) {
     struct tcb *t = mythread();
     struct proc *p = t->p;
     struct thread_group *tg = &(p->tg);
+    int thread_cnt = 0;
 
     if( t->state == TCB_SLEEPING) 
         thread_wakeup_specific(t);
@@ -268,11 +279,11 @@ void thread_exit(int status) {
     if(t->clear_child_tid) {
         tid_t clear = 0;
         // thread_wakeup_chan((void*)t->clear_child_tid);
-        futex_wake(t->clear_child_tid, 1);
         copyout(p->mm.pagetable, t->clear_child_tid, (char *)&clear, sizeof(t->tid));
+        futex_wake(t->clear_child_tid, 1);
     }
 
-    if(atomic_dec_return(&tg->thread_cnt) == 1) {
+    if((thread_cnt = atomic_dec_return(&tg->thread_cnt))== 1) {
 
         proc_exit(status);
         release(&p->lock);
@@ -288,7 +299,7 @@ void thread_exit(int status) {
     acquire(&t->lock);
     free_thread(t);
     // tcb_q_change_state(t, TCB_UNUSED);
-    if(atomic_read(&tg->thread_cnt) == 0)
+    if(thread_cnt == 1)
         release(&p->lth_exitlock);
 
     thread_sched();
@@ -464,7 +475,7 @@ void thread_wakeup_specific_atomic(struct tcb *t) {
     // queue_remove_atomic(t->wait_chan_entry, (void *)t);
     ASSERT(t->state == TCB_SLEEPING);
     // t->wait_chan_entry = NULL;
-    ASSERT(t->chan != NULL);
+    ASSERT(t->chan != NULL || t->wait_chan_entry != NULL);
     t->chan = NULL; // clear the chan, so that we can wake it up
     tcb_q_change_state(t, TCB_RUNNABLE);
 
@@ -479,7 +490,7 @@ void thread_wakeup_specific(struct tcb *t) {
     // queue_remove_atomic(t->wait_chan_entry, (void *)t);
     ASSERT(t->state == TCB_SLEEPING);
     // t->wait_chan_entry = NULL;
-    ASSERT(t->chan != NULL);
+    ASSERT(t->chan != NULL || t->wait_chan_entry != NULL);
     t->chan = NULL; // clear the chan, so that we can wake it up
     tcb_q_change_state(t, TCB_RUNNABLE);
 }
@@ -548,8 +559,11 @@ int free_allother_threads_group(struct tcb *t) {
 }
 
 void sighandinit(struct tcb *t) {
-    initlock(&t->sigs.siglock, "sighand lock");
-    atomic_set(&t->sigs.ref, 1);
+    if ((t->sigs = kmalloc(sizeof(struct sighand))) == NULL) {
+        panic("sighandinit: kmalloc failed\n");
+    }
+    initlock(&t->sigs->siglock, "sighand lock");
+    atomic_set(&t->sigs->ref, 1);
 }
 
 /**

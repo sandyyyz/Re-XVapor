@@ -978,7 +978,7 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
   int r = 0;
   #ifdef __DEBUG_GENERIC_FSTAT
-  printf("[generic_fstat] pathname = %s\n", path);
+  Log("[generic_fstat] pathname = %s", path);
   #endif
   if (fs == NULL) {
       printf("FS type not found\n");
@@ -1025,7 +1025,7 @@ uint64 sys_fstatat() {
 
   get_abpath_from_dirfd(pathname, dirfd, abs_path);
 #ifdef __DEBUG_SYS_FSTATAT
-  printf("[sys_fstatat] abs_path = %s\n", abs_path);
+  Log("[sys_fstatat] abs_path = %s", abs_path);
 #endif
   struct kstat kbuf;
   if((r = generic_fstat(abs_path, &kbuf)) != EOK) {
@@ -1723,4 +1723,48 @@ uint64 sys_lseek(void) {
   Log("[sys_lseek] f->fops->lseek success, r = %d, f->fpos = %d", r, f->fpos);
 #endif
   return r; // return the new file position
+}
+
+/**
+ * @brief The statfs() system call returns information about a mounted
+       filesystem.
+ * @property int statfs(const char *path, struct statfs *buf);
+ * @return   On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_statfs(void) {
+  uint64 ubuf_addr;
+  char path[MAXPATH];
+  struct vfs_filesystem *fs = NULL;
+  int ret;
+  if(argstr(0, path, MAXPATH) < 0) {
+    printf("[sys_statfs] argstr failed\n");
+    return -1;
+  }
+  argaddr(1, &ubuf_addr);
+#ifdef __DEBUG_SYS_STATFS
+  Log("[sys_statfs] path = %s, ubuf_addr = %p", path, (void *)ubuf_addr);
+#endif
+  fs = vfs_resolve_fs(path);
+  if (fs == NULL) {
+    printf("[sys_statfs] vfs_resolve_fs failed\n");
+    return -1;
+  }
+  if(fs->fsops->statfs == NULL) {
+    printf("[sys_statfs] fsops->statfs is NULL\n");
+    return -1;
+  }
+  struct statfs kbuf;
+  if((ret = fs->fsops->statfs(fs, &kbuf)) < 0) {
+    printf("[sys_statfs] fsops->statfs failed\n");
+    return ret;
+  }
+  if(copyout(myproc()->mm.pagetable, ubuf_addr, (char *)&kbuf, sizeof(struct statfs)) < 0) {
+    printf("[sys_statfs] copyout failed\n");
+    return -1;
+  }
+#ifdef __DEBUG_SYS_STATFS
+  Log("[sys_statfs] fsops->statfs success, path = %s, ubuf_addr = %p", path, (void *)ubuf_addr);
+#endif
+  return 0; // success
 }

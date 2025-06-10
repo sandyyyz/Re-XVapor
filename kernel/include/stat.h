@@ -107,6 +107,29 @@ struct stat {
 #define st_ctime st_ctim.tv_sec
 };
 
+typedef struct {
+  int val[2];
+} __kernel_fsid_t;
+typedef __kernel_fsid_t fsid_t;
+typedef uint64 fsblkcnt_t;
+typedef uint64 fsfilcnt_t;
+struct statfs {
+    uint64 f_type; /* type of file system (see below) */
+    uint64 f_bsize; /* optimal transfer block size */
+    fsblkcnt_t f_blocks; /* total data blocks in file system */
+    fsblkcnt_t f_bfree; /* free blocks in fs */
+    fsblkcnt_t f_bavail; /* free blocks available to
+                            unprivileged user */
+    fsfilcnt_t f_files; /* total file nodes in file system */
+    fsfilcnt_t f_ffree; /* free file nodes in fs */
+    fsid_t f_fsid; /* file system ID */
+    uint64 f_namelen; /* maximum length of filenames */
+    uint64 f_frsize; /* fragment size (since Linux 2.6) */
+    uint64 f_flags; /* mount flags of filesystem (since Linux 2.6.36) */
+    uint64 f_spare[4]; /* padding for future expansion */
+};
+
+
 // for utimensat
 #define UTIME_NOW ((1l << 30) - 1l)
 #define UTIME_OMIT ((1l << 30) - 2l)

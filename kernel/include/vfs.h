@@ -77,6 +77,7 @@ struct  vfs_filesystem {
 
     void *fs_data; // Filesystem-specific data, e.g. xv6fs_superblock
     struct list_head fs_list; // List of mounted filesystems
+    char path[MAXPATH]; // Mount point path
 };
 
 struct dirent {
@@ -157,6 +158,7 @@ struct fs_ops {
     int (*faccess)(char *path, int amode, int flags);
     int (*utimens)(const char *path, const struct timespec times[2]);
     int (*file_exist)(const char *path);
+    int (*statfs)(struct vfs_filesystem *fs, struct statfs *buf);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

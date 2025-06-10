@@ -20,7 +20,7 @@ int do_sigaction(int signum, __nullable struct sigaction *act, __nullable struct
 
     if(!valid_signal(signum))
         return -1;
-    acquire(&t->sigs.siglock);
+    acquire(&t->sigs->siglock);
     sa = &sig_action(t, signum);
     if(oldact) {
         *oldact = *sa;
@@ -30,7 +30,7 @@ int do_sigaction(int signum, __nullable struct sigaction *act, __nullable struct
         sig_del_set_mask(act->sa_mask, sig_gen_mask(SIGKILL) | sig_gen_mask(SIGSTOP));
         *sa = *act;
     }
-    release(&t->sigs.siglock);
+    release(&t->sigs->siglock);
     return 0;
 }
 
@@ -38,8 +38,11 @@ int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t 
     struct tcb *t = mythread();
     sigset_t oldmask;
 
-    acquire(&t->sigs.siglock);
+    acquire(&t->sigs->siglock);
     if (set) {
+#ifdef __DEBUG_DO_SIGPROCMASK
+        Log("do_sigprocmask: thread %d, how: %d, set: %p", t->tid, how, set->sig);
+#endif
         switch (how) {
             case SIG_BLOCK:
                 t->blocked.sig |= set->sig;
@@ -51,7 +54,8 @@ int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t 
                 t->blocked.sig = set->sig;
                 break;
             default:
-                release(&t->sigs.siglock);
+                release(&t->sigs->siglock);
+                Warn("do_sigprocmask: invalid how value: %d", how);
                 return -1; // Invalid how value
         }
     }
@@ -64,7 +68,8 @@ int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t 
         oldmask = t->blocked;
         *oldset = oldmask;
     }
-    release(&t->sigs.siglock);
+    sig_del_set_mask(t->blocked, sig_gen_mask(SIGKILL) | sig_gen_mask(SIGSTOP));
+    release(&t->sigs->siglock);
     return 0;
 }
 
@@ -358,7 +363,9 @@ int signal_send(siginfo_t *info, struct tcb *t) {
         Warn("signal_send : signal %d already exists in pending queue", sig);
         return -1;
     }
-
+#ifdef __DEBUG_SIGNAL_SEND
+    Log("signal_send: thread %d send signal %d to thread %d", mythread()->tid, sig, t->tid);
+#endif
     // be killed immediately !!!
     if (sig == SIGKILL || sig == SIGSTOP || sig == SIGTERM) {
         t->killed = 1;

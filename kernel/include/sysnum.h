@@ -21,6 +21,7 @@
 #define SYS_linkat 37
 #define SYS_umount2 39
 #define SYS_mount 40
+#define SYS_statfs 43
 #define SYS_faccessat 48
 #define SYS_chdir 49
 #define SYS_openat 56
@@ -52,7 +53,7 @@
 #define SYS_tkill 130
 #define SYS_tgkill 131
 #define SYS_sigaction 134
-#define SYS_sigprocmask 135
+#define SYS_rt_sigprocmask 135
 #define SYS_sigtimedwait 137
 #define SYS_sigreturn 139
 #define SYS_setgid 144

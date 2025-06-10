@@ -320,7 +320,7 @@ struct rt_sigframe {
  * @brief sigaction of signo in given thread
  * 
  */
-#define sig_action(t, signo) (t->sigs.actions[signo - 1])
+#define sig_action(t, signo) (t->sigs->actions[signo - 1])
 
 /**
  * @brief get the first member of a sigset
