@@ -856,3 +856,131 @@ va 0x0000003fffff4000, size 0x0000000000001000
 futex_copyin:
 pgtable addr: 0x9fb80000  
 pte = 0;  
+
+
+#### libc.2
+`thread_cancel_points()`  
+
+/musl # thread 2 syscall 63
+/musl/runtest.exe -w entry-static.exe pthread_cancel_points
+thread 2 syscall 135
+thread 2 syscall 220
+[LOG][sysproc.c,221,sys_clone] [sys_clone] flags: 0x11, stack: 0x0000000000000000, ptid: 1595216, tls: 0x0000000000000008, ctid: 0x0000000000000800
+thread 2 syscall 135
+thread 3 syscall 178
+thread 3 syscall 135
+thread 2 syscall 260
+thread 3 syscall 134
+thread 3 syscall 134
+thread 3 syscall 134
+thread 3 syscall 221
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/runtest.exe, path /musl/runtest.exe, cinfo.path /musl
+thread 3 syscall 96
+thread 3 syscall 135
+thread 3 syscall 135
+thread 3 syscall 134
+thread 3 syscall 64
+========== START entry-static.exe pthread_cancel_points ==========
+thread 3 syscall 135
+thread 3 syscall 220
+[LOG][sysproc.c,221,sys_clone] [sys_clone] flags: 0x11, stack: 0x0000000000000000, ptid: 252736, tls: 0x0000000000000008, ctid: 0x0000000000000000
+thread 3 syscall 135
+thread 4 syscall 178
+thread 3 syscall 137
+thread 4 syscall 135
+thread 4 syscall 261
+thread 4 syscall 221
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/entry-static.exe, path entry-static.exe, cinfo.path /musl
+thread 4 syscall 96
+thread 4 syscall 135
+thread 4 syscall 222
+thread 4 syscall 226
+thread 4 syscall 135
+thread 4 syscall 220
+[LOG][sysproc.c,221,sys_clone] [sys_clone] flags: 0x7d0f00, stack: 0x0000003fffff4ad8, ptid: -46272, tls: 0x0000003fffff4be8, ctid: 0x000000000009db80
+CLONE_SETTLS
+CLONE_CHILD_CLEARTID
+set stack to 0x0000003fffff4ad8
+CLONE_SIGHAND
+CLONE_PARENT_SETTID
+thread 4 syscall 135
+thread 4 syscall 134
+thread 4 syscall 130
+thread 4 syscall 98
+[LOG][sysproc.c,622,sys_futex] [sys_futex] uaddr: 0x0000003fffff4b48, futex_op: 128, val: 1, timeout_addr: 0x0000000000000000, val2: 0, uaddr2: 0x0000000000000000, val3: 0
+thread 5 syscall 135
+[LOG][ipc/signal.c,114,signal_handle] signal_handle: thread 5 has 1 pending signals
+[WARN][ipc/signal.c,90,signal_default] Default action for signal 33 not implemented
+thread 5 syscall 135
+[LOG][ipc/futex.c,274,futex_wait] futex_wait: thread 4 waiting on futex at address 0x0000003fffff4b48 with value 1, timeout 0 ticks
+
+thread 5 syscall 98
+[LOG][sysproc.c,622,sys_futex] [sys_futex] uaddr: 0x0000003fffff4b48, futex_op: 129, val: 1, timeout_addr: 0x0000000000000000, val2: 0, uaddr2: 0x0000000000000002, val3: -46264
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x0000003fffff4b48
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x0000003fffff4b48
+
+thread 5 syscall 93
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x000000000009db80
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x000000000009db80
+
+[LOG][sched/thread.c,367,thread_wakeup_timeout] thread_wakeup_timeout: thread 3 wakeup on timeout 74
+thread 3 syscall 129
+[LOG][sched/proc.c,905,proc_kill] kill: pid 4, name entry-static.ex, sig 9 
+[LOG][ipc/futex.c,278,futex_wait] futex_wait: thread 4 woke up from futex wait on address 0x0000003fffff4b48
+
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x000000000009db80
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x000000000009db80
+
+thread 3 syscall 260
+thread 3 syscall 64
+FAIL pthread_cancel_points [status 255]
+thread 3 syscall 64
+========== END entry-static.exe pthread_cancel_points ==========
+thread 3 syscall 94
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x000000000001d238
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x000000000001d238
+
+thread 2 syscall 260
+thread 2 syscall 29
+thread 2 syscall 17
+thread 2 syscall 175
+thread 2 syscall 66
+/musl # thread 2 syscall 63
+
+
+### libc.3
+unsupport now:  
+
+/musl/runtest.exe -w entry-static.exe pthread_cancel_points  
+/musl/runtest.exe -w entry-static.exe pthread_cancel  
+/musl/runtest.exe -w entry-static.exe pthread_cond  
+/musl/runtest.exe -w entry-static.exe pthread_tsd  
+/musl/runtest.exe -w entry-static.exe setjmp  
+/musl/runtest.exe -w entry-static.exe snprintf
+/musl/runtest.exe -w entry-static.exe socket
+/musl/runtest.exe -w entry-static.exe sscanf
+/musl/runtest.exe -w entry-static.exe sscanf_long
+/musl/runtest.exe -w entry-static.exe stat
+/musl/runtest.exe -w entry-static.exe strftime
+/musl/runtest.exe -w entry-static.exe strtof
+/musl/runtest.exe -w entry-static.exe utime
+/musl/runtest.exe -w entry-static.exe daemon_failure
+/musl/runtest.exe -w entry-static.exe fflush_exit
+/musl/runtest.exe -w entry-static.exe lseek_large
+/musl/runtest.exe -w entry-static.exe printf_1e9_oob
+/musl/runtest.exe -w entry-static.exe printf_fmt_g_round
+/musl/runtest.exe -w entry-static.exe printf_fmt_g_zeros
+/musl/runtest.exe -w entry-static.exe pthread_robust_detach
+/musl/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
+/musl/runtest.exe -w entry-static.exe pthread_cond_smasher
+/musl/runtest.exe -w entry-static.exe pthread_condattr_setclock
+/musl/runtest.exe -w entry-static.exe pthread_exit_cancel
+/musl/runtest.exe -w entry-static.exe pthread_once_deadlock
+/musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+/musl/runtest.exe -w entry-static.exe putenv_doublefree
+/musl/runtest.exe -w entry-static.exe rlimit_open_files
+/musl/runtest.exe -w entry-static.exe syscall_sign_extend
