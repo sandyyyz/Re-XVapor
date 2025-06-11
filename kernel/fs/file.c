@@ -14,6 +14,7 @@
 #include "proc.h"
 #include "debug.h"
 #include "thread.h"
+#include "proc.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -85,7 +86,11 @@ void
 fileclose(struct file *f)
 {
   struct file ff;
-
+  struct proc *p = myproc();
+  p->ofile_cnt--;
+  Log("--ofile_cnt %d", p->ofile_cnt);;
+  if(p->ofile_cnt < 0)
+    panic("fileclose: ofile_cnt < 0");
 #ifdef __DEBUG_FILE_CLOSE
   Log("fileclose : f %p ref %d", f, f->ref);
 #endif
@@ -198,4 +203,8 @@ int filewrite(struct file *f, int user_src, uint64 addr, int n, int off)
   }
   return ret;
   
+}
+
+int is_exc_rcfile(struct proc *p) {
+  return p->ofile_cnt >= p->rlim[RLIMIT_NOFILE].rlim_cur || p->ofile_cnt >= NOFILE;
 }

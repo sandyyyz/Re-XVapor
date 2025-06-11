@@ -129,4 +129,6 @@ extern struct devsw devsw[];
 
 #define CONSOLE 1
 
+int is_exc_rcfile(struct proc *p);
+
 #endif

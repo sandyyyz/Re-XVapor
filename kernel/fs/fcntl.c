@@ -40,9 +40,14 @@ int fdalloc_lteq(struct file *f, int dmd) {
     if(dmd < 0 || dmd >= NOFILE) {
         return -1;
     }
+    if(is_exc_rcfile(p)) {
+        Warn("fdalloc_lteq: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+        return -EMFILE; // Too many open files
+    }
     for (fd = dmd; fd < NOFILE; fd++) {
         if (p->ofile[fd] == 0) {
             p->ofile[fd] = f;
+            p->ofile_cnt++;
             return fd;
         }
     }
@@ -57,7 +62,7 @@ int do_fcntl(struct file *f, int cmd, uint64 arg) {
     switch (cmd) {
         case F_DUPFD:
             if((ret = fdalloc_lteq(f, arg)) < 0)
-                return -1;
+                return ret;
             filedup(f);
             break;
         case F_GETFD:
@@ -79,7 +84,7 @@ int do_fcntl(struct file *f, int cmd, uint64 arg) {
             break;
         case F_DUPFD_CLOEXEC:
             if((ret = fdalloc_lteq(f, arg)) < 0)
-                return -1;
+                return ret;
             filedup(f);
             // f->flags |= O_CLOEXEC; // set close on exec flag
             break;

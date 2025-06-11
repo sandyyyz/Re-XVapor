@@ -53,14 +53,19 @@ fdalloc(struct file *f)
 {
   int fd;
   struct proc *p = myproc();
-
+  if(is_exc_rcfile(p)) {
+    Warn("fdalloc: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+    return -EMFILE; // Too many open files
+  }
   for(fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd] == 0){
       p->ofile[fd] = f;
+      p->ofile_cnt++;
+      Log("++ofile_cnt %d", p->ofile_cnt);
       return fd;
     }
   }
-  return -1;
+  return -EMFILE;
 }
 
 static int fdalloc_spec(struct file *f, int spec_fd) {
@@ -68,11 +73,17 @@ static int fdalloc_spec(struct file *f, int spec_fd) {
   if (spec_fd < 0 || spec_fd >= NOFILE) {
     return -1;
   }
+  if(is_exc_rcfile(p)) {
+    Warn("fdalloc_spec: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+    return -EMFILE; // Too many open files
+  }
   if(p->ofile[spec_fd] != 0) {
     fileclose(p->ofile[spec_fd]);
     p->ofile[spec_fd] = 0;
   }
   p->ofile[spec_fd] = f;
+  p->ofile_cnt++;
+  Log("++ofile_cnt %d", p->ofile_cnt);
   return spec_fd;
 }
 
@@ -91,7 +102,7 @@ sys_dup(void)
   if(argfd(0, 0, &f) < 0)
     return -1;
   if((fd=fdalloc(f)) < 0)
-    return -1;
+    return fd;
   filedup(f);
   return fd;
 }
@@ -104,7 +115,7 @@ sys_dup(void)
  * @return uint64 
  */
 uint64 sys_dup3(void) {
-  int oldfd, newfd, flags;
+  int oldfd, newfd, flags, ret;
   struct file *f;
   if(argfd(0, &oldfd, &f) < 0)
     return -1;
@@ -115,8 +126,8 @@ uint64 sys_dup3(void) {
 #ifdef __DEBUG_SYS_DUP3
   Log("sys_dup3: oldfd=%d, newfd=%d, flags=%d", oldfd, newfd, flags);
 #endif
-  if(fdalloc_spec(f, newfd) < 0)
-    return -1;
+  if((ret = fdalloc_spec(f, newfd)) < 0)
+    return ret;
   if (flags & O_CLOEXEC) {
     f->flags |= O_CLOEXEC; // set the close-on-exec flag
   } else {

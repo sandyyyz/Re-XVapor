@@ -451,6 +451,15 @@ static int do_prlimit(struct proc *p, uint32 resource, struct rlimit *new_rlim, 
   if (resource >= RLIM_NLIMITS)
       return -EINVAL;
 
+#ifdef __DEBUG_DO_PRLIMIT
+  Log("[do_prlimit] resource: %d, new_rlim: %p, old_rlim: %p", resource, new_rlim, old_rlim);
+  if(new_rlim) {
+      Log("[do_prlimit] new_rlim->rlim_cur: %d, new_rlim->rlim_max: %d", new_rlim->rlim_cur, new_rlim->rlim_max);
+  }
+  if(old_rlim) {
+      Log("[do_prlimit] old_rlim->rlim_cur: %d, old_rlim->rlim_max: %d", old_rlim->rlim_cur, old_rlim->rlim_max);
+  } 
+#endif
   struct rlimit *rlim = p->rlim + resource;
   if (!retval) {
       if (old_rlim)

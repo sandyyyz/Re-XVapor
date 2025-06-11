@@ -982,5 +982,4 @@ unsupport now:
 /musl/runtest.exe -w entry-static.exe pthread_once_deadlock
 /musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 /musl/runtest.exe -w entry-static.exe putenv_doublefree
-/musl/runtest.exe -w entry-static.exe rlimit_open_files
 /musl/runtest.exe -w entry-static.exe syscall_sign_extend

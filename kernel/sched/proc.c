@@ -166,7 +166,10 @@ myproc(void)
   return p;
 }
 
-
+static void init_rlimit(struct rlimit *rlim) {
+    rlim->rlim_cur = RLIM_INFINITY;
+    rlim->rlim_max = RLIM_INFINITY;
+}
 
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
@@ -213,6 +216,12 @@ allocproc(void)
 #endif
   INIT_LIST_HEAD(&p->mm.vma_list);
   p->mm.max_vma = MMAP_MAX_ADDR_START;
+
+  memset(p->rlim, 0, sizeof(p->rlim));
+  for (int i = 0; i < RLIM_NLIMITS; i++) {
+      init_rlimit(&p->rlim[i]);
+  }
+  p->ofile_cnt = 0;
 
   return p;
 }
@@ -307,6 +316,8 @@ void freeproc(struct proc *p)
   p->xstate = 0;
   p->utime = 0;
   p->ktime = 0;
+  p->ofile_cnt = 0;
+  memset(p->rlim, 0, sizeof(p->rlim));
   // p->state = UNUSED;
   // change to UNUSED state
   pcb_q_change_state(p, UNUSED);
@@ -499,9 +510,10 @@ fork(void)
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)
-    if(p->ofile[i])
+    if(p->ofile[i]) {
       np->ofile[i] = filedup(p->ofile[i]);
-
+      np->ofile_cnt++;
+  }
   safestrcpy(np->name, p->name, sizeof(p->name));
   sighandinit(np->tg.group_leader); // init the signal handler
   pid = np->pid;
@@ -655,8 +667,10 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)
-    if(p->ofile[i])
+    if(p->ofile[i]) {
       np->ofile[i] = filedup(p->ofile[i]);
+      np->ofile_cnt++;
+    }
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
