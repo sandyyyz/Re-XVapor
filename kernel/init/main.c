@@ -38,7 +38,7 @@ static void initfss() {
 void
 main()
 {
-  if(cpuid() == 0){
+   if(cpuid() == 0){
 
     consoleinit();
     printfinit();

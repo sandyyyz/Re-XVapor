@@ -67,7 +67,7 @@ uint64 sys_rt_sigprocmask() {
     argint(0, &how);
     argaddr(1, &set_addr);
     argaddr(2, &oldset_addr);
-    arglong(3, &size);
+    arguint64(3, &size);
 #ifdef __DEBUG_SYS_SIGPROCMASK
     Log("[sys_sigprocmask] how: %d, set_addr: %p, oldset_addr: %p, size %d", how, set_addr, oldset_addr, size);
 #endif

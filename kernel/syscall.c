@@ -70,9 +70,13 @@ argint(int n, int *ip)
 {
   *ip = argraw(n);
 }
-void arglong(int n, uint64 *lip) {
+void arglong(int n, long *lip) {
   *lip = (long) argraw(n); 
 }
+void argulong(int n, unsigned long *lip) {
+  *lip = (unsigned long) argraw(n); 
+}
+
 void arguint32(int n, uint32 *lip) {
   *lip = (uint32) argraw(n); 
 }

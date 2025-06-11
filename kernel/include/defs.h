@@ -147,7 +147,8 @@ int substr_cmp(const char *p, const char *q);
 char *strcat(char *dest, const char *src);
 
 // syscall.c
-void            arglong(int, uint64*);
+void            arglong(int, long*);
+void argulong(int n, unsigned long *lip);
 void            argint(int, int*);
 int             argstr(int, char*, int);
 void arguint32(int n, uint32 *lip);

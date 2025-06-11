@@ -1126,13 +1126,13 @@ uint64 sys_ioctl(void) {
   // int ioctl(int fd, int op, ...);            /* musl, other UNIX */
   struct file *f;
   int fd;
-  uint64 op;
+  unsigned long op;
   uint64 arg;
   if (argfd(0, &fd, &f) < 0) {
       return -1;
   }
-  arglong(1, &op);
-  arglong(2, &arg);
+  argulong(1, &op);
+  arguint64(2, &arg);
   // printf("[sys_ioctl] fd = %d, op = 0x%x, arg = 0x%x\n", fd, op, arg);
   return do_ioctl(f, op, arg);
   // return -1;
@@ -1142,13 +1142,13 @@ uint64 sys_fcntl(void) {
   // int fcntl(int fd, int cmd, ... /* arg */ );
   struct file *f;
   int fd;
-  uint64 cmd;
+  int cmd;
   uint64 arg;
   if (argfd(0, &fd, &f) < 0) {
       return -1;
   }
-  arglong(1, &cmd);
-  arglong(2, &arg);
+  argint(1, &cmd);
+  arguint64(2, &arg);
 #ifdef __DEBUG_SYS_FCNTL
   printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
 #endif
@@ -1703,7 +1703,7 @@ uint64 sys_lseek(void) {
     printf("[sys_lseek] argfd failed\n");
     return -1;
   }
-  arglong(1, (uint64*)&offset);
+  arglong(1, &offset);
   argint(2, &whence);
 #ifdef __DEBUG_SYS_LSEEK
   Log("[sys_lseek] fd = %d, offset = %d, whence = %d", fd, offset, whence);
@@ -1725,10 +1725,10 @@ uint64 sys_lseek(void) {
     return -1;
   }
   
-  int r = f->fops->lseek(f, offset, whence);
+  off_t r = f->fops->lseek(f, offset, whence);
   if(r < 0) {
     printf("[sys_lseek] f->fops->lseek failed, r = %d\n", r);
-    return -1;
+    return r;
   }
 #ifdef __DEBUG_SYS_LSEEK
   Log("[sys_lseek] f->fops->lseek success, r = %d, f->fpos = %d", r, f->fpos);

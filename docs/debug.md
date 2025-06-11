@@ -970,7 +970,6 @@ unsupport now:
 /musl/runtest.exe -w entry-static.exe utime
 /musl/runtest.exe -w entry-static.exe daemon_failure
 /musl/runtest.exe -w entry-static.exe fflush_exit
-/musl/runtest.exe -w entry-static.exe lseek_large
 /musl/runtest.exe -w entry-static.exe printf_1e9_oob
 /musl/runtest.exe -w entry-static.exe printf_fmt_g_round
 /musl/runtest.exe -w entry-static.exe printf_fmt_g_zeros

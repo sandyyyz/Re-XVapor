@@ -346,7 +346,7 @@ uint64 sys_kill(void)
   sig_t sig;
 
   argint(0, &pid);
-  arglong(1, &sig);
+  arguint64(1, &sig);
   
   return proc_kill(pid, sig);
 }
@@ -356,7 +356,7 @@ uint64 sys_tkill(void) {
   sig_t sig;
 
   argint(0, &tid);
-  arglong(1, &sig);
+  arguint64(1, &sig);
 #ifdef __DEBUG_SYS_TKILL
   Log("[sys_tkill] tid: %d, sig: %d", tid, sig);
 #endif

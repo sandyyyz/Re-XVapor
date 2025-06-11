@@ -1037,20 +1037,24 @@ int ext4_vfile_exist(const char *path) {
     return 1; // file exist
 }
 
-int ext4_vlseek(struct file *fp, off_t offset, int whence) {
+off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
     struct ext4_file *efp = fp->private_data;
     if(!efp) {
         printf("[ext4] efp is NULL!\n");
         return -1;
     }
+    if(offset > efp->fsize) {
+        // TODO: and fp->fpos??
+        return offset; // no need to seek, just return the offset
+    }
     if(whence == SEEK_END && offset < 0) {
         offset = -offset;
     }
-    int r = ext4_fseek(efp, offset, whence);
+    off_t r = ext4_fseek(efp, offset, whence);
     if(r != EOK) {
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         printf("[ext4] whence = %d, offset = %d\n", whence, offset);
-        return -1;
+        return -r;
     }
     fp->fpos = efp->fpos;
     return fp->fpos;
