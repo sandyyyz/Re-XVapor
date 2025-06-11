@@ -763,6 +763,14 @@ void proc_exit(int status)
   p->xstate = status;
   p->xstate <<= 8; // shift to high byte
   pcb_q_change_state(p, ZOMBIE);
+  
+  siginfo_t info;
+  struct proc *pp = p->parent;
+  signal_info_init(SIGCHLD, &info, 1);
+  acquire(&pp->tg.group_leader->lock);
+  thread_send_signal(pp->tg.group_leader, &info); // send SIGCHLD to the group leader thread
+  release(&pp->tg.group_leader->lock);
+
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.

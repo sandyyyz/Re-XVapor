@@ -298,12 +298,12 @@ int execve(char *path, char **argv, char **envp)
   // Use the second as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 32 * PGSIZE, PTE_W)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + 64 * PGSIZE, PTE_W)) == 0)
     goto bad;
   sz = sz1;
-  uvmclear(pagetable, sz - 32 * PGSIZE);
+  uvmclear(pagetable, sz - 64 * PGSIZE);
   sp = sz;
-  stackbase = sp - 31 * PGSIZE;
+  stackbase = sp - 63 * PGSIZE;
   
   sp -= 16;
   // push environment strings

@@ -88,7 +88,7 @@ static void signal_default(struct tcb *t, int sig_no) {
             break;
         case SIGCHLD:
             // Default action for SIGCHLD is to ignore it
-            // This is usually handled by the kernel, so we can just ignore it here
+            wait_one(0); // Wait for the child process to exit
             break;
         default:
             // For other signals, we can just ignore them or log a warning
@@ -434,6 +434,7 @@ int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space sig
         t->timeout = INT_MAX; // Set a large timeout value
         // sleep on the signal pending queue
         while(t->timeout != 0) {
+            Log("sigtimewait_common: thread %d waiting for signal %d", t->tid, sig_no);
             thread_sleep((void *) sig_no, &t->sig_pending.siglock, timeout);
         }
         release(&t->sig_pending.siglock);
@@ -447,6 +448,6 @@ int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space sig
 
     if(info)
         *info = siginfo; // Copy the siginfo to the output info
-    return info->si_signo; // Return the signal number
+    return siginfo.si_signo; // Return the signal number
 }
 
