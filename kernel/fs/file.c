@@ -81,14 +81,21 @@ filedup(struct file *f)
   return f;
 }
 
-// Close file f.  (Decrement ref count, close when reaches 0.)
-void
-fileclose(struct file *f)
+/**
+ * @brief close a file
+ * 
+ * @param f file pointer
+ * @param drop_ofile_cnt if set to 1, will drop the ofile_cnt of the process, otherwise will not drop it. 
+ * This parameter is nassary because it may be called before a call to fdalloc, or after a failed fdalloc, which will not increase the ofile_cnt. 
+ */
+void fileclose(struct file *f, int drop_ofile_cnt)
 {
   struct file ff;
   struct proc *p = myproc();
-  p->ofile_cnt--;
-  Log("--ofile_cnt %d", p->ofile_cnt);;
+  if(drop_ofile_cnt) {
+    p->ofile_cnt--;
+    Log("--ofile_cnt %d", p->ofile_cnt);;
+  }
   if(p->ofile_cnt < 0)
     panic("fileclose: ofile_cnt < 0");
 #ifdef __DEBUG_FILE_CLOSE

@@ -27,7 +27,7 @@ int vfs_xv6fs_open(const char *path, int flags) {
 void
 vfs_xv6fs_fileclose(struct file *f)
 {
-    fileclose(f);
+    fileclose(f, 1);
 }
 
 int vfs_xv6fs_fileread(struct file *f, void *buf, int count) {

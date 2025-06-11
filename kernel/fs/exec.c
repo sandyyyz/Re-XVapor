@@ -418,7 +418,7 @@ int execve(char *path, char **argv, char **envp)
   // close the file with flag O_CLOEXEC
   for(i = 0; i < NOFILE; i++) {
     if (p->ofile[i] && p->ofile[i]->flags & O_CLOEXEC) {
-      fileclose(p->ofile[i]);
+      fileclose(p->ofile[i], 1);
       p->ofile[i] = 0;
     }
   }

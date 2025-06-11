@@ -73,12 +73,13 @@ static int fdalloc_spec(struct file *f, int spec_fd) {
   if (spec_fd < 0 || spec_fd >= NOFILE) {
     return -1;
   }
-  if(is_exc_rcfile(p)) {
-    Warn("fdalloc_spec: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
-    return -EMFILE; // Too many open files
-  }
+  // we have at least one fd to use, so don't check
+  // if(is_exc_rcfile(p)) {
+  //   Warn("fdalloc_spec: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+  //   return -EMFILE; // Too many open files
+  // }
   if(p->ofile[spec_fd] != 0) {
-    fileclose(p->ofile[spec_fd]);
+    fileclose(p->ofile[spec_fd], 1);
     p->ofile[spec_fd] = 0;
   }
   p->ofile[spec_fd] = f;
@@ -101,7 +102,7 @@ sys_dup(void)
 
   if(argfd(0, 0, &f) < 0)
     return -1;
-  if((fd=fdalloc(f)) < 0)
+  if((fd = fdalloc(f)) < 0)
     return fd;
   filedup(f);
   return fd;
@@ -126,6 +127,9 @@ uint64 sys_dup3(void) {
 #ifdef __DEBUG_SYS_DUP3
   Log("sys_dup3: oldfd=%d, newfd=%d, flags=%d", oldfd, newfd, flags);
 #endif
+  if(newfd == oldfd) {
+    return -EINVAL;
+  }
   if((ret = fdalloc_spec(f, newfd)) < 0)
     return ret;
   if (flags & O_CLOEXEC) {
@@ -133,7 +137,7 @@ uint64 sys_dup3(void) {
   } else {
     f->flags &= ~O_CLOEXEC; // clear the close-on-exec flag
   }
-  f->ref++;
+  filedup(f);
   return newfd;
 }
 /**
@@ -265,7 +269,7 @@ sys_close(void)
   if(argfd(0, &fd, &f) < 0)
     return -1;
   myproc()->ofile[fd] = 0;
-  fileclose(f);
+  fileclose(f, 1);
 #ifdef __DEBUG_CLOSE
   Log("sys_close: fd=%d, f=%p, ref after close %d, f->fpos %d, path %s", fd, f, f->ref, f->fpos, f->info.path);
 #endif
@@ -732,18 +736,19 @@ sys_pipe(void)
     return -1;
   fd0 = -1;
   if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){
+    // the fd0 may have been put in the ofile array when fd1 not, so we need to clean it up
     if(fd0 >= 0)
       p->ofile[fd0] = 0;
-    fileclose(rf);
-    fileclose(wf);
+    fileclose(rf, fd0 < 0 ? 0 : 1);
+    fileclose(wf, fd1 < 0 ? 0 : 1);
     return -1;
   }
   if(copyout(p->mm.pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
      copyout(p->mm.pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
     p->ofile[fd0] = 0;
     p->ofile[fd1] = 0;
-    fileclose(rf);
-    fileclose(wf);
+    fileclose(rf, 1);
+    fileclose(wf, 1);
     return -1;
   }
   return 0;
@@ -868,7 +873,7 @@ sys_dev(void)
     if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0)
     {
         if (f)
-            fileclose(f);
+            fileclose(f, 0);
         return -1;
     }
 
@@ -894,10 +899,12 @@ static uint64 generic_open(char *path, int flags, int omode) {
   struct file *f;
   int fd;
   int r = -1;
-  if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
-    if(f)
-      fileclose(f);
+  if((f = filealloc()) == NULL) {
     return -1;
+  }
+  if((fd = fdalloc(f)) < 0) {
+    fileclose(f, 0);
+    return fd;
   }
   r = fd;
   if (fs == NULL) {
@@ -914,7 +921,7 @@ static uint64 generic_open(char *path, int flags, int omode) {
   set_omode(f, omode);
   strcpy(f->info.path, path);
   if (fs->fops->open(f, path, flags) < 0) {
-    fileclose(f);
+    fileclose(f, 1);
     myproc()->ofile[fd] = 0;
     printf("fsops->open failed, path %s\n", path);
     return -1;
@@ -943,8 +950,8 @@ uint64 sys_openat(void) {
   printf("[sys_openat] abs_path = %s\n", abs_path);
 #endif
   if((r = generic_open(abs_path, flags, omode)) < 0) {
-    printf("[sys_openat] generic_open failed, abs_path = %s\n", abs_path);
-    return -1;
+    printf("[sys_openat] generic_open failed, abs_path = %s, r = %d\n", abs_path, r);
+    return r;
   }
 
 #ifdef __DEBUG_SYS_OPENAT
@@ -1402,7 +1409,7 @@ int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct ti
     }
     // close the file descriptor
     struct file *f = myproc()->ofile[fd];
-    fileclose(f);
+    fileclose(f, 1);
     myproc()->ofile[fd] = NULL; // clear the file descriptor
     // now we can set the timestamps
   }

@@ -953,22 +953,24 @@ thread 2 syscall 66
 
 
 ### libc.3
+这个bug难道和RLIMIT_STACK尚未支持有关吗？  
+![libc.3](image-159.png)
+
+### libc.4
 unsupport now:  
 
 /musl/runtest.exe -w entry-static.exe pthread_cancel_points  
 /musl/runtest.exe -w entry-static.exe pthread_cancel  
 /musl/runtest.exe -w entry-static.exe pthread_cond  
 /musl/runtest.exe -w entry-static.exe pthread_tsd  
-/musl/runtest.exe -w entry-static.exe setjmp  
+/musl/runtest.exe -w entry-static.exe setjmp    
 /musl/runtest.exe -w entry-static.exe snprintf
 /musl/runtest.exe -w entry-static.exe socket
 /musl/runtest.exe -w entry-static.exe sscanf
 /musl/runtest.exe -w entry-static.exe sscanf_long
 /musl/runtest.exe -w entry-static.exe stat
-/musl/runtest.exe -w entry-static.exe strftime
 /musl/runtest.exe -w entry-static.exe strtof
 /musl/runtest.exe -w entry-static.exe utime
-/musl/runtest.exe -w entry-static.exe daemon_failure
 /musl/runtest.exe -w entry-static.exe fflush_exit
 /musl/runtest.exe -w entry-static.exe printf_1e9_oob
 /musl/runtest.exe -w entry-static.exe printf_fmt_g_round

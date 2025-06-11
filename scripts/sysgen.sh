@@ -8,6 +8,8 @@ out2="$3"
 out3="$4"
 # usys.pl
 out4="$5"
+# sys_name.h
+out5="$6"
 
 grep '^[0-9]' "$in" | sort -n | (
     while read nr name entry; do
@@ -60,4 +62,13 @@ grep '^[0-9]' "$in" | sort -n | (
 ) >> "$out4"
 
 
+grep '^[0-9]' "$in" | sort -n | (
+    echo 'const char *syscall_name[] = {'
+    while read nr name entry; do
+        if [ -n "$entry" ]; then
+            echo "    [SYS_$name] = \"$entry\","
+        fi
+    done
+    echo '};'
+) > "$out5"
 

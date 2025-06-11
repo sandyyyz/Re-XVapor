@@ -33,7 +33,7 @@ int             exec(char*, char**);
 int execve(char *path, char **argv, char **envp);
 // file.c
 struct file*    filealloc(void);
-void            fileclose(struct file*);
+void            fileclose(struct file*, int drop_ofile_cnt);
 struct file*    filedup(struct file*);
 void            fileinit(void);
 int fileread(struct file *f, int user_dst, uint64 addr, int n, int off);

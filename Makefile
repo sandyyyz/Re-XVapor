@@ -72,10 +72,12 @@ SYSTBL=scripts/syscall.tbl
 SYSDECL=kernel/include/sysdecl.h
 SYSNUM=kernel/include/sysnum.h
 SYSFUNC=kernel/include/sysfunc.h
+SYSNAME=kernel/include/sysname.h
+
 USYSPL=user/usys.pl
 syscall_gen:
 	@echo "Generating syscall files..."
-	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL)
+	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL) $(SYSNAME)
 	@echo "Generating syscall files done."
 kernel:	user syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi

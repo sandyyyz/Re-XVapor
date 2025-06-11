@@ -121,7 +121,8 @@
         "ext4_inode.h": "c",
         "signal.h": "c",
         "atomic.h": "c",
-        "futex.h": "c"
+        "futex.h": "c",
+        "sysname.h": "c"
     },
 
     "multiCommand.commands": [

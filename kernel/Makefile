@@ -62,7 +62,7 @@ CFLAGS += -D__DEBUG_SYS_FSTATAT
 # CFLAGS += -D__DEBUG_SYS_FCNTL
 # CFLAGS += -D__DEBUG_FILE_CLOSE
 # CFLAGS += -D__DEBUG_EXT4_VFACCESS
-# CFLAGS += -D__DEBUG_SYS_DUP3
+CFLAGS += -D__DEBUG_SYS_DUP3
 # CFLAGS += -D__DEBUG_SYS_SENDFILE
 # CFLAGS += -D__DEBUG_SYS_WRITE
 # CFLAGS += -D__DEBUG_SYS_READ
@@ -117,4 +117,5 @@ clean:
 	@if [ -f $(INCLUDE_DIR)/sysnum.h ]; then rm $(INCLUDE_DIR)/sysnum.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysfunc.h ]; then rm $(INCLUDE_DIR)/sysfunc.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysdecl.h ]; then rm $(INCLUDE_DIR)/sysdecl.h; fi
+	@if [ -f $(INCLUDE_DIR)/sysname.h ]; then rm $(INCLUDE_DIR)/sysname.h; fi
 

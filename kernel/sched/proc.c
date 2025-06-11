@@ -741,7 +741,7 @@ void proc_exit(int status)
     if(p->ofile[fd]){
       struct file *f = p->ofile[fd];
       if(f->ref > 0)
-        fileclose(f);
+        fileclose(f, 1);
       p->ofile[fd] = 0;
     }
   }
