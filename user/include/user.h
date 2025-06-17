@@ -18,7 +18,7 @@ int close(int);
 int kill(int pid, sig_t sig);
 int exec(char*, char**);
 int execve(char *path, char **argv, char **envp);
-int open(const char*, int);
+int open(const char* path, int flags, int omode);
 int unlink(const char*);
 int fstat(int fd, struct stat*);
 int link(const char*, const char*);

@@ -37,6 +37,13 @@
 #ifndef O_APPEND
 #define O_APPEND 02000
 #endif
+
+// tmpfile support
+#define __O_TMPFILE     040010000 /* Atomically create nameless file. */
+#ifndef O_TMPFILE
+#define O_TMPFILE __O_TMPFILE
+#endif
+
 // utimensat
 #define AT_FDCWD -100
 #define AT_REMOVEDIR 0x200

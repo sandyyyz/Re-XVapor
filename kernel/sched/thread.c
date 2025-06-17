@@ -109,7 +109,8 @@ struct tcb *alloc_thread(thread_callback callback) {
     t->context.ra = (uint64)callback;
     t->context.sp = t->kstack + KSTACK_PAGE * PGSIZE;
 
-    sig_empty_set(&t->blocked);
+    // sig_empty_set(&t->blocked);
+    sig_fill_set(&t->blocked);
     sigpending_init(&t->sig_pending);
     // chage state of TCB
     tcb_q_change_state(t, TCB_USED);

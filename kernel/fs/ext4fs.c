@@ -428,7 +428,7 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
         return -ENOMEM;
     }
     if((r = ext4_fopen2(efp, path, flags)) != EOK) {
-        printf("[ext4] ext4_fopen2 error! r=%d\n", r);
+        // printf("[ext4] ext4_fopen2 error! r=%d\n", r);
         recycle_efile(efp);
         return -r;
     }

@@ -121,6 +121,9 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
     acquire(&t->sig_pending.siglock);
     list_for_each_entry_safe(sig_cur, sig_tmp, &t->sig_pending.list, list) {
         sig_no = sig_cur->info.si_signo;
+#ifdef __DEBUG_SIGNAL_HANDLE
+        Log("signal_handle: thread %d processing signal %d", t->tid, sig_no);
+#endif
         if (sig > 0 && sig_no != sig) {
             // If a specific signal is requested, skip others
             continue;
@@ -133,6 +136,10 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
             *retinfo = sig_cur->info; // Fill the retinfo with the siginfo
         }
         sig_act = sig_action(t, sig_no);
+#ifdef __DEBUG_SIGNAL_HANDLE
+        Log("signal_handle: thread %d found signal %d with handler %p", t->tid, sig_no, sig_act.sa_handler);
+        Log("t->blockd.sig: %p", t->blocked.sig);
+#endif
         if (sig_ignored(t, sig_no) || sig_act.sa_handler == SIG_IGN) {
             // Ignore the signal
             list_del_reinit(&sig_cur->list);

@@ -906,7 +906,6 @@ static uint64 generic_open(char *path, int flags, int omode) {
     fileclose(f, 0);
     return fd;
   }
-  r = fd;
   if (fs == NULL) {
     printf("FS type not found\n");
     return -1;
@@ -920,17 +919,17 @@ static uint64 generic_open(char *path, int flags, int omode) {
   f->fops = fs->fops;
   set_omode(f, omode);
   strcpy(f->info.path, path);
-  if (fs->fops->open(f, path, flags) < 0) {
+  if ((r = fs->fops->open(f, path, flags)) < 0) {
     fileclose(f, 1);
     myproc()->ofile[fd] = 0;
-    printf("fsops->open failed, path %s\n", path);
-    return -1;
+    // printf("fsops->open failed, path %s\n", path);
+    return r;
   }
   #ifdef __DEBUG_GOPEN
   Log("generic_open : path %s successfully opened, type = %d", path, f->type);
   #endif
 
-  return r;
+  return fd;
 }
 uint64 sys_openat(void) {
 // int openat(int dirfd, const char *pathname, int flags, mode_t mode);
@@ -950,7 +949,7 @@ uint64 sys_openat(void) {
   printf("[sys_openat] abs_path = %s\n", abs_path);
 #endif
   if((r = generic_open(abs_path, flags, omode)) < 0) {
-    printf("[sys_openat] generic_open failed, abs_path = %s, r = %d\n", abs_path, r);
+    Warn("[sys_openat] generic_open failed, abs_path = %s, r = %d\n", abs_path, r);
     return r;
   }
 

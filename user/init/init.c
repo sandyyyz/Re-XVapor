@@ -46,11 +46,15 @@ int main(void)
   int pid = fork();
   if(pid == 0) {
     printf("init: child process, pid = %d\n", getpid());
-    if(chdir(musl_dir) < 0) {
-      printf("init: chdir %s failed\n", musl_dir);
+    if(chdir(glibc_dir) < 0) {
+      printf("init: chdir %s failed\n", glibc_dir);
       exit(-1);
     }
-    int ret = execve(musl_busybox_path, musl_shell_argv, busybox_envp);
+    if(open("/tmp", O_RDWR | O_CREAT, 0644) < 0) {
+      printf("init: open /tmp failed\n");
+      mkdir("/tmp", 0755);
+    }
+    int ret = execve(glibc_busybox_path, glibc_shell_argv, busybox_envp);
     printf("execve returned %d\n", ret);
   } else {
     wait(0);

@@ -984,3 +984,15 @@ unsupport now:
 /musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 /musl/runtest.exe -w entry-static.exe putenv_doublefree
 /musl/runtest.exe -w entry-static.exe syscall_sign_extend
+
+/glibc/runtest.exe -w entry-static.exe clocale_mbfuncs
+/glibc/runtest.exe -w entry-static.exe fnmatch
+/glibc/runtest.exe -w entry-static.exe fwscanf
+/glibc/runtest.exe -w entry-static.exe mbc
+
+
+1. 测试signal返回用户空间
+2. 检查execve用户栈构造（包括aux）
+目前signal没有测试能否成功返回用户空间再回到内核， glibc退出user会崩溃。  
+3. entry-static.exe似乎只是检查执行程序退出状态来判断是否执行成功的，如果遇到usertrap直接exit(0)直接就会输出PASS,但是实际上功能并没有完全执行完毕。。。
+我真的要疯了。

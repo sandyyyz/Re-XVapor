@@ -226,7 +226,7 @@ uint64 sys_clone(void) {
 uint64
 sys_fork(void)
 {
-  return fork();
+  return do_clone(0, 0, 0, 0, 0);
 }
 
 uint64 sys_wait4(void) {

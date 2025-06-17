@@ -432,7 +432,7 @@ userinit(void)
   // Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
-
+  sighandinit(t); // init the signal handler
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
 

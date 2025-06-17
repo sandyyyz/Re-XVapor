@@ -39,6 +39,9 @@ uint64 sys_sigaction() {
         if(copyin(p->mm.pagetable, (char*) &act, act_addr, sizeof(act)) < 0) {
             return -1;
         }
+#ifdef __DEBUG_SYS_SIGACTION
+    Log("[sys_sigaction] act: sa_handler: %p, sa_flags: %d, sa_mask: %p", act.sa_handler, act.sa_flags, act.sa_mask);
+#endif
     }
     ret = do_sigaction(signum, act_addr ? &act : NULL, oldact_addr ? &oldact : NULL);
     if(!ret && oldact_addr) {

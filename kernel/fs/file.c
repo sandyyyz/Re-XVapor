@@ -56,6 +56,7 @@ struct file* filealloc(void)
       f->omode = 0;
       f->info.fs = fs;
       f->fpos = 0;
+      f->istmp = 0;
       release(&ftable.lock);
       return f;
     }
@@ -110,6 +111,8 @@ void fileclose(struct file *f, int drop_ofile_cnt)
   }
   if(f->private_data) {
     f->fops->close(f);
+    if(f->istmp)
+      f->info.fs->fsops->unlink(f->info.path, 0);
     f->fops->cleansf(f);
   }
   ff = *f;
