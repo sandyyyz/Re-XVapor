@@ -162,17 +162,7 @@ usertrap(void)
       thread_setkilled(t);
     }
     proc_setkilled(p);
-
-    if(r_scause() == 0x2) {
-      // illegal instruction, we find it will happend before exit a thread in glibc,
-      // still cannot find the reason, so just exit the thread
-      // if cause by an error, testsuit will print info in console
-      // so ok
-      thread_exit(0);
-    } else {
-      // other unrecognized trap, just exit the thread
-      thread_exit(-1);
-    }
+    thread_exit(-1);
   }
 
   if(thread_killed(t) || proc_killed(p))

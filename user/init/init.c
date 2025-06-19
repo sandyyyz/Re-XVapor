@@ -54,7 +54,8 @@ int main(void)
       printf("init: open /tmp failed\n");
       mkdir("/tmp", 0755);
     }
-    int ret = execve(glibc_busybox_path, glibc_shell_argv, busybox_envp);
+    int ret = execve(glibc_busybox_path, glibc_shell_argv
+      , busybox_envp);
     printf("execve returned %d\n", ret);
   } else {
     wait(0);

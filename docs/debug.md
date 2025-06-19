@@ -996,3 +996,61 @@ unsupport now:
 目前signal没有测试能否成功返回用户空间再回到内核， glibc退出user会崩溃。  
 3. entry-static.exe似乎只是检查执行程序退出状态来判断是否执行成功的，如果遇到usertrap直接exit(0)直接就会输出PASS,但是实际上功能并没有完全执行完毕。。。
 我真的要疯了。
+`__dl_aux_init()`
+
+只有glibc才会有`__libc_start_main()`以及`__run_exit_handlers()`的过程， 难道是这里出了问题？？  
+首先搞清楚glibc启动和退出相对于musl而言做了哪些额外工作  
+
+`  __run_exit_handlers (status, &__exit_funcs, true, true);`
+![libc.4.1](image-160.png)
+
+``` c 
+static struct exit_function_list initial;
+struct exit_function_list *__exit_funcs = &initial;
+```
+~~ 这个链表好像是空 ~~
+
+![libc.4.2](image-161.png)
+
+不对，其实这是一个存了两个析构函数的表！
+
+![libc.4.4](image-163.png)
+这行控制转移了 
+![libc.4.3](image-162.png)
+
+执行第二个析构函数的时候崩了,
+第一个
+这个函数为call_fini,在aexit时注册了,执行完了好像没问题
+注册的时候rtld_fini == NULL, 那这个第一个注册的析构函数到底是什么？
+exit_funcs这里有两个函数(idx == 2)，但是为什么有一个非常奇怪的函数，func == 0x3???
+![libc.4.6](image-165.png)
+一些关键的断点：
+![libc.4.5](image-164.png)
+0xd0e7e: jlr __internal_atexit 1
+0xd0ea0: jlr __internal_atexit 2
+0xd0c08 call_fini
+0xd585c jalr s10
+0xd5740 ld s9(__exit_funcs)
+
+__start()里a5就被赋值0x3
+
+``` 
+mov a5, a0
+```
+在__libc_start_main_impl里又将a5给了s4，之后对s4判断是否为空，如果空就跳过存入析构函数，否则就把这儿数当作一个析构函数指针注册。。。
+那么这个_start()中为什么a5 == 3?
+
+!!! 详见glibc start.S
+``` c
+
+/* The entry point's job is to call __libc_start_main.  Per the ABI,
+   a0 contains the address of a function to be passed to atexit.
+   __libc_start_main wants this in a5.  */
+
+```
+也就是说，glibc需要a0中存入的是动态链接器的析构函数的地址！这将在atexit中得到注册！  
+先前execve一直return argc， argc == 3！！！！  这和先前的定义是不一样的！
+
+``` c
+  return argc; // this ends up in a0, the first argument to main(argc, argv)
+```

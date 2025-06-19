@@ -91,9 +91,9 @@ int exec(char *path, char **argv)
       goto bad;
 
     if(ph.type == ELF_PROG_INTERP)
-      printf("ELF_PROG_INTERP not supported\n");
+      Warn("exec: dynamic linking not supported");
     if(ph.type != ELF_PROG_LOAD) {
-      printf("ph.type == 0x%x\n", ph.type);
+      Info("ph.type == 0x%x\n", ph.type);
       continue;
     }
     if(ph.memsz < ph.filesz)
@@ -265,10 +265,10 @@ int execve(char *path, char **argv, char **envp)
                         || rcnt != sizeof(ph))
       goto bad;
 
-    // if(ph.type == ELF_PROG_INTERP)
-    //   printf("ELF_PROG_INTERP not supported\n");
+    if(ph.type == ELF_PROG_INTERP)
+      Warn("ELF_PROG_INTERP not supported\n");
     if(ph.type != ELF_PROG_LOAD) {
-      // printf("ph.type == 0x%x\n", ph.type);
+      Log("ph.type == 0x%x\n", ph.type);
       continue;
     }
 
@@ -283,7 +283,8 @@ int execve(char *path, char **argv, char **envp)
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
-
+printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(ph.vaddr) = %p, ph.filesz = %d\n", 
+            ph.off, PGROUNDDOWN(ph.off), ph.vaddr, PGROUNDDOWN(ph.vaddr), ph.filesz);
     if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
   }
@@ -340,17 +341,17 @@ int execve(char *path, char **argv, char **envp)
   sp -= 16;
   uint64 aux[MAX_AT * 2];
 
-  ADD_AUXV(AT_HWCAP, 0);
+  // ADD_AUXV(AT_HWCAP, 0);
   ADD_AUXV(AT_PAGESZ, PGSIZE);
   ADD_AUXV(AT_PHDR, elf.phoff);
-  ADD_AUXV(AT_PHENT, elf.phentsize);
-  ADD_AUXV(AT_PHNUM, elf.phnum);
-  ADD_AUXV(AT_BASE, 0);
-  ADD_AUXV(AT_ENTRY, elf.entry);
-  ADD_AUXV(AT_UID, 0);
-  ADD_AUXV(AT_EUID, 0);
-  ADD_AUXV(AT_GID, 0);
-  ADD_AUXV(AT_EGID, 0);
+  // ADD_AUXV(AT_PHENT, elf.phentsize);
+  // ADD_AUXV(AT_PHNUM, elf.phnum);
+  // ADD_AUXV(AT_BASE, 0);
+  // ADD_AUXV(AT_ENTRY, elf.entry);
+  // ADD_AUXV(AT_UID, 0);
+  // ADD_AUXV(AT_EUID, 0);
+  // ADD_AUXV(AT_GID, 0);
+  // ADD_AUXV(AT_EGID, 0);
   ADD_AUXV(AT_SECURE, 0);
   ADD_AUXV(AT_RANDOM, sp);
   ADD_AUXV(AT_NULL, 0);
@@ -422,7 +423,7 @@ int execve(char *path, char **argv, char **envp)
       p->ofile[i] = 0;
     }
   }
-  return argc; // this ends up in a0, the first argument to main(argc, argv)
+  return 0; // this ends up in a0, the first argument to main(argc, argv)
 
   bad:
   if(pagetable)
