@@ -11,6 +11,7 @@
 #include "vm.h"
 #include "mmap.h"
 #include "signal.h"
+#include "sbi.h"
 
 struct spinlock tickslock, timeout_lock;
 uint ticks;
@@ -379,20 +380,20 @@ devintr()
       plic_complete(irq);
 
     return 1;
-  } else if(scause == 0x8000000000000001L){
-    // software interrupt from a machine-mode timer interrupt,
-    // forwarded by timervec in kernelvec.S.
+  } else if (scause == 0x8000000000000005L) {
+      // timer interrupt
 
-    // only the fisrt cpu to deal with the clockintr
-    if(cpuid() == 0){
-      clockintr();
-    }
-    
-    // acknowledge the software interrupt by clearing
-    // the SSIP bit in sip.
-    w_sip(r_sip() & ~2);
+      if (cpuid() == 0)
+      {
+          clockintr();
+      }
 
-    return 2;
+      // acknowledge the software interrupt by clearing
+      // the STIP bit in sip.
+      w_sip(r_sip() & ~1 << 5);
+      set_next_trigger();
+
+      return 2;
   } else if(scause == 13 || scause == 15) {
     // read /write page fault
     return 3;

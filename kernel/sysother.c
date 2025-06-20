@@ -9,6 +9,7 @@
 #include "sysinfo.h"
 #include "signal.h"
 #include "memlayout.h"
+#include "sbi.h"
 
 extern struct proc proc[NPROC];
 
@@ -217,8 +218,20 @@ uint64 sys_sysinfo(void) {
     return 0;
 }
 
+// static int qemu_raw_poweroff() {
+//     volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
+//     *poweroff = 0x5555; 
+//     // while(1);
+//     return 0;
+// }
+
+static int opensbi_poweroff(int sysfail) {
+    sbi_shutdown(sysfail);
+    return 0;
+}
 uint64 sys_poweroff(void) {
-    volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
-    *poweroff = 0x5555; 
-    while(1);
+    int sysfail;
+    argint(0, &sysfail);
+    opensbi_poweroff(sysfail);
+    return 0;
 }

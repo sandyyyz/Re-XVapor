@@ -13,6 +13,7 @@
 
 #define CLK_FREQ 10000000
 #define TICKS_PER_SECOND 10  
+#define INTERVAL CLK_FREQ / TICKS_PER_SECOND
 
 #define TIMESPEC2TICKS(ts) ((ts).tv_sec * TICKS_PER_SECOND + (ts).tv_nsec * TICKS_PER_SECOND / 1000000000)
 #define TICKS2TIMESPEC(ticks, ts) \

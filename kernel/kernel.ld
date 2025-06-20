@@ -4,10 +4,10 @@ ENTRY( _entry )
 SECTIONS
 {
   /*
-   * ensure that entry.S / _entry is at 0x80000000,
+   * ensure that entry.S / _entry is at 0x8020000,
    * where qemu's -kernel jumps.
    */
-  . = 0x80000000;
+  . = 0x80200000;
 
   .text : {
     *(.text .text.*)
@@ -40,8 +40,10 @@ SECTIONS
 
   .bss : {
     . = ALIGN(16);
+    __bss_start = .; /* 定义 .bss 段的开始 */
     *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
     . = ALIGN(16);
+    __bss_end = .; /* 定义 .bss 段的结束 */
     *(.bss .bss.*)
   }
 
