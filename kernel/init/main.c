@@ -18,7 +18,7 @@ extern struct utsname g_uts;
 volatile static int started = 0;
 volatile static int boot_hart = -1;
 extern char __bss_start, __bss_end; // 引用链接器脚本中定义的符号
-
+extern void _entry();
 // start() jumps here in supervisor mode on all CPUs.
 
 static void initfss() {
@@ -50,6 +50,18 @@ void clear_bss_section(void)
     }
 }
 
+static void start_harts()
+{
+    for (int i = 0; i < NCPU; i++)
+    {
+        if (sbi_hart_get_status(i) == SBI_HSM_STATE_STOPPED)
+        {
+            sbi_hart_start(i, (uint64)_entry, 0);
+        } else {
+          // printf("hart %d status %d\n", i, sbi_hart_get_status(i));
+        }
+    }
+}
 void
 main()
 {
@@ -83,6 +95,7 @@ main()
     __sync_synchronize();
     started = 1;
     printf("hart %d started\n", cpuid());
+    start_harts();
   } else {
     while(started == 0)
       ;

@@ -37,7 +37,7 @@
 #include "debug.h"
 
 #ifndef BSIZE
-#define BSIZE 1024
+#define BSIZE 512
 #endif
 
 /**********************BLOCKDEV INTERFACE**************************************/
