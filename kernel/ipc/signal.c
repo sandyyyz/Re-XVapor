@@ -8,6 +8,7 @@
 #include "memlayout.h"
 #include "trap.h"
 #include "errno.h"
+#include "vm.h"
 
 static void signal_default(struct tcb *t, int sig_no);
 static int do_handle_signal(struct tcb *t, int sig_no, struct sigaction *sig_act);
@@ -116,13 +117,13 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
         return 0; // No pending signals
     }
 #ifdef __DEBUG_SIGNAL_HANDLE
-    Log("signal_handle: thread %d has %d pending signals", t->tid, t->pending_cnt);
+    // Log("signal_handle: thread %d has %d pending signals", t->tid, t->pending_cnt);
 #endif
     acquire(&t->sig_pending.siglock);
     list_for_each_entry_safe(sig_cur, sig_tmp, &t->sig_pending.list, list) {
         sig_no = sig_cur->info.si_signo;
 #ifdef __DEBUG_SIGNAL_HANDLE
-        Log("signal_handle: thread %d processing signal %d", t->tid, sig_no);
+        // Log("signal_handle: thread %d processing signal %d", t->tid, sig_no);
 #endif
         if (sig > 0 && sig_no != sig) {
             // If a specific signal is requested, skip others
@@ -136,23 +137,27 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
             *retinfo = sig_cur->info; // Fill the retinfo with the siginfo
         }
         sig_act = sig_action(t, sig_no);
-#ifdef __DEBUG_SIGNAL_HANDLE
-        Log("signal_handle: thread %d found signal %d with handler %p", t->tid, sig_no, sig_act.sa_handler);
-        Log("t->blockd.sig: %p", t->blocked.sig);
-#endif
         if (sig_ignored(t, sig_no) || sig_act.sa_handler == SIG_IGN) {
             // Ignore the signal
-            list_del_reinit(&sig_cur->list);
-            t->pending_cnt--;
-            kfree(sig_cur); // Free the signal queue
+            // list_del_reinit(&sig_cur->list);
+            // t->pending_cnt--;
+            // kfree(sig_cur); // Free the signal queue
             continue;
         } else if (sig_act.sa_handler == SIG_DFL) {
+#ifdef __DEBUG_SIGNAL_HANDLE
+            Log("signal_handle: thread %d handle %d with handler %p", t->tid, sig_no, sig_act.sa_handler);
+            Log("t->blockd.sig: %p", t->blocked.sig);
+#endif
             // Default action
             signal_default(t, sig_no);
             t->pending_cnt--;
             list_del_reinit(&sig_cur->list);
             kfree(sig_cur); // Free the signal queue
         } else {
+#ifdef __DEBUG_SIGNAL_HANDLE
+            Log("signal_handle: thread %d handle %d with handler %p", t->tid, sig_no, sig_act.sa_handler);
+            Log("t->blockd.sig: %p", t->blocked.sig);
+#endif
             // Custom handler
             if(do_handle_signal(t, sig_no, &sig_act) != 0) {
                 Warn("Failed to handle signal %d for thread %d", sig_no, t->tid);
@@ -195,7 +200,10 @@ static int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, str
 
     tf->ra = (uint64)SIGRETURN; // trampoline to call sigreturn syscall
     tf->sp = (uint64)frame;
-
+#ifdef __DEBUG_SETUP_RT_FRAME
+    walk_va(myproc()->mm.pagetable, SIGRETURN);
+    walk_va(myproc()->mm.pagetable, TRAMPOLINE);
+#endif
     if (sig->sa_flags & SA_SIGINFO) {
         tf->epc = (uint64)sig->sa_sigaction;
         tf->a0 = (uint64)signo; /* a0: signal number */

@@ -61,7 +61,7 @@ fdalloc(struct file *f)
     if(p->ofile[fd] == 0){
       p->ofile[fd] = f;
       p->ofile_cnt++;
-      Log("++ofile_cnt %d", p->ofile_cnt);
+      // Log("++ofile_cnt %d", p->ofile_cnt);
       return fd;
     }
   }
@@ -946,7 +946,7 @@ uint64 sys_openat(void) {
   // printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
 #ifdef __DEBUG_SYS_OPENAT
-  printf("[sys_openat] abs_path = %s\n", abs_path);
+  Log("[sys_openat] abs_path = %s", abs_path);
 #endif
   if((r = generic_open(abs_path, flags, omode)) < 0) {
     Warn("[sys_openat] generic_open failed, abs_path = %s, r = %d\n", abs_path, r);

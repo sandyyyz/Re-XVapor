@@ -268,7 +268,7 @@ int execve(char *path, char **argv, char **envp)
     if(ph.type == ELF_PROG_INTERP)
       Warn("ELF_PROG_INTERP not supported\n");
     if(ph.type != ELF_PROG_LOAD) {
-      Log("ph.type == 0x%x\n", ph.type);
+      Log("ph.type == 0x%x", ph.type);
       continue;
     }
 
@@ -283,8 +283,10 @@ int execve(char *path, char **argv, char **envp)
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
-printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(ph.vaddr) = %p, ph.filesz = %d\n", 
-            ph.off, PGROUNDDOWN(ph.off), ph.vaddr, PGROUNDDOWN(ph.vaddr), ph.filesz);
+#ifdef __DEBUG_EXECVE
+    // printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(ph.vaddr) = %p, ph.filesz = %d\n", 
+    //         ph.off, PGROUNDDOWN(ph.off), ph.vaddr, PGROUNDDOWN(ph.vaddr), ph.filesz);
+#endif
     if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
   }
@@ -423,7 +425,9 @@ printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(
       p->ofile[i] = 0;
     }
   }
-  return 0; // this ends up in a0, the first argument to main(argc, argv)
+  // start.S in glibc expects a0 to store the address of the dynamic linker destructor
+  // NULL now 
+  return 0; 
 
   bad:
   if(pagetable)

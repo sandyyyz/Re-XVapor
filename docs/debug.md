@@ -984,12 +984,64 @@ unsupport now:
 /musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 /musl/runtest.exe -w entry-static.exe putenv_doublefree
 /musl/runtest.exe -w entry-static.exe syscall_sign_extend
+25/107
 
 /glibc/runtest.exe -w entry-static.exe clocale_mbfuncs
+/glibc/runtest.exe -w entry-static.exe fdopen
 /glibc/runtest.exe -w entry-static.exe fnmatch
 /glibc/runtest.exe -w entry-static.exe fwscanf
 /glibc/runtest.exe -w entry-static.exe mbc
+/glibc/runtest.exe -w entry-static.exe pthread_cancel_points
+/glibc/runtest.exe -w entry-static.exe pthread_cancel
+/glibc/runtest.exe -w entry-static.exe pthread_cond
+/glibc/runtest.exe -w entry-static.exe pthread_tsd
+/glibc/runtest.exe -w entry-static.exe setjmp
+/glibc/runtest.exe -w entry-static.exe snprintf
+/glibc/runtest.exe -w entry-static.exe socket
+/glibc/runtest.exe -w entry-static.exe sscanf
+/glibc/runtest.exe -w entry-static.exe sscanf_long
+/glibc/runtest.exe -w entry-static.exe stat
+/glibc/runtest.exe -w entry-static.exe strftime
+/glibc/runtest.exe -w entry-static.exe strptime
+/glibc/runtest.exe -w entry-static.exe strtod
+/glibc/runtest.exe -w entry-static.exe strtod_simple
+/glibc/runtest.exe -w entry-static.exe strtof
+/glibc/runtest.exe -w entry-static.exe strtol
+/glibc/runtest.exe -w entry-static.exe strtold
+/glibc/runtest.exe -w entry-static.exe swprintf
+/glibc/runtest.exe -w entry-static.exe utime
+/glibc/runtest.exe -w entry-static.exe wcstol
+/glibc/runtest.exe -w entry-static.exe daemon_failure
+/glibc/runtest.exe -w entry-static.exe dn_expand_empty
+/glibc/runtest.exe -w entry-static.exe dn_expand_ptr_0
+/glibc/runtest.exe -w entry-static.exe fflush_exit
+/glibc/runtest.exe -w entry-static.exe fgetwc_buffering
+/glibc/runtest.exe -w entry-static.exe ftello_unflushed_append
+/glibc/runtest.exe -w entry-static.exe mbsrtowcs_overflow
+/glibc/runtest.exe -w entry-static.exe printf_fmt_g_round
+/glibc/runtest.exe -w entry-static.exe printf_fmt_g_zeros
+/glibc/runtest.exe -w entry-static.exe pthread_cond_smasher
+/glibc/runtest.exe -w entry-static.exe pthread_condattr_setclock
+/glibc/runtest.exe -w entry-static.exe pthread_exit_cancel
+/glibc/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+/glibc/runtest.exe -w entry-static.exe regex_bracket_icase
+/glibc/runtest.exe -w entry-static.exe regex_ere_backref
+/glibc/runtest.exe -w entry-static.exe regex_escaped_high_byte
+/glibc/runtest.exe -w entry-static.exe rewind_clear_error
+/glibc/runtest.exe -w entry-static.exe setvbuf_unget
+/glibc/runtest.exe -w entry-static.exe sigprocmask_internal
+/glibc/runtest.exe -w entry-static.exe sscanf_eof
+/glibc/runtest.exe -w entry-static.exe syscall_sign_extend
+/glibc/runtest.exe -w entry-static.exe uselocale_0
 
+45/107
+
+好几个bug都是这种类似的错误
+thread 8 usertrap: page fault at 0x0000000000000000
+sepc=0x00000000000589ba stval=0x0000000000000028
+scause=0x000000000000000f
+sstatus=0x0000000000000020
+satp=0x800000000009ffff
 
 1. 测试signal返回用户空间
 2. 检查execve用户栈构造（包括aux）

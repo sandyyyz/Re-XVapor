@@ -338,7 +338,7 @@ proc_pagetable(struct proc *p)
   // An empty page table.
   pagetable = uvmcreate();
   if(pagetable == 0)
-    return 0;
+  return 0;
 
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
@@ -355,6 +355,7 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // printf_green("trampoline : %p, __user_rt_sigreturn %p", (uint64)trampoline, (uint64) __user_rt_sigreturn);
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
   // if(mappages(pagetable, TRAPFRAME, PGSIZE,

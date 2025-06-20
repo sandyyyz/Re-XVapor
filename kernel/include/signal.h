@@ -249,13 +249,13 @@ struct rt_sigframe {
  * @brief add signal to sigset
  * 
  */
-#define sig_add_set(set, sig) (set.sig |= 1UL << (sig - 1))
+#define sig_add_set(set, signo) (set.sig |= 1UL << (signo - 1))
 
 /**
  * @brief delete given signal from sigset
  * 
  */
-#define sig_del_set(set, sig) (set.sig &= ~(1UL << (sig - 1)))
+#define sig_del_set(set, signo) (set.sig &= ~(1UL << (signo - 1)))
 
 /**
  * @brief add mask to given sigset
