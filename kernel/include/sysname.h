@@ -2,6 +2,7 @@ const char *syscall_name[] = {
     [SYS_fork] = "sys_fork",
     [SYS_dev] = "sys_dev",
     [SYS_wait] = "sys_wait",
+    [SYS_poweroff] = "sys_poweroff",
     [SYS_exec] = "sys_exec",
     [SYS_mknod] = "sys_mknod",
     [SYS_sbrk] = "sys_sbrk",

@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "sysinfo.h"
 #include "signal.h"
+#include "memlayout.h"
 
 extern struct proc proc[NPROC];
 
@@ -214,4 +215,10 @@ uint64 sys_sysinfo(void) {
     }
     
     return 0;
+}
+
+uint64 sys_poweroff(void) {
+    volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
+    *poweroff = 0x5555; 
+    while(1);
 }

@@ -30,7 +30,7 @@ int main(void)
   dup(0); // stdout
   dup(0); // stderr
   printf("======================== init: starting rexvapor init !!! ========================\n");
-
+  // poweroff();
   // if(openat(AT_FDCWD, "/dev/tty", O_RDWR, 0) < 0) {
   //   // while(1);
   //   if(mkdir("/dev", 0755) < 0) {

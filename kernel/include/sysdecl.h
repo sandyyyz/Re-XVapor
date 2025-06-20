@@ -1,6 +1,7 @@
 extern uint64 sys_fork(void);
 extern uint64 sys_dev(void);
 extern uint64 sys_wait(void);
+extern uint64 sys_poweroff(void);
 extern uint64 sys_exec(void);
 extern uint64 sys_mknod(void);
 extern uint64 sys_sbrk(void);

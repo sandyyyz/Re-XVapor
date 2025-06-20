@@ -1,6 +1,7 @@
 #define SYS_fork 1
 #define SYS_dev 2
 #define SYS_wait 3
+#define SYS_poweroff 4
 #define SYS_exec 7
 #define SYS_mknod 11
 #define SYS_sbrk 12
