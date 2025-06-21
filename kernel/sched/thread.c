@@ -47,6 +47,9 @@ void tcb_init(void) {
         initlock(&t->lock, "tcb_lock"); // init its spinlock
         t->state = TCB_UNUSED;
         t->kstack = KSTACK((int)(t - tcb_pool));
+#ifdef __DEBUG_TCB_INIT
+        Log("thread %d alloc with kstack %p", i + 1, t->kstack);
+#endif
         queue_push_back_atomic(g_tcb_queues[TCB_UNUSED], t);
     }
     Info("thread table init [ok]\n");
@@ -108,9 +111,11 @@ struct tcb *alloc_thread(thread_callback callback) {
     memset(&t->context, 0, sizeof(t->context));
     t->context.ra = (uint64)callback;
     t->context.sp = t->kstack + KSTACK_PAGE * PGSIZE;
-
-    // sig_empty_set(&t->blocked);
-    sig_fill_set(&t->blocked);
+#ifdef __DEBUG_ALLOCATE_THREAD
+    Warn("thread %d alloc with kstack base %p, kstack top %p", t->tid, t->context.sp, t->kstack);
+#endif
+    sig_empty_set(&t->blocked);
+    // sig_fill_set(&t->blocked);
     sigpending_init(&t->sig_pending);
     // chage state of TCB
     tcb_q_change_state(t, TCB_USED);

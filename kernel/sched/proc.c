@@ -123,18 +123,28 @@ void thread_mapstacks(pagetable_t kpgtbl)
   struct tcb *t;
   
   for(t = tcb_pool;  t < &tcb_pool[NTHREADS]; t++) {
-    char *pa = kalloc();
-    if(pa == 0)
-      panic("kalloc");
+    // !!! here just allocate one page for each thread's kernel stack
+    // but map it to KSTACK_PAGE * PGSIZE!!!!
+    char *pa = NULL;
     uint64 va = KSTACK((int) (t - tcb_pool));
-    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    for(int i = 0; i < KSTACK_PAGE; i++) {
+      if((pa = (char*)kzalloc()) == NULL) {
+        panic("thread_mapstacks: kstack alloc failed");
+      }
+      if(mappages(kpgtbl, va + i * PGSIZE, PGSIZE, (uint64)pa, PTE_R | PTE_W) < 0) {
+        panic("thread_mapstacks: mappages failed");
+      }
+    }
+#ifdef __DEBUG_THREAD_MAPSTACKS
+    Log("thread %d map with kstack base %p, kstack top %p", t - tcb_pool + 1, va + KSTACK_PAGE * PGSIZE , va);
+#endif
   }
 }
 
 
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
-// to a different CPU.
+// to a different CPU.  
 int
 cpuid()
 {

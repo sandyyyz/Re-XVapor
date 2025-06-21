@@ -1,3 +1,6 @@
+#ifndef __MEMLAYOUT_H
+#define __MEMLAYOUT_H
+#include "param.h"
 // Physical memory layout
 
 // qemu -machine virt is set up like this,
@@ -55,18 +58,22 @@
 #define TRAMPOLINE (MAXVA - PGSIZE)
 
 // the kernel stack grows down from KSTACKTOP.
-#define KSTACK_PAGE 1
-
+#define KSTACK_PAGE 4
+#define MAX_THREAD NTHREADS_PER_PROC
 // now every single thread has its own kernel stack
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.'
 // KSTACK means KSTACK_BASE actrually 
 #define KSTACK(t) (TRAMPOLINE - ((t) + 1) * (KSTACK_PAGE + 1) * PGSIZE)
+#define BRKTOP KSTACK(NTHREADS + 1) // bottom of the kernel stack
+
+// user space
 
 #define SIGRETURN (TRAMPOLINE - PGSIZE) // trampoline to call sigreturn syscall
 #define TRAPFRAME (SIGRETURN - PGSIZE)
 // thread-exclusive
 #define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx) * PGSIZE)
-#define MAX_THREAD 8 // max thread number in a process
+// #define KSTACK(t) (THREAD_TRAPFRAME(MAX_THREAD - 1 - (t)) - KSTACK_PAGE * PGSIZE)
 
-#define BRKTOP (TRAMPOLINE - (MAX_THREAD + 1) * PGSIZE)
+
+#endif

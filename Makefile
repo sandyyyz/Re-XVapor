@@ -99,10 +99,9 @@ mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xv6fs.h $(KERNEL_DIR)/include/param
 # $(USER_BUILD_DIR)/uprogs-list.mk:
 # 	$(MAKE) -C $(USER_DIR) uprogs-list.mk
 
-fs.img: $(UPROGS_TEST) $(UEXTRA) $(UPROGS) mkfs/mkfs README  
+fs.img: $(UPROGS_TEST) $(UEXTRA) $(UPROGS) README  
 	$(MAKE) -C $(USER_DIR) all
 	@mkdir -p build/fs
-	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST) 
 
 -include kernel/*.d user/*.d
 

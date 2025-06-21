@@ -35,6 +35,7 @@
 #include "param.h"
 #include "buf.h"
 #include "debug.h"
+#include "thread.h"
 
 #ifndef BSIZE
 #define BSIZE 512
@@ -89,7 +90,15 @@ static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
 			  uint64_t blk_id, uint32_t blk_cnt)
 {
 	uint64 bp = (uint64)buf;
+#ifdef __DEBUG_DEV_BWRITE
+	if(mythread()->tid == 21)
+		Log("blockdev_bwrite: bdev %p, buf %p, blockid %d, blk_cnt %d", bdev, buf, blk_id, blk_cnt);
+#endif
 	for(int i = 0; i < blk_cnt; i++) {
+#ifdef __DEBUG_DEV_BWRITE
+		if(mythread()->tid == 21)
+			Log("blockdev_bwrite: writing block %d, i = %d", blk_id + i, i);
+#endif
 		struct buf *b = bget(ROOTDEV, blk_id + i);
 		memmove(b->data, (void*)bp, BSIZE);
 		bwrite(b);

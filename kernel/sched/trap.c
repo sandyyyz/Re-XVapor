@@ -196,8 +196,6 @@ int inline dodebug() { return 0;}
 void
 usertrapret(void)
 {
-
-
   struct proc *p = myproc();
   struct tcb *t = mythread();
 #ifdef __DEBUG_UTRAPRET
@@ -236,6 +234,7 @@ usertrapret(void)
   unsigned long x = r_sstatus();
   x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
   x |= SSTATUS_SPIE; // enable interrupts in user mode
+  x |= SSTATUS_SUM; // enable user memory access
   w_sstatus(x);
 
   // set S Exception Program Counter to the saved user pc.
@@ -254,23 +253,7 @@ usertrapret(void)
   // and switches to user mode with sret.
   // 定位到userret (trampoline.s)
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
-  #ifdef __DEBUG_UTRAPRET
-  // static int startd = 0;
-  if(dodebug())
-  { 
-    // startd += 1;
-    // Log("TRAMPOLINE = %p, (userret-trampoline) = %p", TRAMPOLINE, userret - trampoline);
-    // Log("usertrapret: trampoline_userret = %p\n", trampoline_userret);
-    // Log("trapframe->ra = %p, epc = %p, tid = %d", t->trapframe->ra, t->trapframe->epc, t->tid);
-    // printf_blue("  startd = %d \n", startd);
-    print_trapframe(t->trapframe);
-    vmprint(p->mm.pagetable);
-    // walk_va(p->mm.pagetable, (uint64)(t->trapframe));
-    // walk_va(p->mm.pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
-    walk_va(p->mm.pagetable, t->trapframe->sp);
-  }
-  #endif
-
+  
   ((void (*)(uint64, uint64))trampoline_userret)(satp, THREAD_TRAPFRAME(t->tidx));
 }
 

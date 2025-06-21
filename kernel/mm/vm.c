@@ -135,6 +135,7 @@ void walk_va(pagetable_t pagetable, uint64 va) {
       printf("pa %p\n", PTE2PA(*pte));
       printf("flags %p\n", PTE_FLAGS(*pte));
       printf("walk va success\n");
+      printf("\n");
     }
 }
 

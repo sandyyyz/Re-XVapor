@@ -95,7 +95,7 @@ void fileclose(struct file *f, int drop_ofile_cnt)
   struct proc *p = myproc();
   if(drop_ofile_cnt) {
     p->ofile_cnt--;
-    Log("--ofile_cnt %d", p->ofile_cnt);;
+    // Log("--ofile_cnt %d", p->ofile_cnt);;
   }
   if(p->ofile_cnt < 0)
     panic("fileclose: ofile_cnt < 0");

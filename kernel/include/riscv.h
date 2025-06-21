@@ -44,7 +44,7 @@ w_mepc(uint64 x)
 }
 
 // Supervisor Status Register, sstatus
-
+#define SSTATUS_SUM (1L << 18) // Supervisor User Memory Access
 #define SSTATUS_SPP (1L << 8)  // Previous mode, 1=Supervisor, 0=User
 #define SSTATUS_SPIE (1L << 5) // Supervisor Previous Interrupt Enable
 #define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
@@ -394,6 +394,6 @@ w_sscratch(uint64 x) {
 // MAXVA is actually one bit less than the max allowed by
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
-#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1)) //0x4000000000
 
 #endif

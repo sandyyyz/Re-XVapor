@@ -1106,3 +1106,88 @@ mov a5, a0
 ``` c
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 ```
+
+### libc.5 
+ START thread 10 syscall 64: sys_write
+test_execvethread 10 syscall 64: sys_write
+ ==========
+thread 10 syscall 221: sys_execve
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/basic/test_echo, path test_echo, cinfo.path /musl/basic
+thread 10 kerneltrap: page fault at 0x0000003ffffea000
+sepc=0x000000008022a896 stval=0x0000003ffffea000
+scause=0x000000000000000f
+sstatus=0x8000000000006100
+satp=0x80000000000a01ff
+panic: kerneltrap: page fault
+3ffffe8000
+0x0000003ffffe6000
+kernel 里访问了一个0x3f未映射的地址，然后一直对栈递减，最后call了kerneltrap
+难道是访问到了guard page??
+和调用的速度和具体的测试程序无关，跑几个测试程序就在固定第N个崩溃。
+
+execve->ext4_vfopen->ext4_raw_inode_fill->ext4_generic_open2->ext4_fs_get_inode_ref->__ext4_fs_get_inode_ref->ext4_fs_get_block_group_ref->ext4_trans_block_get->ext4_block_get->ext4_block_get_noread->ext4_block_cache_shake->ext4_block_flush_buf(->buf->end_write(bc, buf, r, buf->end_write_arg);?->jbd_write_sb)->ext4_blocks_set_direct->ext4_bdif_bwrite->int r = bdev->bdif->bwrite(bdev, buf, blk_id, blk_cnt);
+
+有时在endwrite时崩溃了，有时在bwrite时崩溃了。。  
+但是我之前测，哪怕没有修改为legacy磁盘时，也会崩  
+
+0x8020126c这条指令跳到了release函数里,里面的popoff  
+![libc.5.1](image-166.png)
+![libc.5.2](image-167.png)
+![libc.5.2](image-168.png)
+这里的栈好像炸了。。  
+[WARN][sched/thread.c,111,alloc_thread] thread 21 alloc with kstack 0x0000003ffffd3000  
+我只给每个线程开了一个页大小的内核栈，这个地方已经超出了一个页，所以访问到了一个guard page  
+那么怎么增加内核栈的大小呢？    
+但是在这之前，第一个kernelvec似乎已经进入kerneltrap了，是在kerneltrap里崩的，这也许是两个问题  
+第一个是Supervisor external interrupt，这个没问题.  
+所以应该是第一次不知何种原因有一个外部中断（但是应该是正常的），随后尝试在kerneltrap中处理的时候爆栈了，这个时候又跳到了kernelvec, 栈一直往下递减直到越过了guard page，到达下一个线程内核栈的时候输出了trap信息，但是此时的信息和原本的原因已经相差甚远了。    
+但是这样的话，我之前尝试映射guard page为什么还是跑不了？？试一下。    
+居然可以跑到panic未知devintr那里！
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x00000000802361e8 stval=0x00000000802361e8
+panic: kerneltrap  
+
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x0000000080337eb0 stval=0x0000000080337eb0
+panic: kerneltrap
+QEMU: Terminated
+
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x0000003ffffd2fc0 stval=0x0000003ffffd2fc0
+panic: kerneltrap
+
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x0000003ffffd2f90 stval=0x0000003ffffd2f90
+panic: kerneltrap
+
+居然每次trap的sepc都不一样。。。。。。。。  
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/basic/mount, path ./mount, cinfo.path /musl/basic
+[LOG][fs/blockdev.c,95,blockdev_bwrite] blockdev_bwrite: bdev 0x0000000080233f38, buf 0x000000009fe9a000, blockid 6032, blk_cnt 8
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6032, i = 0
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6033, i = 1
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6034, i = 2
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6035, i = 3
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6036, i = 4
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6037, i = 5
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6038, i = 6
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6039, i = 7
+[LOG][fs/blockdev.c,95,blockdev_bwrite] blockdev_bwrite: bdev 0x0000000080233f38, buf 0x00000000802e90d0, blockid 3932160, blk_cnt 2
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 3932160, i = 0
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 3932161, i = 1
+[LOG][fs/exec.c,271,execve] ph.type == 0x6
+[WARN][fs/exec.c,269,execve] ELF_PROG_INTERP not supported
+
+[LOG][fs/exec.c,271,execve] ph.type == 0x3
+[LOG][fs/exec.c,271,execve] ph.type == 0x70000003
+[LOG][fs/exec.c,271,execve] ph.type == 0x2
+[LOG][fs/exec.c,271,execve] ph.type == 0x4
+[LOG][fs/exec.c,271,execve] ph.type == 0x6474e551
+
+不过此时其实已经open成功了，会不会是因为前面并没有真的好好安排内核栈，只是映射了guard page导致栈被写坏了。（真的吗？》。。。）  
+先把内核栈安排好再考虑这件事情吧   
+[WARN][sched/thread.c,111,alloc_thread] thread 2 alloc with kstack 0x0000003fffff0000  这内核栈地址不太对劲吧？这位置应该是trampoline的吧。  
+不对 trampoline应该是0x3ffffff000

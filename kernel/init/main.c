@@ -49,7 +49,7 @@ void clear_bss_section(void)
         *bss++ = 0;
     }
 }
-
+#ifdef __START_HARTS
 static void start_harts()
 {
     for (int i = 0; i < NCPU; i++)
@@ -62,6 +62,7 @@ static void start_harts()
         }
     }
 }
+#endif
 void
 main()
 {
@@ -95,7 +96,9 @@ main()
     __sync_synchronize();
     started = 1;
     printf("hart %d started\n", cpuid());
+#ifdef __START_HARTS
     start_harts();
+#endif
   } else {
     while(started == 0)
       ;

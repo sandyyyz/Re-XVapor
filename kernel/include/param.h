@@ -1,7 +1,7 @@
 #ifndef __PARAM_H
 #define __PARAM_H
 
-#define NPROC        64  // maximum number of processes
+#define NPROC        32  // maximum number of processes
 #define NCPU          8  // maximum number of CPUs
 #define NOFILE       256  // open files per process
 #define NFILE       1024  // open files per system
@@ -23,7 +23,7 @@
 #define NPROC_GROUP  64 // maximum number of process groups
 
 #define ROOTFSTYPE  "ext4"
-#define NTHREADS_PER_PROC 2
+#define NTHREADS_PER_PROC 4
 #define NTHREADS (NPROC * NTHREADS_PER_PROC)
 
 #define INT_MAX 2147483647 // maximum value for int

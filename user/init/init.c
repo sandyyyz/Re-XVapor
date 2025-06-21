@@ -30,31 +30,20 @@ int main(void)
   dup(0); // stdout
   dup(0); // stderr
   printf("======================== init: starting rexvapor init !!! ========================\n");
-  // poweroff();
-  // if(openat(AT_FDCWD, "/dev/tty", O_RDWR, 0) < 0) {
-  //   // while(1);
-  //   if(mkdir("/dev", 0755) < 0) {
-  //     printf("init: mkdir /dev failed\n");
-  //     return -1;`
-  //   }
-  //   // while(1);
-  //   if(mknod("/dev/tty", S_IFCHR | S_IRUSR | S_IWUSR, CONSOLE) < 0) {
-  //     printf("init: mknod tty failed\n");
-  //     return -1;
-  //   }
-  // }
+
+  // musl basic
   int pid = fork();
   if(pid == 0) {
     printf("init: child process, pid = %d\n", getpid());
-    if(chdir(glibc_dir) < 0) {
-      printf("init: chdir %s failed\n", glibc_dir);
+    if(chdir(musl_basic_dir) < 0) {
+      printf("init: chdir %s failed\n", musl_basic_dir);
       exit(-1);
     }
     if(open("/tmp", O_RDWR | O_CREAT, 0644) < 0) {
       printf("init: open /tmp failed\n");
       mkdir("/tmp", 0755);
     }
-    int ret = execve(glibc_busybox_path, glibc_shell_argv, busybox_envp);
+    int ret = execve(musl_busybox_path, musl_basic_test_argv, busybox_envp);
     printf("execve returned %d\n", ret);
   } else {
     wait(0);
