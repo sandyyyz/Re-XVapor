@@ -16,7 +16,7 @@
 
 extern struct utsname g_uts;
 volatile static int started = 0;
-volatile static int boot_hart = -1;
+volatile int boot_hart = -1;
 extern char __bss_start, __bss_end; // 引用链接器脚本中定义的符号
 extern void _entry();
 // start() jumps here in supervisor mode on all CPUs.

@@ -459,7 +459,8 @@ thread_wakeup_chan(void *chan)
             acquire(&t->lock);
             if(t->chan == chan && t->state == TCB_SLEEPING) {
 #ifdef __DEBUG_WAKEUP_CHAN
-                Log("thread_wakeup_chan %d at chan %p", t->tid, chan);
+                if(chan == &ticks)
+                    Log("thread_wakeup_chan %d at chan %p", t->tid, chan);
 #endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 // queue_t *tcb_q_new = g_tcb_queues[TCB_RUNNABLE];

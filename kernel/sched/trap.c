@@ -14,8 +14,8 @@
 #include "sbi.h"
 
 struct spinlock tickslock, timeout_lock;
-uint ticks;
-
+uint ticks = 0;
+extern volatile int boot_hart;
 uint get_ticksnow(void) {
   uint t;
   acquire(&tickslock);
@@ -318,6 +318,9 @@ clockintr()
   acquire(&tickslock);
   ticks++;
   thread_wakeup_chan(&ticks);
+  // if(ticks % TICKS_PER_SECOND == 0) {
+  //   Warn("ticks %d", ticks);
+  // }
   release(&tickslock);
   
   /*
@@ -365,10 +368,13 @@ devintr()
     return 1;
   } else if (scause == 0x8000000000000005L) {
       // timer interrupt
-
-      if (cpuid() == 0)
+      
+      // how to support mutiple harts?
+      if (cpuid() == boot_hart)
       {
           clockintr();
+      } else {
+        Warn("cpuid %d not boot_hart, clockintr skipped", cpuid());
       }
 
       // acknowledge the software interrupt by clearing
