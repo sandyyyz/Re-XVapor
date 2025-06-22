@@ -1237,4 +1237,10 @@ thread 2 syscall 221: sys_execve
 
 [LOG][sched/proc.c,450,userinit] userinit: proc 1, pagetable 0x000000009fef4000, sz 0x0000000000003000, initcode_len 0x0000000000000f6e, sz - 64 * PGSIZE: 0xfffffffffffc3000
 好像是uvmfirst的问题。。。（哈哈，AI改的代码）  
-接下来思考怎么映射大于1个页大小的代码就好啦
+接下来思考怎么映射大于1个页大小的代码就好啦  
+
+========== END test_read ==========
+Testing sleep :
+========== START test_sleep ==========
+8  282377
+[LOG][sysproc.c,137,sys_nanosleep] [sys_nanosleep] ticks: 0, ticks0: 0, rticks: 10
