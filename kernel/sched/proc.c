@@ -433,13 +433,27 @@ userinit(void)
 
   // allocate one user page and copy initcode's instructions
   // and data into it.
+  uint64 sz = PGROUNDUP(initcode_len);
   uvmfirst(p->mm.pagetable, initcode, initcode_len);
-  p->sz = PGSIZE; // TODO: how large?? maybe bug here
+
+  uint64 sz1;
+  if((sz1 = uvmalloc(p->mm.pagetable, sz, sz + 4 * PGSIZE, PTE_W)) == 0) {
+    panic("userinit: uvmalloc failed");
+  }
+  sz = sz1;
+  uvmclear(p->mm.pagetable, sz - 4 * PGSIZE); // clear the stack guard page  
+
+  p->sz = sz; // TODO: how large?? maybe bug here
+
+#ifdef __DEBUG_USERINIT
+  Log("userinit: proc %d, pagetable %p, sz %p, initcode_len %p, sz - 64 * PGSIZE: %p", 
+      p->pid, p->mm.pagetable, sz, initcode_len, sz - 64 *PGSIZE);
+#endif
 
   // prepare for the very first "return" from kernel to user.
 
   t->trapframe->epc = 0;      // user program counter
-  t->trapframe->sp = PGSIZE;  // user stack pointer
+  t->trapframe->sp = sz;  // user stack pointer
   // Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
@@ -447,9 +461,6 @@ userinit(void)
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
 
-#ifdef __DEBUG_PROC
-
-#endif //__DEBUG_PROC 
   release(&p->lock);
 }
 
@@ -588,7 +599,9 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
 
   if(flags & CLONE_THREAD) {
     // if CLONE_THREAD, we just create a new thread in the same process
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_THREAD\n");
+#endif
     if((t = alloc_thread(thread_forkret)) == 0)
       return -1; 
     if(proc_join_thread(p, t, NULL) < 0) {
@@ -609,18 +622,24 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
   t->trapframe->a0 = 0;
 
   if(flags & CLONE_SETTLS) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_SETTLS\n");
+#endif
     t->trapframe->tp = tls; // set the tp register
   }
   if(flags & CLONE_CHILD_SETTID) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_CHILD_SETTID\n");
+#endif
     if(copyout(p->mm.pagetable, ctid, (char *)&t->tid, sizeof(t->tid)) < 0) {
       goto bad;
     }
     t->set_child_tid = ctid; // for debug
   }
   if(flags & CLONE_CHILD_CLEARTID) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_CHILD_CLEARTID\n");
+#endif
     // clear when exit
     t->clear_child_tid = ctid;
   }
@@ -629,14 +648,18 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     t->trapframe->sp = stack;
   }
   if(flags & CLONE_SIGHAND) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_SIGHAND\n");
+#endif
     t->sigs = p->tg.group_leader->sigs; // share the signal handler
     atomic_add_return(&t->sigs->ref, 1); // increment the reference count
   } else {
     sighandinit(t); // init the signal handler
   }
   if(flags & CLONE_PARENT_SETTID) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_PARENT_SETTID\n");
+#endif
     // set the parent tid
     if(copyout(p->mm.pagetable, ptid, (char *)&t->tid, sizeof(t->tid)) < 0) {
       goto bad;
@@ -653,7 +676,9 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     create a process
   */
   if(flags & CLONE_VM) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_VM\n");
+#endif
     np->mm.pagetable = p->mm.pagetable; // share the same pagetable
   } else {
     if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
@@ -664,10 +689,14 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
   }
   // just not support right now
   if(flags & CLONE_FS) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_FS\n");
+#endif
   }
   if(flags & CLONE_FILES) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_FILES\n");
+#endif
   }
   if(proc_copy_vma(p, np) < 0) {
     freeproc(np);
@@ -675,6 +704,10 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     return -1;
   }
   np->sz = p->sz;
+#ifdef __DEBUG_DO_CLONE
+  Log("do_clone: old proc %d, sz %p, oldt->trapframe->sp %p", p->pid, p->sz, p->tg.group_leader->trapframe->sp);
+  Log("do_clone: np %d, sz %p, t->trapframe->sp %p", np->pid, np->sz, t->trapframe->sp);
+#endif
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)

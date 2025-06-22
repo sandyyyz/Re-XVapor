@@ -130,7 +130,7 @@ int ext4_init()
         return -1;
     }
 
-    printf("[ext4] ext4 filesystem initialized successfully!\n");
+    // printf("[ext4] ext4 filesystem initialized successfully!\n");
     return 0;
 }
 

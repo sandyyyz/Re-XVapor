@@ -264,11 +264,14 @@ int execve(char *path, char **argv, char **envp)
     if((r = ext4_vfread(f, 0, (uint64)&ph, off, sizeof(ph), &rcnt)) != EOK
                         || rcnt != sizeof(ph))
       goto bad;
-
+#ifdef __DEBUG_EXECVE
     if(ph.type == ELF_PROG_INTERP)
-      Warn("ELF_PROG_INTERP not supported\n");
+      Warn("ELF_PROG_INTERP not supported");
+#endif
     if(ph.type != ELF_PROG_LOAD) {
+#ifdef __DEBUG_EXECVE
       Log("ph.type == 0x%x", ph.type);
+#endif
       continue;
     }
 
@@ -299,8 +302,11 @@ int execve(char *path, char **argv, char **envp)
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
   // Use the second as the user stack.
-  sz = PGROUNDUP(sz);
+
   uint64 sz1;
+  sz = PGROUNDUP(sz);
+
+  // Log("uvmalloc sz = %p, sz + 64 * PGSIZE = %p", sz, sz + 64 * PGSIZE);
   if((sz1 = uvmalloc(pagetable, sz, sz + 64 * PGSIZE, PTE_W)) == 0)
     goto bad;
   sz = sz1;
@@ -308,6 +314,12 @@ int execve(char *path, char **argv, char **envp)
   sp = sz;
   stackbase = sp - 63 * PGSIZE;
   
+  // if((sz1 = map_ustack(pagetable, sz, 63)) == 0)
+  //     goto bad;
+  // sp = sz1;
+  // stackbase = sp - 63 * PGSIZE;
+
+  // Log("execve: sz = %p, sp = %p, stackbase = %p", sz, sp, stackbase);
   sp -= 16;
   // push environment strings
   for (envc = 0; envp[envc]; envc++)
@@ -425,6 +437,9 @@ int execve(char *path, char **argv, char **envp)
       p->ofile[i] = 0;
     }
   }
+
+  // return argc; // this ends up in a0, the first argument to main(argc, argv)
+  
   // start.S in glibc expects a0 to store the address of the dynamic linker destructor
   // NULL now 
   return 0; 

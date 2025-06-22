@@ -375,7 +375,9 @@ int signal_send(siginfo_t *info, struct tcb *t) {
         return -1;
     }
     if (sig_existed(t, sig)) {
+#ifdef __DEBUG_SIGNAL_SEND
         Warn("signal_send : signal %d already exists in pending queue", sig);
+#endif
         return -1;
     }
 #ifdef __DEBUG_SIGNAL_SEND

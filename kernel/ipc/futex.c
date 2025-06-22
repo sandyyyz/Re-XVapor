@@ -299,7 +299,9 @@ int futex_wake(uint64 uaddr, int nr_wake) {
 #endif
     fp = get_futex(uaddr, 1);
     if (fp == NULL) {
+#ifdef __DEBUG_FUTEX_WAKE
         Warn("futex_wake: futex not found for address %p\n", (void *)uaddr);
+#endif
         return 0;
     }
     while (!queue_isempty_atomic(&fp->waiting_queue) && ret < nr_wake) {

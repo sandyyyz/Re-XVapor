@@ -358,7 +358,8 @@ thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *
 #endif
   thread_sched();
 #ifdef __DEBUG_TSLEEP
-    Log("thread %d wakeup on chan %p, timeout %d", t->tid, chan, t->timeout);
+    if(t->timeout)
+        Log("thread %d wakeup on chan %p, timeout %d", t->tid, chan, t->timeout);
 #endif
   // Tidy up.
   // p->chan = 0;
@@ -457,6 +458,9 @@ thread_wakeup_chan(void *chan)
         if(t!= cur_threads) {
             acquire(&t->lock);
             if(t->chan == chan && t->state == TCB_SLEEPING) {
+#ifdef __DEBUG_WAKEUP_CHAN
+                Log("thread_wakeup_chan %d at chan %p", t->tid, chan);
+#endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 // queue_t *tcb_q_new = g_tcb_queues[TCB_RUNNABLE];
                 // queue_t *tcb_q_old = g_tcb_queues[TCB_SLEEPING];

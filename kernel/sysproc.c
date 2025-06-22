@@ -118,9 +118,6 @@ uint64 sys_nanosleep(void)
         return -1;
 
     rticks = TIMESPEC2TICKS(req);
-#ifdef __DEBUG_SYS_NANOSLEEP
-    Log("[sys_nanosleep] sec: %d, nsec: %d, rticks: %d, addr0: %p, addr1: %p", req.tv_sec, req.tv_nsec, rticks, (void *)addr0, (void *)addr1);
-#endif
     acquire(&tickslock);
     ticks0 = ticks;
     while (ticks - ticks0 < rticks)
@@ -136,6 +133,9 @@ uint64 sys_nanosleep(void)
             release(&tickslock);
             return -1;
         }
+#ifdef __DEBUG_SYS_NANOSLEEP
+        Log("[sys_nanosleep] ticks: %d, ticks0: %d, rticks: %d", ticks, ticks0, rticks);
+#endif
         thread_sleep(&ticks, &tickslock, NULL);
     }
     if(addr1) {

@@ -27,4 +27,5 @@ void walk_va(pagetable_t pgtble, uint64 va);
 
 // thread mm
 struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx);
+uint64 map_ustack(pagetable_t pagetable, uint64 stack_low, int pages);
 #endif

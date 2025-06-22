@@ -16,7 +16,15 @@ char glibc_dir[] = "/glibc";
 char glibc_busybox_path[] = "/glibc/busybox";
 char musl_busybox_path[] = "/musl/busybox";
 
-char *glibc_basic_test_argv[] = {"/glibc/busybox_unstripped", "sh", "-v", "/glibc/basic/run-all.sh", "exit", NULL};
+char musl_basic_start_str[] = "#### OS COMP TEST GROUP START basic-musl ####\n";
+char glibc_basic_start_str[] = "#### OS COMP TEST GROUP START basic-glibc ####\n";
+char musl_basic_end_str[] = "#### OS COMP TEST GROUP END basic-musl ####\n";
+char glibc_basic_end_str[] = "#### OS COMP TEST GROUP END basic-glibc ####\n";
+char *musl_basic_start_echo_argv[] = {"/musl/busybox", "echo", musl_basic_start_str, NULL};
+char *glibc_basic_start_echo_argv[] = {"/glibc/busybox"," echo", glibc_basic_start_str, NULL};
+char *musl_basic_end_echo_argv[] = {"/musl/busybox", "echo", musl_basic_end_str, NULL};
+char *glibc_basic_end_echo_argv[] = {"/glibc/busybox", "echo", glibc_basic_end_str, NULL};
+char *glibc_basic_test_argv[] = {"/glibc/busybox_unstripped", "sh", "/glibc/basic/run-all.sh", NULL};
 char *glibc_busybox_test_argv[] = {"/glibc/busybox", "sh", "/glibc/busybox_testcode.sh", NULL };
 char *musl_basic_test_argv[] = {"/glibc/busybox", "sh", "/musl/basic/run-all.sh", NULL };
 char *musl_busybox_test_argv[] = {"/glibc/busybox", "sh", "/musl/busybox_testcode.sh", NULL };
@@ -31,25 +39,57 @@ int main(void)
   dup(0); // stderr
   printf("======================== init: starting rexvapor init !!! ========================\n");
 
+  if(open("/tmp", O_RDWR | O_CREAT, 0644) < 0) {
+    printf("init: open /tmp failed\n");
+    mkdir("/tmp", 0755);
+  }
+
   // musl basic
+  printf(musl_basic_start_str);
+
   int pid = fork();
   if(pid == 0) {
-    printf("init: child process, pid = %d\n", getpid());
     if(chdir(musl_basic_dir) < 0) {
       printf("init: chdir %s failed\n", musl_basic_dir);
       exit(-1);
-    }
-    if(open("/tmp", O_RDWR | O_CREAT, 0644) < 0) {
-      printf("init: open /tmp failed\n");
-      mkdir("/tmp", 0755);
     }
     int ret = execve(musl_busybox_path, musl_basic_test_argv, busybox_envp);
     printf("execve returned %d\n", ret);
   } else {
     wait(0);
-    printf("child process exited, pid = %d\n", pid);
+    printf(musl_basic_end_str);
   }
 
+  // glibc basic
+  printf(glibc_basic_start_str);
+
+  pid = fork();
+  if(pid == 0) {
+    if(chdir(glibc_basic_dir) < 0) {
+      printf("init: chdir %s failed\n", glibc_basic_dir);
+      exit(-1);
+    }
+    int ret = execve(glibc_busybox_path, glibc_basic_test_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
+  } else {
+    wait(0);
+    printf(glibc_basic_end_str);
+  }
+
+  // musl busybox test
+  pid = fork();
+  if(pid == 0) {
+    if(chdir(musl_dir) < 0) {
+      printf("init: chdir %s failed\n", musl_dir);
+      exit(-1);
+    }
+    int ret = execve(musl_busybox_path, musl_busybox_test_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
+  } else { 
+    wait(0);
+  }
+
+  printf("===================all tests ended\n===================");
   poweroff(0);
   return 0;
 }

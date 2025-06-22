@@ -1108,7 +1108,8 @@ mov a5, a0
 ```
 
 ### libc.5 
- START thread 10 syscall 64: sys_write
+
+START thread 10 syscall 64: sys_write
 test_execvethread 10 syscall 64: sys_write
  ==========
 thread 10 syscall 221: sys_execve
@@ -1191,3 +1192,49 @@ panic: kerneltrap
 先把内核栈安排好再考虑这件事情吧   
 [WARN][sched/thread.c,111,alloc_thread] thread 2 alloc with kstack 0x0000003fffff0000  这内核栈地址不太对劲吧？这位置应该是trampoline的吧。  
 不对 trampoline应该是0x3ffffff000
+
+new :
+[LOG][mm/vm.c,592,map_ustack] map_ustack: stack_low_aligned 0x0000000000166000, stack_high 0x00000000001a6000, pages 63
+[LOG][fs/exec.c,320,execve] execve: sz = 0x0000000000166000, sp = 0x00000000001a6000, stackbase = 0x0000000000167000
+
+old:
+[LOG][fs/exec.c,309,execve] uvmalloc sz = 0x0000000000166000, sz + 64 * PGSIZE = 0x00000000001a6000
+[LOG][fs/exec.c,322,execve] execve: sz = 0x00000000001a6000, sp = 0x00000000001a6000, stackbase = 0x0000000000167000
+
+
+[LOG][sched/proc.c,450,userinit] userinit: proc 1, pagetable 0x000000009fef4000, sz 0x0000000000041000, initcode_len 3950, sz - 64 * PGSIZE: 0x0000000000001000
+
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 1, sz 0x0000000000041000, oldt->trapframe->sp 0x0000000000040ff0
+
+[LOG][sched/proc.c,709,do_clone] do_clone: np 2, sz 0x0000000000041000, t->trapframe->sp 0x0000000000040ff0
+
+[LOG][fs/sysfile.c,609,sys_execve] sys_execve: path = /musl/busybox, uargv = 0x0000000000000d70, uenvp = 0x0000000000000f70
+
+
+
+with and without allocating stack for initproc:
+
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 1, sz 0x0000000000041000, oldt->trapframe->sp 0x0000000000040ff0
+[LOG][sched/proc.c,709,do_clone] do_clone: np 2, sz 0x0000000000041000, t->trapframe->sp 0x0000000000040ff0
+thread 1 syscall 3: sys_wait
+thread 2 syscall 49: sys_chdir
+thread 2 syscall 221: sys_execve
+[LOG][fs/sysfile.c,609,sys_execve] sys_execve: path = /musl/busybox, uargv = 0x0000000000000d70, uenvp = 0x0000000000000f70
+[LOG][fs/sysfile.c,618,sys_execve] sys_execve: fetching envp[0] from 0x0000000000000f70
+[LOG][fs/sysfile.c,633,sys_execve] try to fetch envp[0] from 0x0000000080310d08
+
+
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 1, sz 0x0000000000001000, oldt->trapframe->sp 0x0000000000000ff0
+[LOG][sched/proc.c,709,do_clone] do_clone: np 2, sz 0x0000000000001000, t->trapframe->sp 0x0000000000000ff0
+thread 1 syscall 3: sys_wait
+thread 2 syscall 49: sys_chdir
+thread 2 syscall 221: sys_execve
+[LOG][fs/sysfile.c,609,sys_execve] sys_execve: path = /musl/busybox, uargv = 0x0000000000000d70, uenvp = 0x0000000000000f70
+[LOG][fs/sysfile.c,618,sys_execve] sys_execve: fetching envp[0] from 0x0000000000000f70
+
+难道是栈和数据段重合了？？
+0xf70
+
+[LOG][sched/proc.c,450,userinit] userinit: proc 1, pagetable 0x000000009fef4000, sz 0x0000000000003000, initcode_len 0x0000000000000f6e, sz - 64 * PGSIZE: 0xfffffffffffc3000
+好像是uvmfirst的问题。。。（哈哈，AI改的代码）  
+接下来思考怎么映射大于1个页大小的代码就好啦

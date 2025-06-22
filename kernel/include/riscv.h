@@ -359,7 +359,6 @@ w_sscratch(uint64 x) {
 #define PGSHIFT 12  // bits of offset within a page
 
 // bit trick
-// 先预加上了一个PAGESIZE，然后屏蔽了末12位0
 // 向上对齐PGSIZE
 #define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
 // 屏蔽末十二位0
