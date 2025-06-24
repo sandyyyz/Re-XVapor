@@ -53,7 +53,7 @@ struct proghdr {
 #define MAX_ENV 8
 
 // aux
-#define MAX_AT 64
+#define MAX_AT 33
 //重要且常见的类型值，动态链接器在启动时所需要的
 /* Legal values for a_type (entry type).  */
 

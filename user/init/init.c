@@ -252,6 +252,12 @@ char *musl_libctest_static_cmds[] = {
   NULL
 };
 
+char *musl_libc_test_dynamic_cmds[] = {
+  // "echo '#### OS COMP TEST GROUP START libc-dynamic-musl ####'",
+  "/musl/runtest.exe -w entry-dynamic.exe argv",
+  NULL
+};
+
 char *busybox_envp[] = {
   "LC_ALL=C",
   "LANG=C",
@@ -259,6 +265,7 @@ char *busybox_envp[] = {
   NULL
 };
 
+// #define SHELL
 
 int main(void)
 {
@@ -272,73 +279,106 @@ int main(void)
 
   mknod("/dev/null", S_IFCHR | 0666, 0);
   int pid;
-  // musl basic
-  printf(musl_basic_start_str);
-
-  pid = fork();
-  if(pid == 0) {
-    if(chdir(musl_basic_dir) < 0) {
-      printf("init: chdir %s failed\n", musl_basic_dir);
-      exit(-1);
-    }
-    int ret = execve(musl_busybox_path, musl_basic_test_argv, busybox_envp);
-    printf("execve returned %d\n", ret);
-  } else {
-    wait(0);
-    printf(musl_basic_end_str);
-  }
-
-  // glibc basic
-  printf(glibc_basic_start_str);
-
-  pid = fork();
-  if(pid == 0) {
-    if(chdir(glibc_basic_dir) < 0) {
-      printf("init: chdir %s failed\n", glibc_basic_dir);
-      exit(-1);
-    }
-    int ret = execve(glibc_busybox_path, glibc_basic_test_argv, busybox_envp);
-    printf("execve returned %d\n", ret);
-  } else {
-    wait(0);
-    printf(glibc_basic_end_str);
-  }
-
-  // musl busybox test
+  
+#ifdef SHELL
   pid = fork();
   if(pid == 0) {
     if(chdir(musl_dir) < 0) {
       printf("init: chdir %s failed\n", musl_dir);
       exit(-1);
     }
-    int ret = execve(musl_busybox_path, musl_busybox_test_argv, busybox_envp);
+    int ret = execve("/musl/busybox", musl_shell_argv, busybox_envp);
     printf("execve returned %d\n", ret);
-  } else { 
-    wait(0);
-  }
-
-  // glibc busybox test
-  pid = fork();
-  if(pid == 0) {
-    if(chdir(glibc_dir) < 0) {
-      printf("init: chdir %s failed\n", glibc_dir);
-      exit(-1);
-    }
-    int ret = execve(glibc_busybox_path, glibc_busybox_test_argv, busybox_envp);
-    printf("execve returned %d\n", ret);
+    exit(-1);
   } else {
     wait(0);
   }
+#else
 
-  // musl libctest-static
-  for (int i = 0; musl_libctest_static_cmds[i] != NULL; i++) {
+  // // musl basic
+  // printf(musl_basic_start_str);
+
+  // pid = fork();
+  // if(pid == 0) {
+  //   if(chdir(musl_basic_dir) < 0) {
+  //     printf("init: chdir %s failed\n", musl_basic_dir);
+  //     exit(-1);
+  //   }
+  //   int ret = execve(musl_busybox_path, musl_basic_test_argv, busybox_envp);
+  //   printf("execve returned %d\n", ret);
+  // } else {
+  //   wait(0);
+  //   printf(musl_basic_end_str);
+  // }
+
+  // // glibc basic
+  // printf(glibc_basic_start_str);
+
+  // pid = fork();
+  // if(pid == 0) {
+  //   if(chdir(glibc_basic_dir) < 0) {
+  //     printf("init: chdir %s failed\n", glibc_basic_dir);
+  //     exit(-1);
+  //   }
+  //   int ret = execve(glibc_busybox_path, glibc_basic_test_argv, busybox_envp);
+  //   printf("execve returned %d\n", ret);
+  // } else {
+  //   wait(0);
+  //   printf(glibc_basic_end_str);
+  // }
+
+  // // musl busybox test
+  // pid = fork();
+  // if(pid == 0) {
+  //   if(chdir(musl_dir) < 0) {
+  //     printf("init: chdir %s failed\n", musl_dir);
+  //     exit(-1);
+  //   }
+  //   int ret = execve(musl_busybox_path, musl_busybox_test_argv, busybox_envp);
+  //   printf("execve returned %d\n", ret);
+  // } else { 
+  //   wait(0);
+  // }
+
+  // // glibc busybox test
+  // pid = fork();
+  // if(pid == 0) {
+  //   if(chdir(glibc_dir) < 0) {
+  //     printf("init: chdir %s failed\n", glibc_dir);
+  //     exit(-1);
+  //   }
+  //   int ret = execve(glibc_busybox_path, glibc_busybox_test_argv, busybox_envp);
+  //   printf("execve returned %d\n", ret);
+  // } else {
+  //   wait(0);
+  // }
+
+  // // musl libctest-static
+  // for (int i = 0; musl_libctest_static_cmds[i] != NULL; i++) {
+  //   pid = fork();
+  //   if (pid == 0) {
+  //     if (chdir(musl_dir) < 0) {
+  //       printf("init: chdir %s failed\n", musl_dir);
+  //       exit(-1);
+  //     }
+  //     char *argv[] = {"/musl/busybox", "sh", "-c", musl_libctest_static_cmds[i], NULL};
+  //     int ret = execve("/musl/busybox", argv, busybox_envp);
+  //     printf("execve returned %d\n", ret);
+  //     exit(-1);
+  //   } else {
+  //     wait(0);
+  //   }
+  // }
+
+  // musl libctest-dynamic
+  for (int i = 0; musl_libc_test_dynamic_cmds[i] != NULL; i++) {
     pid = fork();
     if (pid == 0) {
       if (chdir(musl_dir) < 0) {
         printf("init: chdir %s failed\n", musl_dir);
         exit(-1);
       }
-      char *argv[] = {"/musl/busybox", "sh", "-c", musl_libctest_static_cmds[i], NULL};
+      char *argv[] = {"/musl/busybox", "sh", "-c", musl_libc_test_dynamic_cmds[i], NULL};
       int ret = execve("/musl/busybox", argv, busybox_envp);
       printf("execve returned %d\n", ret);
       exit(-1);
@@ -346,7 +386,8 @@ int main(void)
       wait(0);
     }
   }
-  
+
+#endif
 
   printf("=================== all tests ended ===================\n");
   poweroff(0);

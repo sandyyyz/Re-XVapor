@@ -15,7 +15,6 @@ entry("fork");
 entry("dev");
 entry("wait");
 entry("poweroff");
-entry("exec");
 entry("mknod");
 entry("sbrk");
 entry("sleep");

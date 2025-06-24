@@ -4,8 +4,6 @@
 2   dev         sys_dev
 3   wait        sys_wait
 
-7   exec        sys_exec
-
 12  sbrk        sys_sbrk
 13  sleep       sys_sleep
 14  uptime      sys_uptime

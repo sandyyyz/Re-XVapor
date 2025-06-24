@@ -677,63 +677,6 @@ return -1;
 }
 
 uint64
-sys_exec(void)
-{
-  // come in like:
-  // # exec(path, argv)
-  // where path is stored in a0, argv in a1 
-  char path[MAXPATH], *argv[MAXARG];
-  int i;
-  uint64 uargv, uarg;
-
-  // copy path and argv from user space to kernel space
-  argaddr(1, &uargv);
-  if(argstr(0, path, MAXPATH) < 0) {
-    return -1;
-  }
-
-#ifdef __DEBUG_SYS_EXEC
-  Log("do sys_exec");
-  Log("path = %s", path);
-#endif
-  memset(argv, 0, sizeof(argv));
-  for(i=0;; i++){
-    if(i >= NELEM(argv)){
-      goto bad;
-    }
-    if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
-      goto bad;
-    }
-	if(uarg == 0){
-      argv[i] = 0;
-      break;
-    }
-    argv[i] = kalloc();
-    if(argv[i] == 0)
-      goto bad;
-    if(fetchstr(uarg, argv[i], PGSIZE) < 0)
-      goto bad;
-  }
-
-  // now path and argv holds the user's args
-  int ret = exec(path, argv);
-
-  // free the temporary memory then return
-  for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]);
-#ifdef __DEBUG_SYS_EXEC
-  Log("sys_exec done"); 
-#endif
-
-  return ret;
-
- bad:
-  for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]);
-  return -1;
-}
-
-uint64
 sys_pipe(void)
 {
   uint64 fdarray; // user pointer to array of two integers

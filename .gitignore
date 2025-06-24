@@ -30,3 +30,4 @@ build/*
 *.prog
 /mnt/*
 *.txt
+*.so

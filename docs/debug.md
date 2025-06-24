@@ -1416,3 +1416,21 @@ thread 2 syscall 221: sys_execve
 好像是uvmfirst的问题。。。（哈哈，AI改的代码）  
 接下来思考怎么映射大于1个页大小的代码就好啦  
 
+### dynamic-linking
+
+zoe@sreyuim:~/rexvapor$ ls ./mnt/glibc/lib
+dlopen_dso.so                libc.so    libm.so    tls_align_dso.so        tls_init_dso.so
+ld-linux-riscv64-lp64d.so.1  libc.so.6  libm.so.6  tls_get_new-dtv_dso.so
+zoe@sreyuim:~/rexvapor$ ls ./mnt/musl/lib
+dlopen_dso.so  libc.so  tls_align_dso.so  tls_get_new-dtv_dso.so  tls_init_dso.so
+
+0xc5b08 _dlstart
+0xc5b24 _dlstart_c
+0xc82d8 __dls2
+0xc6d30 reloc_all
+0xc6398 do_relocs
+0xC5fa4 find_sym
+
+0xC5D54 sysv_lookup
+a0: 0x101210
+
