@@ -244,7 +244,9 @@ int execve(char *path, char **argv, char **envp)
   Log("execve abs_path: %s, path %s, cinfo.path %s", abs_path, path, myproc()->cinfo.path);
 #endif
   if((r = ext4_vfopen(f, abs_path, O_RDONLY)) != EOK) {
-    Log("ext4_fopen2 failed %d", r);
+#ifdef __DEBUG_EXECVE
+    Warn("ext4_fopen2 failed %d", r);
+#endif
     return -1;
   }
   if(((r = ext4_vfread(f, 0, (uint64) &elf, 0, sizeof(elf), &rcnt)) != EOK) || 
@@ -282,13 +284,17 @@ int execve(char *path, char **argv, char **envp)
     // if(ph.vaddr % PGSIZE != 0)
     //   goto bad;
     uint64 sz1;
+#ifdef __DEBUG_EXECVE
+    Log("ph.vaddr = %p, ph.memsz = %d, ph.filesz = %d, ph.off = %p, ph.flags = 0x%x", 
+        ph.vaddr, ph.memsz, ph.filesz, ph.off, ph.flags);
+#endif
     // allocate and map memory for the segment into process' pagetable
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags) | PTE_W)) == 0)
       goto bad;
     sz = sz1;
 #ifdef __DEBUG_EXECVE
-    // printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(ph.vaddr) = %p, ph.filesz = %d\n", 
-    //         ph.off, PGROUNDDOWN(ph.off), ph.vaddr, PGROUNDDOWN(ph.vaddr), ph.filesz);
+    printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(ph.vaddr) = %p, ph.filesz = %d\n", 
+            ph.off, PGROUNDDOWN(ph.off), ph.vaddr, PGROUNDDOWN(ph.vaddr), ph.filesz);
 #endif
     if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
@@ -358,14 +364,14 @@ int execve(char *path, char **argv, char **envp)
   // ADD_AUXV(AT_HWCAP, 0);
   ADD_AUXV(AT_PAGESZ, PGSIZE);
   ADD_AUXV(AT_PHDR, elf.phoff);
-  // ADD_AUXV(AT_PHENT, elf.phentsize);
-  // ADD_AUXV(AT_PHNUM, elf.phnum);
-  // ADD_AUXV(AT_BASE, 0);
-  // ADD_AUXV(AT_ENTRY, elf.entry);
-  // ADD_AUXV(AT_UID, 0);
-  // ADD_AUXV(AT_EUID, 0);
-  // ADD_AUXV(AT_GID, 0);
-  // ADD_AUXV(AT_EGID, 0);
+  ADD_AUXV(AT_PHENT, elf.phentsize);
+  ADD_AUXV(AT_PHNUM, elf.phnum);
+  ADD_AUXV(AT_BASE, 0);
+  ADD_AUXV(AT_ENTRY, elf.entry);
+  ADD_AUXV(AT_UID, 0);
+  ADD_AUXV(AT_EUID, 0);
+  ADD_AUXV(AT_GID, 0);
+  ADD_AUXV(AT_EGID, 0);
   ADD_AUXV(AT_SECURE, 0);
   ADD_AUXV(AT_RANDOM, sp);
   ADD_AUXV(AT_NULL, 0);

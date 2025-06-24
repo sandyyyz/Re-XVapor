@@ -446,6 +446,19 @@ uvmclear(pagetable_t pagetable, uint64 va)
   *pte &= ~PTE_U;
 }
 
+
+void uvmadd(pagetable_t pagetable, uint64 va, int perm) {
+  pte_t *pte;
+
+  pte = walk(pagetable, va, 0);
+  if(pte == 0)
+    panic("uvmset: pte should exist");
+  if((*pte & PTE_V) == 0)
+    panic("uvmset: page not present");
+  if(PTE_FLAGS(*pte) == PTE_V)
+    panic("uvmset: not a leaf");;
+  *pte |= perm; // 设置权限
+}
 // 在pagetable中找dstva对应pa,将src开始len长字节copy到pa
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.

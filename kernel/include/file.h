@@ -129,6 +129,7 @@ struct devsw {
 extern struct devsw devsw[];
 
 #define CONSOLE 1
+#define DEVNULL 0
 
 int is_exc_rcfile(struct proc *p);
 

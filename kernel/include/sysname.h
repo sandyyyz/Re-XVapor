@@ -79,5 +79,6 @@ const char *syscall_name[] = {
     [SYS_mprotect] = "sys_mprotect",
     [SYS_wait4] = "sys_wait4",
     [SYS_prlimit64] = "sys_prlimit64",
+    [SYS_renameat2] = "sys_renameat2",
     [SYS_getrandom] = "sys_getrandom",
 };

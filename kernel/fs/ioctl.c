@@ -84,7 +84,7 @@ RETURN VALUE
         //     }
             break;
         default:
-            Log("UNKNOW IOCTL %d!", op);
+            // Log("UNKNOW IOCTL %d!", op);
             return -1;
     }
     // printf("do_ioctl: %d\n", op);

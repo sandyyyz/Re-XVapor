@@ -89,7 +89,7 @@ static void signal_default(struct tcb *t, int sig_no) {
             break;
         case SIGCHLD:
             // Default action for SIGCHLD is to ignore it
-            wait_one(0); // Wait for the child process to exit
+            // wait_one(0); // Wait for the child process to exit
             break;
         default:
             // For other signals, we can just ignore them or log a warning
@@ -145,7 +145,7 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
             continue;
         } else if (sig_act.sa_handler == SIG_DFL) {
 #ifdef __DEBUG_SIGNAL_HANDLE
-            Log("signal_handle: thread %d handle %d with handler %p", t->tid, sig_no, sig_act.sa_handler);
+            Log("signal_handle: thread %d handle %d with handler SIG_DFL", t->tid, sig_no, sig_act.sa_handler);
             Log("t->blockd.sig: %p", t->blocked.sig);
 #endif
             // Default action
@@ -451,13 +451,16 @@ int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space sig
         t->timeout = INT_MAX; // Set a large timeout value
         // sleep on the signal pending queue
         while(t->timeout != 0) {
-            Log("sigtimewait_common: thread %d waiting for signal %d", t->tid, sig_no);
+            // Log("sigtimewait_common: thread %d waiting for signal %d", t->tid, sig_no);
             thread_sleep((void *) sig_no, &t->sig_pending.siglock, timeout);
         }
         release(&t->sig_pending.siglock);
     }
     if(!sig_existed(t, sig_no)) 
         return -EAGAIN ; // timeout
+    
+    if(holding(&t->sig_pending.siglock)) 
+        release(&t->sig_pending.siglock);
     if(signal_handle(t, sig_no, &siginfo) < 0) {
         Warn("sigtimewait_common: signal_handle failed for signal %d", sig_no);
         return -1;

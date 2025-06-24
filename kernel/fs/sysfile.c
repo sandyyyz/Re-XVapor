@@ -54,7 +54,7 @@ fdalloc(struct file *f)
   int fd;
   struct proc *p = myproc();
   if(is_exc_rcfile(p)) {
-    Warn("fdalloc: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+    // Warn("fdalloc: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
     return -EMFILE; // Too many open files
   }
   for(fd = 0; fd < NOFILE; fd++){
@@ -273,7 +273,7 @@ sys_close(void)
   myproc()->ofile[fd] = 0;
   fileclose(f, 1);
 #ifdef __DEBUG_CLOSE
-  Log("sys_close: fd=%d, f=%p, ref after close %d, f->fpos %d, path %s", fd, f, f->ref, f->fpos, f->info.path);
+  Log("sys_close: fd=%d, f=%p, ref after close %d, f->fpos %d, path %s, f->type %d", fd, f, f->ref, f->fpos, f->info.path, f->type);
 #endif
   return 0;
 }
@@ -492,7 +492,9 @@ static uint64 generic_mknod(char *path, mode_t mode, dev_t dev) {
     printf("sys_mknod: fsops->mknod failed\n");
     return -1;
   }
-  Log("sys_mknod : path %s successfully created", path);
+#ifdef __DEBUG_GENERIC_MKNOD
+  Log("sys_mknod : path %s successfully created, dev %d", path, dev);
+#endif
   return 0;
 }
 /**
@@ -759,6 +761,9 @@ sys_pipe(void)
     fileclose(wf, 1);
     return -1;
   }
+#ifdef __SYS_PIPE
+  Log("sys_pipe: rf_fd=%d, wf_fd=%d", fd0, fd1);
+#endif
   return 0;
 }
 
@@ -894,6 +899,29 @@ sys_dev(void)
 }
 
 
+// static int fileread_com(struct file *f, int user_dst, uint64 addr, uint off, uint n, int *rcnt)
+// {
+//   int r = 0;
+
+//   if(!IS_READABLE(f->flags))
+//     return -1;
+
+//   if(f->type == FD_PIPE){
+//     r = piperead(f->pipe, user_dst, addr, n);
+//   } else if(f->type == FD_DEVICE){
+//     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
+//       return -1;
+//     r = devsw[f->major].read(1, addr, n);
+//   } else if(f->type == FD_INODE){
+//     f->fops->read(f, user_dst, addr, off, n, &r);
+//   } else {
+//     Log("file %p type = %d", f, f->type);
+//     panic("fileread");
+//   }
+
+//   return 0;
+// }
+
 /**
  * @brief generic_open - open a file in the filesystem
  * 
@@ -914,6 +942,14 @@ static uint64 generic_open(char *path, int flags, int omode) {
     fileclose(f, 0);
     return fd;
   }
+  // if(strcmp(path, "/usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache") == 0) {
+  //   Warn("generic_open: trying to open /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache, this is not supported yet");
+  //   path = "/dev/null";
+  //   // f->major = 0;
+  //   // f->type = FD_DEVICE;
+  //   // f->fops->read = fileread_com;
+  //   // return fd;
+  // }
   if (fs == NULL) {
     printf("FS type not found\n");
     return -1;
@@ -1016,7 +1052,7 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
       return EINVAL;
   }
   if ((r = fs->fsops->fstat(path, buf)) != EOK) {
-      printf("fsops->fstat failed, r = %d\n", r);
+      // printf("fsops->fstat failed, r = %d\n", r);
       return r;
   }
   #ifdef __DEBUG_GENERIC_FSTAT
@@ -1056,7 +1092,7 @@ uint64 sys_fstatat() {
 #endif
   struct kstat kbuf;
   if((r = generic_fstat(abs_path, &kbuf)) != EOK) {
-      printf("[sys_fstatat] generic_fstat failed\n");
+      // printf("[sys_fstatat] generic_fstat failed\n");
       return -r;
   }
   if (copyout(myproc()->mm.pagetable, statbuf, (char *)&kbuf, sizeof(struct stat)) < 0) {
@@ -1369,7 +1405,7 @@ uint64 sys_faccessat(void) {
     return -1;
   }
   if (fs->fsops->faccess(abs_path, amode, flag) < 0) {
-    printf("sys_faccessat: fsops->faccessat failed\n");
+    // printf("sys_faccessat: fsops->faccessat failed\n");
     return -1;
   }
 #ifdef __DEBUG_SYS_FACCESSAT
@@ -1568,14 +1604,11 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
   }
 
   if((kbuf = kalloc()) == NULL) {
-    printf("do_sendfile: kalloc failed\n");
+    Warn("do_sendfile: kalloc failed");
     goto bad;
   }
 #ifdef __DEBUG_DO_SENDFILE
   Log("do_sendfile: kbuf = %p, kbuf size = %d", kbuf, PGSIZE);
-  // Log("local offset addr %p, offset %d", &offset, offset);
-  Log("tkstack: %p, pkstack %p", (void *)mythread()->kstack, (void *)myproc()->kstack);
-  // Log("do_sendfile: out_f = %p, in_f = %p, offset_addr = %p, count = %d, offset = %d", out_f, in_f, (void *)offset_addr, count, offset);
 #endif
 // in fact, the ext4_fread will check if the count larger than the file size, so the path is used for avoiding reading data larger than PGSIZE to kbuf
   if(count > PGSIZE) {
@@ -1583,7 +1616,7 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
     goto finished; // rw_sharp will handle the read and write operations
   }
   if((nread = fileread(in_f, 0, (uint64)kbuf, count, in_f->fpos)) < 0) {
-    printf("do_sendfile: fileread failed, nread = %d\n", nread);
+    Warn("do_sendfile: fileread failed, nread = %d", nread);
     goto bad;
   }
 
@@ -1594,11 +1627,11 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
   //   goto bad;
   // }
   if((nwritten = filewrite(out_f, 0, (uint64)kbuf, nread, out_f->fpos)) < 0) {
-    printf("do_sendfile: filewrite failed, nwritten = %d\n", nwritten);
+    Warn("do_sendfile: filewrite failed, nwritten = %d", nwritten);
     goto bad;
   }
   if(nwritten != nread) {
-    printf("do_sendfile: nwritten != nread, nwritten = %d, nread = %d\n", nwritten, nread);
+    Warn("do_sendfile: nwritten != nread, nwritten = %d, nread = %d", nwritten, nread);
     goto bad;
   }
 
@@ -1609,7 +1642,7 @@ finished:
   // offset = in_f->fpos; // update the file position of in_f
   if(offset_addr) {
     if(copyout(myproc()->mm.pagetable, (uint64) offset_addr, (char *)&in_f->fpos, sizeof(off_t)) < 0) {
-      printf("do_sendfile: copyout failed\n");
+      Warn("do_sendfile: copyout failed");
       goto bad;
     }
   } else {
@@ -1665,21 +1698,21 @@ uint64 sys_sendfile(void) {
    */
 
   if(argfd(0, &out_fd, &out_f) < 0) {
-    printf("[sys_sendfile] argfd(0, 0, &out_f) failed\n");
+    Warn("[sys_sendfile] argfd(0, 0, &out_f) failed");
     return -1;
   }
   if(argfd(1, &in_fd, &in_f) < 0) {
-    printf("[sys_sendfile] argfd(1, 0, &in_f) failed\n");
+    Warn("[sys_sendfile] argfd(1, 0, &in_f) failed");
     return -1;
   }
   argaddr(2, (uint64 *)&offset_addr);
   arguint64(3, &count);
 #ifdef __DEBUG_SYS_SENDFILE
-  printf("[sys_sendfile] out_fd = %d, in_fd = %d, offset_addr = %p, count = %d\n", out_fd, in_fd, (void *)offset_addr, count);
+  Log("[sys_sendfile] out_fd = %d, in_fd = %d, offset_addr = %p, count = %d", out_fd, in_fd, (void *)offset_addr, count);
 #endif
 
   if(out_f == NULL || in_f == NULL) {
-    printf("[sys_sendfile] out_f or in_f is NULL\n");
+    Warn("[sys_sendfile] out_f or in_f is NULL\n");
     return -1;
   }
   
@@ -1729,7 +1762,7 @@ uint64 sys_lseek(void) {
     return -1;
   }
   if(f->type != FD_INODE) {
-    printf("[sys_lseek] f->type is not FD_INODE, f->type = %d\n", f->type);
+    // printf("[sys_lseek] f->type is not FD_INODE, f->type = %d\n", f->type);
     return -1;
   }
   if(f->fops == NULL) {
@@ -1743,7 +1776,7 @@ uint64 sys_lseek(void) {
   
   off_t r = f->fops->lseek(f, offset, whence);
   if(r < 0) {
-    printf("[sys_lseek] f->fops->lseek failed, r = %d\n", r);
+    // printf("[sys_lseek] f->fops->lseek failed, r = %d\n", r);
     return r;
   }
 #ifdef __DEBUG_SYS_LSEEK
@@ -1794,4 +1827,42 @@ uint64 sys_statfs(void) {
   Log("[sys_statfs] fsops->statfs success, path = %s, ubuf_addr = %p", path, (void *)ubuf_addr);
 #endif
   return 0; // success
+}
+
+/**
+ * @brief rename a file, moving it from oldpath to newpath.
+ * @property int renameat2(int olddirfd, const char *oldpath,
+                    int newdirfd, const char *newpath, unsigned int flags);
+ * @return On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_renameat2() {
+  int olddirfd, newdirfd;
+  char oldpath[MAXPATH], newpath[MAXPATH];
+  char oldpath_abs[MAXPATH], newpath_abs[MAXPATH];
+  int flags;
+  struct vfs_filesystem *fs = NULL;
+
+  argint(0, &olddirfd);
+  if(argstr(1, oldpath, MAXPATH) < 0) {
+    printf("[sys_renameat2] argstr(1, oldpath, MAXPATH) failed\n");
+    return -1;
+  }
+  argint(2, &newdirfd);
+  if(argstr(3, newpath, MAXPATH) < 0) {
+    printf("[sys_renameat2] argstr(3, newpath, MAXPATH) failed\n");
+    return -1;
+  }
+  argint(4, &flags);
+
+  get_abpath_from_dirfd(oldpath, olddirfd, oldpath_abs);
+  get_abpath_from_dirfd(newpath, newdirfd, newpath_abs);
+
+  fs = vfs_resolve_fs(oldpath_abs);
+
+  int r = fs->fsops->rename(oldpath_abs, newpath_abs);
+#ifdef __DEBUG_SYS_RENAMEAT2
+  Log("[sys_renameat2] oldpath_abs = %s, newpath_abs = %s, flags = %p, r = %d", oldpath_abs, newpath_abs, flags, r);
+#endif
+  return r;
 }

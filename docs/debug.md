@@ -842,6 +842,194 @@ ls为啥一直在写0个字节？？？
 ![busybox.14.1](image-158.png)  
 是INT_MAX  
 
+### busybox.15
+========== END test_read ==========
+Testing sleep :
+========== START test_sleep ==========
+8  282377
+[LOG][sysproc.c,137,sys_nanosleep] [sys_nanosleep] ticks: 0, ticks0: 0, rticks: 10
+时钟中断问题，启动核不一定为0  
+
+### busybox.16
+
+thread 5 syscall 73: sys_ppoll
+thread 5 syscall 94: sys_exit_group
+[LOG][ipc/pipe.c,75,pipeclose] pipeclose: pi 0x000000009fb77000 -> readopen = 0
+thread 2 syscall 260: sys_wait4
+thread 4 syscall 96: sys_set_tid_address
+thread 4 syscall 174: sys_getuid
+thread 4 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /musl/busybox_cmd.txt
+[LOG][fs/sysfile.c,971,sys_openat] [sys_openat] generic_open success, fd = 4, path = /musl/busybox_cmd.txt, f 0x0000000080235f68, f->fpos 0, flags 8000
+thread 4 syscall 71: sys_sendfile
+[LOG][fs/sysfile.c,1678,sys_sendfile] [sys_sendfile] out_fd = 1, in_fd = 4, offset_addr = 0x0000000000000000, count = 16777216
+[LOG][fs/sysfile.c,1578,do_sendfile] do_sendfile: kbuf = 0x000000009f9ca000, kbuf size = 4096
+rw_sharp: filewrite failed, wcnt = -1
+thread 4 syscall 63: sys_read
+thread 4 syscall 57: sys_close
+[LOG][fs/sysfile.c,276,sys_close] sys_close: fd=4, f=0x0000000080235f68, ref after close 0, f->fpos 0, path , f->type 0
+thread 4 syscall 94: sys_exit_group
+[LOG][ipc/pipe.c,69,pipeclose] pipeclose: pi 0x000000009fb77000 -> writeopen = 0
+[LOG][ipc/pipe.c,82,pipeclose] pipeclose: pi 0x0000000000000001 -> both readopen and writeopen are 0, releasing pipe
+
+ppoll未实现 
+fixed
+
+### busybox.16
+
+#### musl
+
+[LOG][ipc/signal.c,45,do_sigprocmask] do_sigprocmask: thread 5, how: 0, set: 0xffffffffffffffff
+thread 5 syscall 220: sys_clone
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 5, sz 0x00000000001a8000, oldt->trapframe->sp 0x00000000001a4fd0
+[LOG][sched/proc.c,709,do_clone] do_clone: np 6, sz 0x00000000001a8000, t->trapframe->sp 0x00000000001a4fd0
+thread 5 syscall 135: sys_rt_sigprocmask
+[LOG][ipc/signal.c,45,do_sigprocmask] do_sigprocmask: thread 5, how: 2, set: 0xffffffffffffffff
+thread 5 syscall 260: sys_wait4
+thread 6 syscall 178: sys_gettid
+thread 6 syscall 135: sys_rt_sigprocmask
+[LOG][ipc/signal.c,45,do_sigprocmask] do_sigprocmask: thread 6, how: 2, set: 0xffffffffffffffff
+thread 6 syscall 221: sys_execve
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/busybox, path ./busybox, cinfo.path /musl
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e551
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e552
+thread 6 syscall 96: sys_set_tid_address
+thread 6 syscall 174: sys_getuid
+thread 6 syscall 214: sys_brk
+thread 6 syscall 214: sys_brk
+thread 6 syscall 64: sys_write
+
+independent command test
+thread 6 syscall 94: sys_exit_group
+[LOG][ipc/futex.c,298,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x0000000000163c14
+
+[WARN][ipc/futex.c,303,futex_wake] futex_wake: futex not found for address 0x0000000000163c14
+
+[LOG][ipc/signal.c,384,signal_send] signal_send: thread 6 send signal 17 to thread 5
+thread 5 syscall 260: sys_wait4
+thread 5 syscall 64: sys_write
+testcase busybox echo "#### independent command test" success
+
+
+#### glibc
+
+[LOG][fs/exec.c,273,execve] ph.type == 0x70000003
+[LOG][fs/exec.c,273,execve] ph.type == 0x4
+[LOG][fs/exec.c,273,execve] ph.type == 0x7
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e551
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e552
+thread 6 syscall 214: sys_brk
+thread 6 syscall 214: sys_brk
+thread 6 syscall 96: sys_set_tid_address
+thread 6 syscall 99: sys_set_robust_list
+thread 6 syscall 160: sys_uname
+thread 6 syscall 261: sys_prlimit64
+thread 6 syscall 78: sys_readlinkat
+thread 6 syscall 278: sys_getrandom
+thread 6 syscall 214: sys_brk
+thread 6 syscall 214: sys_brk
+thread 6 syscall 174: sys_getuid
+thread 6 syscall 64: sys_write
+
+independent command test
+
+thread 6 syscall 94: sys_exit_group
+[LOG][ipc/futex.c,298,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x00000000002020d0
+
+[WARN][ipc/futex.c,303,futex_wake] futex_wake: futex not found for address 0x00000000002020d0
+
+[LOG][ipc/signal.c,384,signal_send] signal_send: thread 6 send signal 17 to thread 5
+[LOG][ipc/signal.c,148,signal_handle] signal_handle: thread 5 handle 17 with handler 0x0000000000000000
+[LOG][ipc/signal.c,149,signal_handle] t->blockd.sig: 0x0000000000000000
+thread 5 syscall 260: sys_wait4
+thread 5 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache
+[WARN][fs/sysfile.c,964,sys_openat] [sys_openat] generic_open failed, abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache, r = -2
+
+thread 5 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules
+[WARN][fs/sysfile.c,964,sys_openat] [sys_openat] generic_open failed, abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules, r = -2
+
+thread 5 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.d
+[WARN][fs/sysfile.c,964,sys_openat] [sys_openat] generic_open failed, abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.d, r = -2
+
+thread 5 syscall 98: sys_futex
+[LOG][sysproc.c,631,sys_futex] [sys_futex] uaddr: 0x00000000001c102c, futex_op: 129, val: 2147483647, timeout_addr: 0x0000000000000000, val2: 0, uaddr2: 0x0000000000000000, val3: 2
+[LOG][ipc/futex.c,298,futex_wake] futex_wake: waking up at most 2147483647 waiters on futex at address 0x00000000001c102c
+
+[WARN][ipc/futex.c,303,futex_wake] futex_wake: futex not found for address 0x00000000001c102c
+
+thread 5 usertrap: page fault at 0x0000000000000000
+sepc=0x00000000000ed044 stval=0x0000000000000028
+scause=0x000000000000000f
+sstatus=0x8000000000046020
+satp=0x80000000000a01ff
+panic: usertrap: page fault
+
+1. 提前拷贝依赖文件（不知道测评机器有无root权限）
+2. 绕过（自己构造输出）  
+
+现在伪造了一个空的这个文件，但是发现他最后还是会尝试打开别的路径下的conv文件，还会在同一个地方崩溃。那么其实也许没有这个依赖文件也是可以运行的吧！  
+
+![busybox.16.1](image-169.png)
+我猜是这行：
+
+```c
+
+	failed:
+	  data->fcts = (void *) &__wcsmbs_gconv_fcts_c;
+
+```
+难道是这个private为空？  
+struct lc_ctype_data *data = new_category->private;  
+打出的data为空指针  
+刚进函数的时候a0就是0  
+
+#### musl busybox test:
+
+Filesystem           1K-blocks      Used Available Use% Mounted on
+df: /proc/mounts: No such file or directory
+testcase busybox df fail
+
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /sbin/ls
+sys_faccessat: fsops->faccessat failed
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /usr/sbin/ls
+sys_faccessat: fsops->faccessat failed
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /bin/ls
+sys_faccessat: fsops->faccessat failed
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /usr/bin/ls
+sys_faccessat: fsops->faccessat failed
+testcase busybox which ls fail
+
+
+PID   USER     TIME  COMMAND
+ps: can't open '/proc': No such file or directory
+testcase busybox ps fail
+
+              total        used        free      shared  buff/cache   available
+Mem:   free: can't open '/proc/meminfo': No such file or directory
+testcase busybox free fail
+
+hwclock: can't open '/dev/misc/rtc': No such file or directory
+testcase busybox hwclock fail'
+
+/musl/busybox_testcode.sh: eval: line 0: can't open '/dev/null': No such file or directory
+kill: can't kill pid 28: Operation not permitted
+testcase busybox sh -c 'sleep 5' & ./busybox kill $! fail
+
+sys_mkdirat: abs_path = /musl/test_dir
+testcase busybox mkdir test_dir success
+fsops->fstat failed, r = 2
+[sys_fstatat] generic_fstat failed
+[WARN][syscall.c,134,syscall] thread 57 syscall 276: unknown
+mv: can't rename 'test_dir': Operation not permitted
+testcase busybox mv test_dir test fail  
+
+
+__mbsrtowcs_l (似乎没有hit)->   
+1. 先弄明白这个函数在哪里会被调用，作用是什么， 可能的问题是什么  
+
 ## libc-test
 
 ### libc-test-static 
@@ -959,32 +1147,21 @@ thread 2 syscall 66
 ### libc.4
 unsupport now:  
 
-/musl/runtest.exe -w entry-static.exe pthread_cancel_points  
-/musl/runtest.exe -w entry-static.exe pthread_cancel  
-/musl/runtest.exe -w entry-static.exe pthread_cond  
 /musl/runtest.exe -w entry-static.exe pthread_tsd  
+/musl/runtest.exe -w entry-static.exe pthread_cond
 /musl/runtest.exe -w entry-static.exe setjmp    
-/musl/runtest.exe -w entry-static.exe snprintf
 /musl/runtest.exe -w entry-static.exe socket
-/musl/runtest.exe -w entry-static.exe sscanf
-/musl/runtest.exe -w entry-static.exe sscanf_long
 /musl/runtest.exe -w entry-static.exe stat
-/musl/runtest.exe -w entry-static.exe strtof
 /musl/runtest.exe -w entry-static.exe utime
 /musl/runtest.exe -w entry-static.exe fflush_exit
-/musl/runtest.exe -w entry-static.exe printf_1e9_oob
-/musl/runtest.exe -w entry-static.exe printf_fmt_g_round
-/musl/runtest.exe -w entry-static.exe printf_fmt_g_zeros
 /musl/runtest.exe -w entry-static.exe pthread_robust_detach
 /musl/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
 /musl/runtest.exe -w entry-static.exe pthread_cond_smasher
-/musl/runtest.exe -w entry-static.exe pthread_condattr_setclock
-/musl/runtest.exe -w entry-static.exe pthread_exit_cancel
 /musl/runtest.exe -w entry-static.exe pthread_once_deadlock
-/musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
-/musl/runtest.exe -w entry-static.exe putenv_doublefree
 /musl/runtest.exe -w entry-static.exe syscall_sign_extend
-25/107
+/musl/runtest.exe -w entry-static.exe pthread_exit_cancel
+/musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+14/107
 
 /glibc/runtest.exe -w entry-static.exe clocale_mbfuncs
 /glibc/runtest.exe -w entry-static.exe fdopen
@@ -1239,8 +1416,3 @@ thread 2 syscall 221: sys_execve
 好像是uvmfirst的问题。。。（哈哈，AI改的代码）  
 接下来思考怎么映射大于1个页大小的代码就好啦  
 
-========== END test_read ==========
-Testing sleep :
-========== START test_sleep ==========
-8  282377
-[LOG][sysproc.c,137,sys_nanosleep] [sys_nanosleep] ticks: 0, ticks0: 0, rticks: 10

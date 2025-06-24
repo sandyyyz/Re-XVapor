@@ -86,3 +86,4 @@
 226 mprotect    sys_mprotect
 43  statfs  sys_statfs
 4   poweroff    sys_poweroff
+276 renameat2   sys_renameat2

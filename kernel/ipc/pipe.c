@@ -7,6 +7,7 @@
 #include "xv6fs.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "debug.h"
 
 #define PIPESIZE 512
 
@@ -64,13 +65,22 @@ pipeclose(struct pipe *pi, int writable)
 {
   acquire(&pi->lock);
   if(writable){
+#ifdef __DEBUG_PIPE_CLOSE
+    Log("pipeclose: pi %p -> writeopen = 0", pi);
+#endif
     pi->writeopen = 0;
     thread_wakeup_chan(&pi->nread);
   } else {
+#ifdef __DEBUG_PIPE_CLOSE
+    Log("pipeclose: pi %p -> readopen = 0", pi);
+#endif
     pi->readopen = 0;
     thread_wakeup_chan(&pi->nwrite);
   }
   if(pi->readopen == 0 && pi->writeopen == 0){
+#ifdef __DEBUG_PIPE_CLOSE
+    Log("pipeclose: pi %p -> both readopen and writeopen are 0, releasing pipe");
+#endif
     release(&pi->lock);
     kfree((char*)pi);
   } else

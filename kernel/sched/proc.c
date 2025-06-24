@@ -437,11 +437,11 @@ userinit(void)
   uvmfirst(p->mm.pagetable, initcode, initcode_len);
 
   uint64 sz1;
-  if((sz1 = uvmalloc(p->mm.pagetable, sz, sz + 4 * PGSIZE, PTE_W)) == 0) {
+  if((sz1 = uvmalloc(p->mm.pagetable, sz, sz + 8 * PGSIZE, PTE_W)) == 0) {
     panic("userinit: uvmalloc failed");
   }
   sz = sz1;
-  uvmclear(p->mm.pagetable, sz - 4 * PGSIZE); // clear the stack guard page  
+  uvmclear(p->mm.pagetable, sz - 8 * PGSIZE); // clear the stack guard page  
 
   p->sz = sz; // TODO: how large?? maybe bug here
 
@@ -644,7 +644,9 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     t->clear_child_tid = ctid;
   }
   if(stack) {
+#ifdef __DEBUG_DO_CLONE
     printf("set stack to %p\n", stack);
+#endif
     t->trapframe->sp = stack;
   }
   if(flags & CLONE_SIGHAND) {
@@ -707,6 +709,7 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
 #ifdef __DEBUG_DO_CLONE
   Log("do_clone: old proc %d, sz %p, oldt->trapframe->sp %p", p->pid, p->sz, p->tg.group_leader->trapframe->sp);
   Log("do_clone: np %d, sz %p, t->trapframe->sp %p", np->pid, np->sz, t->trapframe->sp);
+  Log("flags = %p ", flags);
 #endif
   // increment reference counts on open file descriptors.
   // child process "open" the files

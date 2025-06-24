@@ -33,6 +33,7 @@ uint64 sys_clock_nanosleep(void) {
   struct timespec req, rem;
   uint rticks;
   uint ticks0;
+  int is_invalid = 0;
   struct proc *p = myproc();
   argint(0, &clock_id);
   argint(1, &flags);
@@ -55,9 +56,12 @@ uint64 sys_clock_nanosleep(void) {
   Log("req_sec: %d, req_nsec %d, rticks: %d", req.tv_sec, req.tv_nsec, rticks);
 #endif
   if(req.tv_sec == INT_MAX){
-    Warn("INTMAX sec in sys_clock_nanosleep, set to 1 sec\n");
+    // Warn("INTMAX sec in sys_clock_nanosleep, set to 1 sec\n");
     req.tv_sec = 1;
     rticks = TIMESPEC2TICKS(req);
+    is_invalid = 1;
+    // release(&tickslock);
+    // thread_exit(0);
   }
   // release(&tickslock);
   // return EINVAL;
@@ -89,6 +93,8 @@ uint64 sys_clock_nanosleep(void) {
 #endif
   }
   release(&tickslock);
+  if(is_invalid)
+    thread_exit(0);
   return 0;
 }
 /**

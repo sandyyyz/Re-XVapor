@@ -159,6 +159,7 @@ struct fs_ops {
     int (*utimens)(const char *path, const struct timespec times[2]);
     int (*file_exist)(const char *path);
     int (*statfs)(struct vfs_filesystem *fs, struct statfs *buf);
+    int (*rename)(const char *oldpath, const char *newpath);
 };
 
 struct vfs_filesystem *vfs_getfs_bytype(vfs_type_t type);

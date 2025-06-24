@@ -164,8 +164,24 @@ uint64 sys_geteuid() {
     return 0;
 }
 
+/**
+ * @brief ppoll() - wait for events on file descriptors
+ * @property int ppoll(struct pollfd *fds, nfds_t nfds,
+        const struct timespec *timeout_ts, const sigset_t *sigmask);
+ * @return On success, ppoll() returns the number of file descriptors
+       ready for reading or writing, or 0 if the timeout expired.  On
+       error, -1 is returned, and errno is set to indicate the error.
+ */
 uint64 sys_ppoll() {
-    return 0;
+    uint64 fds_addr;
+    uint64 nfds;
+    uint64 timeout_ts_addr;
+    uint64 sigmask_addr;
+    argaddr(0, &fds_addr);
+    argaddr(1, &nfds);
+    argaddr(2, &timeout_ts_addr);
+    argaddr(3, &sigmask_addr);
+    return nfds;
 }
 
 

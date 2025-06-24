@@ -91,4 +91,5 @@ entry("mmap");
 entry("mprotect");
 entry("wait4");
 entry("prlimit64");
+entry("renameat2");
 entry("getrandom");

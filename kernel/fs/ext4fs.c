@@ -67,6 +67,7 @@ struct fs_ops ext4_fs_ops = {
     .utimens = ext4_vutimens,
     .file_exist = ext4_vfile_exist,
     .statfs = ext4_vstatfs,
+    .rename = ext4_vfrename,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -283,7 +284,7 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
     if(user_dst) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
-            printf("[ext4] kmalloc error!\n");
+            // printf("[ext4] kmalloc error!\n");
             return ENOMEM;
         }
     } else {
@@ -384,7 +385,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
     if(user_src) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
-            printf("[ext4] kmalloc error!\n");
+            // printf("[ext4] kmalloc error!\n");
             return ENOMEM;
         }
         if((r = copyin(myproc()->mm.pagetable, kbuf, src, size)) != EOK) {
@@ -485,6 +486,11 @@ isdir:
             printf("[ext4] unknown file type! eftype=%d\n", eftype);
             recycle_efile(efp);
             return -EINVAL;
+    }
+    if(fp->type == FD_DEVICE) {
+        dev_t dev = ext4_inode_get_dev(&inode);
+        fp->major = major(dev);
+        Log("[ext4] ext4_vfopen: device file opened, major = %d, path = %s", fp->major, path);
     }
         
     return r;
@@ -754,7 +760,7 @@ int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_
                 break;
         }
         if(copyout(myproc()->mm.pagetable, (uint64)u_dirp, (char*)dirp, reclen) != EOK) {
-            printf("[ext4] copyout error!\n");
+            // printf("[ext4] copyout error!, udirp = %p\n", u_dirp);
             kfree(dirp);
             return totlen;
         }
@@ -939,7 +945,7 @@ int ext4_vfaccess(char *path, int amode, int flags) {
     int inode_amode = 0;
 
     if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
-        printf("[ext4_vfaccess] ext4_raw_inode_fill error!, path %s\n", path);
+        // printf("[ext4_vfaccess] ext4_raw_inode_fill error!, path %s\n", path);
         return -1;
     }
     if(ext4_get_sblock(path, &sb) != EOK) {
@@ -1082,4 +1088,12 @@ int ext4_vstatfs(struct vfs_filesystem *fs, struct statfs *buf) {
     buf->f_flags = 0;
     buf->f_namelen = 32;
     return err;
+}
+
+int ext4_vfrename(const char *oldpath, const char *newpath) {
+    int r = ext4_frename(oldpath, newpath);
+    if (r != EOK) {
+        return -r;
+    }
+    return r;
 }

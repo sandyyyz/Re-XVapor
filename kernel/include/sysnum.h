@@ -78,4 +78,5 @@
 #define SYS_mprotect 226
 #define SYS_wait4 260
 #define SYS_prlimit64 261
+#define SYS_renameat2 276
 #define SYS_getrandom 278

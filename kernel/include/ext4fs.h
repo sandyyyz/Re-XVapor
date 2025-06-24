@@ -33,5 +33,6 @@ int ext4_vfaccess(char *path, int amode, int flags);
 int ext4_vutimens(const char *path, __nullable const struct timespec *ts);
 int ext4_vfile_exist(const char *path);
 off_t ext4_vlseek(struct file *fp, off_t offset, int whence);
+int ext4_vfrename(const char *oldpath, const char *newpath);
 
 #endif

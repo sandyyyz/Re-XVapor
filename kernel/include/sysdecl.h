@@ -78,4 +78,5 @@ extern uint64 sys_mmap(void);
 extern uint64 sys_mprotect(void);
 extern uint64 sys_wait4(void);
 extern uint64 sys_prlimit64(void);
+extern uint64 sys_renameat2(void);
 extern uint64 sys_getrandom(void);
