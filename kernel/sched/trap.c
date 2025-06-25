@@ -286,6 +286,7 @@ kerneltrap()
     printf("unknow devintr()\n");
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("t->kstack=%p\n", mythread()->kstack);
     panic("kerneltrap");
   }
 
