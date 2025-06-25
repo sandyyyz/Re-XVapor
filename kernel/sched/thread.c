@@ -52,7 +52,7 @@ void tcb_init(void) {
 #endif
         queue_push_back_atomic(g_tcb_queues[TCB_UNUSED], t);
     }
-    Info("thread table init [ok]\n");
+    // Info("thread table init [ok]\n");
     return;
 }
 
@@ -608,7 +608,9 @@ int thread_kill(int tid, sig_t sig) {
     struct tcb *t = NULL;
     siginfo_t info;
     if(tid < 0 || tid >= NTHREADS) {
+#ifdef __DEBUG_THREAD_KILL
         Warn("thread_kill: invalid tid %d", tid);
+#endif  
         return -1;
     }
     for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {

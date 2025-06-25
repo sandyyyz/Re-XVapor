@@ -277,14 +277,20 @@ int do_mprotect(uint64 addr, int size, int prot) {
     vma = find_vma(p, addr);
     if(vma == 0 || vma->vm_start > addr || vma->vm_end < addr + size) {
         release(&p->mm.lock);
-        return -1; // not found or not in the range
+        // return -1; // not found or not in the range
+        goto notbymmap; // not by mmap, just set the permission
     }
     vma->prot = prot;
     release(&p->mm.lock);
 
+notbymmap:
     pgnum = PGROUNDDOWN(size) / PGSIZE;
     perm = PROT2PTE_FLAGS(prot);
     perm |= PTE_U;
+
+#ifdef __DEBUG_DO_MPROTECT
+    Log("do_mprotect: addr %p, size %d, prot %p, perm %p, pgnum %d", addr, size, prot, perm, pgnum);
+#endif
     for(int i = 0; i < pgnum; i++) {
         if (setperm(p->mm.pagetable, va, perm) != 0)
             panic("out of maxva or not user page");

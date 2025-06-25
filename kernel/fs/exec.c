@@ -47,6 +47,8 @@ int execve(char *path, char **argv, char **envp)
   struct file *f;
   int need_dynamic = 0;
   uint64 prog_entry = 0, interp_base = 0;
+  uint64 progh_base = 0;
+  int first = 0;
 
   if((f = filealloc()) == 0)
     return -1;
@@ -112,6 +114,10 @@ int execve(char *path, char **argv, char **envp)
 #endif
     if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
+    if(first == 0) {
+      progh_base = PGROUNDDOWN(ph.vaddr);
+      first = 1; 
+    }
   }
 
   ext4_vfclose(f);
@@ -240,10 +246,16 @@ int execve(char *path, char **argv, char **envp)
   // Load AUX vectors
   sp -= 16;
   uint64 aux[MAX_AT * 2];
-
+  // int fd = generic_open(abs_path, O_RDONLY, 0);
+  // if(fd < 0) {
+  //   Log("execve: generic_open failed for %s, fd = %d", abs_path, fd);
+  //   goto bad;
+  // } else {
+  //   Log("execve: generic_open success for %s, fd = %d", abs_path, fd);
+  // }
   // ADD_AUXV(AT_HWCAP, 0);
   ADD_AUXV(AT_PAGESZ, PGSIZE);
-  ADD_AUXV(AT_PHDR, elf.phoff);
+  ADD_AUXV(AT_PHDR, elf.phoff + progh_base);
   ADD_AUXV(AT_PHENT, elf.phentsize);
   ADD_AUXV(AT_PHNUM, elf.phnum);
   ADD_AUXV(AT_BASE, need_dynamic ? interp_base : 0);
@@ -254,6 +266,7 @@ int execve(char *path, char **argv, char **envp)
   ADD_AUXV(AT_EGID, 0);
   ADD_AUXV(AT_SECURE, 0);
   ADD_AUXV(AT_RANDOM, sp);
+  // ADD_AUXV(AT_EXECFN, fd);
   ADD_AUXV(AT_NULL, 0);
 
   //三个向量的压栈顺序：AUX -> envp -> argv,argc

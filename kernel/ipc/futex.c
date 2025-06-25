@@ -227,7 +227,9 @@ int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space c
             Warn("sys_futex: unknown futex operation %d\n", futex_op);
     }
     if (ret < 0) {
+#ifdef __DEBUG_DO_FUTEX
         Warn("sys_futex: futex operation %d failed on address %p with value %d\n", futex_op, (void *)uaddr, val);
+#endif
     }
     return ret;
 }
@@ -252,7 +254,9 @@ static int futex_wait(uint64 uaddr, uint32 val, __nullable __kernel_space const 
     }
     if(uval != val) {
         // the value has changed, no need to wait
+#ifdef __DEBUG_FUTEX_WAIT
         Warn("futex_wait: value at address %p is %d, expected %d\n", (void *)uaddr, uval, val);
+#endif
         return 0;
     }
 

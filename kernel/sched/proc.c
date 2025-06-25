@@ -81,9 +81,9 @@ procinit(void)
   }
 
 
-  Info("========= Information of proc table and tcb table ==========\n");
-  Info("number of proc : %d\n", NPROC);
-  Info("proc table init [ok]\n");
+  // Info("========= Information of proc table and tcb table ==========\n");
+  // Info("number of proc : %d\n", NPROC);
+  // Info("proc table init [ok]\n");
   
   return;
 }

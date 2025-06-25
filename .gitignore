@@ -31,3 +31,5 @@ build/*
 /mnt/*
 *.txt
 *.so
+kernel-rv
+kernel-la

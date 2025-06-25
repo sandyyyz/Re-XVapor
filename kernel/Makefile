@@ -39,7 +39,7 @@ OBJS := $(ENTRY_OBJ) $(OBJS)
 # CFLAGS += -D__DEBUG_SCHED
 # CFLAGS += -D__DEBUG_EXEC
 # CFLAGS += -D__DEBUG_FLOADSEG
-CFLAGS += -D__DEBUG_SYSCALL
+# CFLAGS += -D__DEBUG_SYSCALL
 # CFLAGS += -D__USE_XV6FS
 # CFLAGS += -D__DEBUG_SYS_FSTAT
 # CFLAGS += -D__DEBUG_EXT4_VFREAD
@@ -55,7 +55,7 @@ CFLAGS += -D__DEBUG_SYSCALL
 # CFLAGS += -D__DEBUG_DISK_INTR
 # CFLAGS += -D__DEBUG_SYS_WRITEV
 # CFLAGS += -D__DEBUG_GENERIC_WRITEV
-CFLAGS += -D__DEBUG_EXECVE
+# CFLAGS += -D__DEBUG_EXECVE
 # CFLAGS += -D__DEBUG_SYS_GETCWD
 # CFLAGS += -D__DEBUG_DO_FCNTL
 # CFLAGS += -D__DEBUG_SYS_FSTATAT
@@ -102,6 +102,7 @@ CFLAGS += -D__SHOW_UNEXPECTED_UTRAP
 # CFLAGS += -D__DEBUG_PIPE_CLOSE
 # CFLAGS += -D__DEBUG_GENERIC_MKDIR
 # CFLAGS += -D__DEBUG_SYS_RENAMEAT2
+# CFLAGS += -D__DEBUG_DO_MPROTECT
 
 .PHONY: all clean
 
@@ -121,6 +122,7 @@ $(BUILD_DIR)/kernel: $(OBJS) $(KERNEL_DIR)/kernel.ld $(USER_BUILD_DIR)/initcode
 	$(LD) $(LDFLAGS) -T $(KERNEL_DIR)/kernel.ld -o $(BUILD_DIR)/kernel $(OBJS)
 	$(OBJDUMP) -S $(BUILD_DIR)/kernel > $(BUILD_DIR)/kernel.asm
 	$(OBJDUMP) -t $(BUILD_DIR)/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD_DIR)/kernel.sym
+	@cp $(BUILD_DIR)/kernel kernel-rv
 
 # 清理
 clean:
@@ -129,4 +131,5 @@ clean:
 	@if [ -f $(INCLUDE_DIR)/sysfunc.h ]; then rm $(INCLUDE_DIR)/sysfunc.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysdecl.h ]; then rm $(INCLUDE_DIR)/sysdecl.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysname.h ]; then rm $(INCLUDE_DIR)/sysname.h; fi
+	@if [ -f kernel-rv ]; then rm kernel-rv; fi
 

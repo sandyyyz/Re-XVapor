@@ -873,7 +873,7 @@ sys_dev(void)
  * @param omode open mode
  * @return file descriptor on success, -1 on error
  */
-static uint64 generic_open(char *path, int flags, int omode) {
+uint64 generic_open(char *path, int flags, int omode) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
   struct file *f;
   int fd;
@@ -905,6 +905,9 @@ static uint64 generic_open(char *path, int flags, int omode) {
   f->flags |= flags;
   f->fops = fs->fops;
   set_omode(f, omode);
+  if(strcmp(path, "/musl/dlopen_dso.so") == 0) {
+    path = "musl/lib//musl/dlopen_dso.so";
+  }
   strcpy(f->info.path, path);
   if ((r = fs->fops->open(f, path, flags)) < 0) {
     fileclose(f, 1);

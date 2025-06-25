@@ -1159,9 +1159,11 @@ unsupport now:
 /musl/runtest.exe -w entry-static.exe pthread_cond_smasher
 /musl/runtest.exe -w entry-static.exe pthread_once_deadlock
 /musl/runtest.exe -w entry-static.exe syscall_sign_extend
-/musl/runtest.exe -w entry-static.exe pthread_exit_cancel
 /musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+/musl/runtest.exe -w entry-static.exe pthread_cancel_points
 14/107
+
+for dynamic: 17/110
 
 /glibc/runtest.exe -w entry-static.exe clocale_mbfuncs
 /glibc/runtest.exe -w entry-static.exe fdopen
@@ -1434,3 +1436,4 @@ dlopen_dso.so  libc.so  tls_align_dso.so  tls_get_new-dtv_dso.so  tls_init_dso.s
 0xC5D54 sysv_lookup
 a0: 0x101210
 
+AT_PHDR 传错了！！！=-=  

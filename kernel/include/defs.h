@@ -203,6 +203,8 @@ void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr(void);
 
+uint64 generic_open(char *path, int flags, int omode);
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 #define N2ADDR(x) ((void*)(x))
