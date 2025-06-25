@@ -263,7 +263,9 @@ static int futex_wait(uint64 uaddr, uint32 val, __nullable __kernel_space const 
     /* futex wait */
     fp = get_futex(uaddr, 0);
     if(fp == NULL) {
-        Warn("futex_wait: failed to get futex for address %p\n", (void *)uaddr);
+#ifdef __DEBUG_FUTEX_WAIT
+        Warn("futex_wait: failed to get futex for address %p", (void *)uaddr);
+#endif
         return -1;
     }
     acquire(&timeout_lock);

@@ -74,9 +74,9 @@ static void pgfault_handler() {
 #ifdef __DEBUG_UTRAP
   // vmprint(p->mm.pagetable);
 #endif
+  release(&p->mm.lock);
   if(vma->type != VMA_FILE) {
     // anonymous vma, just return
-    release(&p->mm.lock);
     return;
   }
   struct file* fp = vma->file;
@@ -90,7 +90,7 @@ static void pgfault_handler() {
     printf("satp=%p\n", r_satp());
     panic("usertrap: read file failed");
   }
-  release(&p->mm.lock);
+  // release(&p->mm.lock);
 }
 
 // trampoline已经换栈和页表

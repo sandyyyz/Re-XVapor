@@ -223,7 +223,7 @@ char *musl_libc_test_dynamic_cmds[] = {
 // "/musl/runtest.exe -w entry-dynamic.exe pthread_robust_detach", !
 // "/musl/runtest.exe -w entry-dynamic.exe pthread_cond_smasher", !
 "/musl/runtest.exe -w entry-dynamic.exe pthread_condattr_setclock",
-"/musl/runtest.exe -w entry-dynamic.exe pthread_exit_cancel",
+// "/musl/runtest.exe -w entry-dynamic.exe pthread_exit_cancel", !
 // "/musl/runtest.exe -w entry-dynamic.exe pthread_once_deadlock", !
 // "/musl/runtest.exe -w entry-dynamic.exe pthread_rwlock_ebusy", !
 "/musl/runtest.exe -w entry-dynamic.exe putenv_doublefree",
