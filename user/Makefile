@@ -23,6 +23,13 @@ OBJDUMP = $(TOOLPREFIX)objdump
 # $(info ulib : $(ULIB))default: all
 .PHONY: clean all MKDIR
 
+TESTING_PLATFORM = yes
+ifeq ($(TESTING_PLATFORM),yes)
+USER_EXTRA_DEPS :=
+else
+USER_EXTRA_DEPS := $(KERNEL_DIR)/include/initcode.h
+endif
+
 
 all: user
 
@@ -36,13 +43,6 @@ MKDIR: $(SUBDIR_PATHS)
 
 $(SUBDIR_PATHS):
 	mkdir -p $@
-
-TESTING_PLATFORM = yes
-ifeq ($(TESTING_PLATFORM),yes)
-USER_EXTRA_DEPS :=
-else
-USER_EXTRA_DEPS := $(KERNEL_DIR)/include/initcode.h
-endif
 
 user: MKDIR $(BUILD_DIR)/initcode $(OBJ) $(ULIB) $(UPROGS) uprogs-list.mk $(USER_EXTRA_DEPS)
 

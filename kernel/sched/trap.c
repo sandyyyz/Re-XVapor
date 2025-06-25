@@ -304,6 +304,7 @@ kerneltrap()
     printf("scause=%p\n", r_scause());
     printf("sstatus=%p\n", r_sstatus());
     printf("satp=%p\n", r_satp());
+    printf("t->kstack=%p\n", mythread()->kstack);
     panic("kerneltrap: page fault");
   }
 

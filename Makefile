@@ -126,7 +126,7 @@ QEMUOPTS = -machine virt -bios default -kernel $(BUILD_DIR)/kernel/kernel -m 1G 
 # QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -no-reboot 
-QEMUOPTS += -device virtio-net-device,netdev=net -netdev user,id=net -rtc base=utc
+# QEMUOPTS += -device virtio-net-device,netdev=net -netdev user,id=net -rtc base=utc
 
 qemu: user kernel 
 	$(QEMU) $(QEMUOPTS)
