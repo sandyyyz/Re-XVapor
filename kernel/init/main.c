@@ -83,7 +83,7 @@ main()
     
     INIT_UTS(g_uts); // initialize utsname structur
     futex_hash_init(); // init futex hash table
-    trapinit();      // trap vectors
+    trapinit();      // trap vectorsr
     trapinithart();  // install kernel trap vector
     plicinit();      // set up interrupt controller
     plicinithart();  // ask PLIC for device interrupts
@@ -99,6 +99,7 @@ main()
 #ifdef __START_HARTS
     start_harts();
 #endif
+    // panic("test");
   } else {
     while(started == 0)
       ;
