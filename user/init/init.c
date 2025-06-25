@@ -290,37 +290,37 @@ int main(void)
   }
 #else
 
-  // // musl basic
-  // printf(musl_basic_start_str);
+  // musl basic
+  printf(musl_basic_start_str);
 
-  // pid = fork();
-  // if(pid == 0) {
-  //   if(chdir(musl_basic_dir) < 0) {
-  //     printf("init: chdir %s failed\n", musl_basic_dir);
-  //     exit(-1);
-  //   }
-  //   int ret = execve(musl_busybox_path, musl_basic_test_argv, busybox_envp);
-  //   printf("execve returned %d\n", ret);
-  // } else {
-  //   wait(0);
-  //   printf(musl_basic_end_str);
-  // }
+  pid = fork();
+  if(pid == 0) {
+    if(chdir(musl_basic_dir) < 0) {
+      printf("init: chdir %s failed\n", musl_basic_dir);
+      exit(-1);
+    }
+    int ret = execve(musl_busybox_path, musl_basic_test_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
+  } else {
+    wait(0);
+    printf(musl_basic_end_str);
+  }
 
-  // // glibc basic
-  // printf(glibc_basic_start_str);
+  // glibc basic
+  printf(glibc_basic_start_str);
 
-  // pid = fork();
-  // if(pid == 0) {
-  //   if(chdir(glibc_basic_dir) < 0) {
-  //     printf("init: chdir %s failed\n", glibc_basic_dir);
-  //     exit(-1);
-  //   }
-  //   int ret = execve(glibc_busybox_path, glibc_basic_test_argv, busybox_envp);
-  //   printf("execve returned %d\n", ret);
-  // } else {
-  //   wait(0);
-  //   printf(glibc_basic_end_str);
-  // }
+  pid = fork();
+  if(pid == 0) {
+    if(chdir(glibc_basic_dir) < 0) {
+      printf("init: chdir %s failed\n", glibc_basic_dir);
+      exit(-1);
+    }
+    int ret = execve(glibc_busybox_path, glibc_basic_test_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
+  } else {
+    wait(0);
+    printf(glibc_basic_end_str);
+  }
 
   // musl busybox test
   pid = fork();

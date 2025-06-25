@@ -58,7 +58,7 @@
 #define TRAMPOLINE (MAXVA - PGSIZE)
 
 // the kernel stack grows down from KSTACKTOP.
-#define KSTACK_PAGE 2
+#define KSTACK_PAGE 64
 #define MAX_THREAD NTHREADS_PER_PROC
 // now every single thread has its own kernel stack
 // map kernel stacks beneath the trampoline,
