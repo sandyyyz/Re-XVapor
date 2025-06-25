@@ -33,3 +33,4 @@ build/*
 *.so
 kernel-rv
 kernel-la
+*.xz
