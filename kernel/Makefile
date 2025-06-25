@@ -122,7 +122,7 @@ $(BUILD_DIR)/kernel: $(OBJS) $(KERNEL_DIR)/kernel.ld $(USER_BUILD_DIR)/initcode
 	$(LD) $(LDFLAGS) -T $(KERNEL_DIR)/kernel.ld -o $(BUILD_DIR)/kernel $(OBJS)
 	$(OBJDUMP) -S $(BUILD_DIR)/kernel > $(BUILD_DIR)/kernel.asm
 	$(OBJDUMP) -t $(BUILD_DIR)/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD_DIR)/kernel.sym
-	@cp $(BUILD_DIR)/kernel kernel-rv
+	cp $(BUILD_DIR)/kernel ../kernel-rv
 
 # 清理
 clean:
@@ -131,5 +131,5 @@ clean:
 	@if [ -f $(INCLUDE_DIR)/sysfunc.h ]; then rm $(INCLUDE_DIR)/sysfunc.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysdecl.h ]; then rm $(INCLUDE_DIR)/sysdecl.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysname.h ]; then rm $(INCLUDE_DIR)/sysname.h; fi
-	@if [ -f kernel-rv ]; then rm kernel-rv; fi
+	@if [ -f ../kernel-rv ]; then rm ../kernel-rv; fi
 
