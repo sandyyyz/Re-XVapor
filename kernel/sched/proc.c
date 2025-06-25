@@ -396,7 +396,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf)
   uvmfree(pagetable, sz);
 }
 
-#include "initcode.h"
+#include "../include/initcode.h"
 
 // Set up first user process.
 void
