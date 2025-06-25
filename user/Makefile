@@ -37,7 +37,15 @@ MKDIR: $(SUBDIR_PATHS)
 $(SUBDIR_PATHS):
 	mkdir -p $@
 
-user: MKDIR $(BUILD_DIR)/initcode $(OBJ) $(ULIB) $(UPROGS) uprogs-list.mk $(KERNEL_DIR)/include/initcode.h
+TESTING_PLATFORM = yes
+ifeq ($(TESTING_PLATFORM),yes)
+USER_EXTRA_DEPS :=
+else
+USER_EXTRA_DEPS := $(KERNEL_DIR)/include/initcode.h
+endif
+
+user: MKDIR $(BUILD_DIR)/initcode $(OBJ) $(ULIB) $(UPROGS) uprogs-list.mk $(USER_EXTRA_DEPS)
+
 
 $(BUILD_DIR)/%.prog: %.o $(ULIB) | $(BUILD_DIR)
 	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
