@@ -4,8 +4,6 @@
 2   dev         sys_dev
 3   wait        sys_wait
 
-7   exec        sys_exec
-
 12  sbrk        sys_sbrk
 13  sleep       sys_sleep
 14  uptime      sys_uptime
@@ -66,7 +64,7 @@
 59   pipe        sys_pipe
 37  linkat  sys_linkat
 35  unlinkat    sys_unlinkat
-135 sigprocmask sys_sigprocmask
+135 rt_sigprocmask sys_rt_sigprocmask
 178 getttid sys_gettid
 155 getpgid sys_getpgid
 129   kill        sys_kill
@@ -83,3 +81,7 @@
 131 tgkill  sys_tgkill
 130 tkill   sys_tkill
 137 sigtimedwait    sys_sigtimedwait
+226 mprotect    sys_mprotect
+43  statfs  sys_statfs
+4   poweroff    sys_poweroff
+276 renameat2   sys_renameat2

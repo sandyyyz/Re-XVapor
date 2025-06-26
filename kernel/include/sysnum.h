@@ -1,7 +1,7 @@
 #define SYS_fork 1
 #define SYS_dev 2
 #define SYS_wait 3
-#define SYS_exec 7
+#define SYS_poweroff 4
 #define SYS_mknod 11
 #define SYS_sbrk 12
 #define SYS_sleep 13
@@ -21,6 +21,7 @@
 #define SYS_linkat 37
 #define SYS_umount2 39
 #define SYS_mount 40
+#define SYS_statfs 43
 #define SYS_faccessat 48
 #define SYS_chdir 49
 #define SYS_openat 56
@@ -52,7 +53,7 @@
 #define SYS_tkill 130
 #define SYS_tgkill 131
 #define SYS_sigaction 134
-#define SYS_sigprocmask 135
+#define SYS_rt_sigprocmask 135
 #define SYS_sigtimedwait 137
 #define SYS_sigreturn 139
 #define SYS_setgid 144
@@ -73,6 +74,8 @@
 #define SYS_clone 220
 #define SYS_execve 221
 #define SYS_mmap 222
+#define SYS_mprotect 226
 #define SYS_wait4 260
 #define SYS_prlimit64 261
+#define SYS_renameat2 276
 #define SYS_getrandom 278

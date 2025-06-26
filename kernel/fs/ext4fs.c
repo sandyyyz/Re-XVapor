@@ -17,15 +17,15 @@
 #include "fcntl.h"
 #include "timer.h"
 #include "riscv.h"
+#include "ext4_super.h"
 
 void ext4_ilock(struct inode *ip);
-int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, int flags);
-int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
 int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev);
 int ext4_vcleansf(struct file *fp);
 int ext4_vmkdir(const char *pathname, mode_t mode);
 int ext4_vgetdents(struct file *fp, struct linux_dirent64 *dirp, int count);
+int ext4_vstatfs(struct vfs_filesystem *fs, struct statfs *buf);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -64,6 +64,8 @@ struct fs_ops ext4_fs_ops = {
     .faccess = ext4_vfaccess,
     .utimens = ext4_vutimens,
     .file_exist = ext4_vfile_exist,
+    .statfs = ext4_vstatfs,
+    .rename = ext4_vfrename,
 };
 
 struct vfs_filesystem ext4_fs = {
@@ -72,6 +74,7 @@ struct vfs_filesystem ext4_fs = {
     .iops = &ext4_inode_ops,
     .fops = &ext4_file_ops,
     .fsops = &ext4_fs_ops,
+    .path = "/",
 };
 
 
@@ -153,7 +156,7 @@ struct ext4_file *ext4_falloc() {
     return fp;
 }
 
-inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
+static inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
     return container_of(efp, struct ext4_mfile, ext4_fentry);
 }
 /**
@@ -194,7 +197,7 @@ struct ext4_inode *ext4_ialloc() {
     return ip;
 }
 
-inline struct ext4_minode *parent_minode(struct ext4_inode *eip) {
+static inline struct ext4_minode *parent_minode(struct ext4_inode *eip) {
     return container_of(eip, struct ext4_minode, ext4_ientry);
 }
 
@@ -264,7 +267,7 @@ void ext4_ilock(struct inode *ip) {
  * @attention rcnt shouldn't be NULL !!!!!, it will be set to the number of bytes read
  * @return int 
  */
-int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt) {
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t size, size_t *rcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kbuf = NULL;
@@ -279,7 +282,7 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
     if(user_dst) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
-            printf("[ext4] kmalloc error!\n");
+            // printf("[ext4] kmalloc error!\n");
             return ENOMEM;
         }
     } else {
@@ -324,11 +327,11 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
  * @attention iovec should in kernel space
  * @return 0 on success, -1 on error
  */
-int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, int *wcnt) {
+int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, size_t *wcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kvecs = (char*) iovec;
-    int wc = 0;
+    size_t wc = 0;
     if(!efp) {
         printf("[ext4] efp is NULL!\n");
         return EINVAL;
@@ -365,7 +368,7 @@ int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int
     return r;
     
 }
-int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt) {
+int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t size, size_t *wcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kbuf = NULL;
@@ -380,7 +383,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, 
     if(user_src) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
-            printf("[ext4] kmalloc error!\n");
+            // printf("[ext4] kmalloc error!\n");
             return ENOMEM;
         }
         if((r = copyin(myproc()->mm.pagetable, kbuf, src, size)) != EOK) {
@@ -424,7 +427,7 @@ int ext4_vfopen(struct file *fp, const char *path, int flags) {
         return -ENOMEM;
     }
     if((r = ext4_fopen2(efp, path, flags)) != EOK) {
-        printf("[ext4] ext4_fopen2 error! r=%d\n", r);
+        // printf("[ext4] ext4_fopen2 error! r=%d\n", r);
         recycle_efile(efp);
         return -r;
     }
@@ -481,6 +484,11 @@ isdir:
             printf("[ext4] unknown file type! eftype=%d\n", eftype);
             recycle_efile(efp);
             return -EINVAL;
+    }
+    if(fp->type == FD_DEVICE) {
+        dev_t dev = ext4_inode_get_dev(&inode);
+        fp->major = major(dev);
+        Log("[ext4] ext4_vfopen: device file opened, major = %d, path = %s", fp->major, path);
     }
         
     return r;
@@ -750,7 +758,7 @@ int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_
                 break;
         }
         if(copyout(myproc()->mm.pagetable, (uint64)u_dirp, (char*)dirp, reclen) != EOK) {
-            printf("[ext4] copyout error!\n");
+            // printf("[ext4] copyout error!, udirp = %p\n", u_dirp);
             kfree(dirp);
             return totlen;
         }
@@ -935,7 +943,7 @@ int ext4_vfaccess(char *path, int amode, int flags) {
     int inode_amode = 0;
 
     if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
-        printf("[ext4_vfaccess] ext4_raw_inode_fill error!, path %s\n", path);
+        // printf("[ext4_vfaccess] ext4_raw_inode_fill error!, path %s\n", path);
         return -1;
     }
     if(ext4_get_sblock(path, &sb) != EOK) {
@@ -973,7 +981,7 @@ int ext4_vfaccess(char *path, int amode, int flags) {
 int ext4_vutimens(const char *path, __nullable const struct timespec *ts) {
     struct timespec atime, mtime, nowtime;
     int seta = 1, setm = 1;
-   
+    int r = 0;
     nowtime = TIME2TIMESPEC(rdtime());
 
     if(ts == NULL) {
@@ -1001,15 +1009,15 @@ int ext4_vutimens(const char *path, __nullable const struct timespec *ts) {
         return EOK;
     }
     if(seta) {
-        if(ext4_atime_set(path, atime.tv_sec) != EOK) {
+        if((r = ext4_atime_set(path, atime.tv_sec)) != EOK) {
             printf("[ext4] ext4_atime_set error!\n");
-            return -1;
+            return -r;
         }
     }
     if(setm) {
-        if(ext4_mtime_set(path, mtime.tv_sec) != EOK) {
+        if((r = ext4_mtime_set(path, mtime.tv_sec)) != EOK) {
             printf("[ext4] ext4_mtime_set error!\n");
-            return -1;
+            return -r;
         }
     }
     return EOK;
@@ -1033,20 +1041,57 @@ int ext4_vfile_exist(const char *path) {
     return 1; // file exist
 }
 
-int ext4_vlseek(struct file *fp, off_t offset, int whence) {
+off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
     struct ext4_file *efp = fp->private_data;
     if(!efp) {
         printf("[ext4] efp is NULL!\n");
         return -1;
     }
+    if(offset > efp->fsize) {
+        // TODO: and fp->fpos??
+        return offset; // no need to seek, just return the offset
+    }
     if(whence == SEEK_END && offset < 0) {
         offset = -offset;
     }
-    int r = ext4_fseek(efp, offset, whence);
+    off_t r = ext4_fseek(efp, offset, whence);
     if(r != EOK) {
         printf("[ext4] ext4_fseek error! r=%d\n", r);
-        return -1;
+        printf("[ext4] whence = %d, offset = %d\n", whence, offset);
+        return -r;
     }
     fp->fpos = efp->fpos;
     return fp->fpos;
+}
+
+int ext4_vstatfs(struct vfs_filesystem *fs, struct statfs *buf) {
+    struct ext4_sblock *sb = NULL;
+    int err = EOK;
+
+    err = ext4_get_sblock(fs->path, &sb);
+    if (err != EOK) {
+        return err;
+    }
+
+    buf->f_bsize = ext4_sb_get_block_size(sb);
+    buf->f_blocks = ext4_sb_get_blocks_cnt(sb);
+    buf->f_bfree = ext4_sb_get_free_blocks_cnt(sb);
+    buf->f_bavail = ext4_sb_get_free_blocks_cnt(sb);
+    buf->f_type = sb->magic;
+    buf->f_files = sb->inodes_count;
+    buf->f_ffree = sb->free_inodes_count;
+    buf->f_frsize = ext4_sb_get_block_size(sb);
+    buf->f_bavail = sb->free_inodes_count;
+    buf->f_fsid.val[0] = 2; /* why 2? */
+    buf->f_flags = 0;
+    buf->f_namelen = 32;
+    return err;
+}
+
+int ext4_vfrename(const char *oldpath, const char *newpath) {
+    int r = ext4_frename(oldpath, newpath);
+    if (r != EOK) {
+        return -r;
+    }
+    return r;
 }

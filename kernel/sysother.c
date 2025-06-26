@@ -8,6 +8,8 @@
 #include "debug.h"
 #include "sysinfo.h"
 #include "signal.h"
+#include "memlayout.h"
+#include "sbi.h"
 
 extern struct proc proc[NPROC];
 
@@ -67,7 +69,7 @@ sys_gettimeofday(void)
     struct timeval ts;
     ts.tv_sec = t / CLK_FREQ;
     ts.tv_usec = (t % CLK_FREQ) * 1000000 / CLK_FREQ;
-    printf("%d  %d\n",ts.tv_sec,ts.tv_usec);
+    // printf("%d  %d\n",ts.tv_sec,ts.tv_usec);
     if (copyout(myproc()->mm.pagetable, addr, (char *)&ts, sizeof(struct timeval)) < 0)
         return -1;
     return 0;
@@ -162,8 +164,24 @@ uint64 sys_geteuid() {
     return 0;
 }
 
+/**
+ * @brief ppoll() - wait for events on file descriptors
+ * @property int ppoll(struct pollfd *fds, nfds_t nfds,
+        const struct timespec *timeout_ts, const sigset_t *sigmask);
+ * @return On success, ppoll() returns the number of file descriptors
+       ready for reading or writing, or 0 if the timeout expired.  On
+       error, -1 is returned, and errno is set to indicate the error.
+ */
 uint64 sys_ppoll() {
-    return 0;
+    uint64 fds_addr;
+    uint64 nfds;
+    uint64 timeout_ts_addr;
+    uint64 sigmask_addr;
+    argaddr(0, &fds_addr);
+    argaddr(1, &nfds);
+    argaddr(2, &timeout_ts_addr);
+    argaddr(3, &sigmask_addr);
+    return nfds;
 }
 
 
@@ -213,5 +231,23 @@ uint64 sys_sysinfo(void) {
         return -1;
     }
     
+    return 0;
+}
+
+// static int qemu_raw_poweroff() {
+//     volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
+//     *poweroff = 0x5555; 
+//     // while(1);
+//     return 0;
+// }
+
+static int opensbi_poweroff(int sysfail) {
+    sbi_shutdown(sysfail);
+    return 0;
+}
+uint64 sys_poweroff(void) {
+    int sysfail;
+    argint(0, &sysfail);
+    opensbi_poweroff(sysfail);
     return 0;
 }

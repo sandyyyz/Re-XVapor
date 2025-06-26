@@ -12,9 +12,13 @@
 #include "ext4fs.h"
 #include "uname.h"
 #include "futex.h"
+#include "sbi.h"
 
 extern struct utsname g_uts;
 volatile static int started = 0;
+volatile int boot_hart = -1;
+extern char __bss_start, __bss_end; // 引用链接器脚本中定义的符号
+extern void _entry();
 // start() jumps here in supervisor mode on all CPUs.
 
 static void initfss() {
@@ -35,15 +39,40 @@ static void initfss() {
 #endif
   install_rootfs(); 
 }
+void clear_bss_section(void)
+{
+    char *bss = &__bss_start;
+    char *bss_end = &__bss_end;
+
+    while (bss < bss_end)
+    {
+        *bss++ = 0;
+    }
+}
+#ifdef __START_HARTS
+static void start_harts()
+{
+    for (int i = 0; i < NCPU; i++)
+    {
+        if (sbi_hart_get_status(i) == SBI_HSM_STATE_STOPPED)
+        {
+            sbi_hart_start(i, (uint64)_entry, 0);
+        } else {
+          // printf("hart %d status %d\n", i, sbi_hart_get_status(i));
+        }
+    }
+}
+#endif
 void
 main()
 {
-  if(cpuid() == 0){
-
+   if(boot_hart == -1){
+    boot_hart = cpuid();
+    clear_bss_section();
     consoleinit();
     printfinit();
     printf("\n");
-    printf("xv6fs kernel is booting\n");
+    printf("reXvapor kernel is booting\n");
     printf("\n");
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
@@ -54,7 +83,7 @@ main()
     
     INIT_UTS(g_uts); // initialize utsname structur
     futex_hash_init(); // init futex hash table
-    trapinit();      // trap vectors
+    trapinit();      // trap vectorsr
     trapinithart();  // install kernel trap vector
     plicinit();      // set up interrupt controller
     plicinithart();  // ask PLIC for device interrupts
@@ -67,6 +96,10 @@ main()
     __sync_synchronize();
     started = 1;
     printf("hart %d started\n", cpuid());
+#ifdef __START_HARTS
+    start_harts();
+#endif
+    // panic("test");
   } else {
     while(started == 0)
       ;
@@ -76,6 +109,8 @@ main()
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
   }
+  set_next_trigger();
+
   thread_scheduler();        
 }
 

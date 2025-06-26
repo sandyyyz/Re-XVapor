@@ -2,6 +2,8 @@
 #define __USER_H
 
 #include "types.h"
+#include "../../kernel/include/signal.h"
+// just support 64 signals at most right now
 
 struct stat;
 struct tms;
@@ -16,9 +18,8 @@ int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
 int kill(int pid, sig_t sig);
-int exec(char*, char**);
 int execve(char *path, char **argv, char **envp);
-int open(const char*, int);
+int open(const char* path, int flags, int omode);
 int unlink(const char*);
 int fstat(int fd, struct stat*);
 int link(const char*, const char*);
@@ -64,4 +65,7 @@ int readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz);
 int fstatat(int dirfd, const char *pathname, struct stat *buf,int flags);
 int mknod(const char *pathname, mode_t mode, dev_t dev);
 
+int rt_sigprocmask(int how, const sigset_t *set, sigset_t *oldset, size_t sigsetsize);
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+int poweroff(int sysfail);
 #endif

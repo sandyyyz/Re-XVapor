@@ -47,9 +47,12 @@ void tcb_init(void) {
         initlock(&t->lock, "tcb_lock"); // init its spinlock
         t->state = TCB_UNUSED;
         t->kstack = KSTACK((int)(t - tcb_pool));
+#ifdef __DEBUG_TCB_INIT
+        Log("thread %d alloc with kstack %p", i + 1, t->kstack);
+#endif
         queue_push_back_atomic(g_tcb_queues[TCB_UNUSED], t);
     }
-    Info("thread table init [ok]\n");
+    // Info("thread table init [ok]\n");
     return;
 }
 
@@ -108,8 +111,11 @@ struct tcb *alloc_thread(thread_callback callback) {
     memset(&t->context, 0, sizeof(t->context));
     t->context.ra = (uint64)callback;
     t->context.sp = t->kstack + KSTACK_PAGE * PGSIZE;
-
+#ifdef __DEBUG_ALLOCATE_THREAD
+    Warn("thread %d alloc with kstack base %p, kstack top %p", t->tid, t->context.sp, t->kstack);
+#endif
     sig_empty_set(&t->blocked);
+    // sig_fill_set(&t->blocked);
     sigpending_init(&t->sig_pending);
     // chage state of TCB
     tcb_q_change_state(t, TCB_USED);
@@ -185,6 +191,16 @@ void free_thread(struct tcb *t) {
     t->sig_processing = 0;
     t->timeout = 0;
     signal_queue_flush(&t->sig_pending);
+    t->chan = NULL;
+    t->wait_chan_entry = NULL;
+    if(t->sigs) {
+        int ref = atomic_dec_return(&t->sigs->ref);
+        if(ref == 1) {
+            // last thread using this sighand, free it
+            kfree(t->sigs);
+        }
+        t->sigs = NULL;
+    }
     tcb_q_change_state(t, TCB_UNUSED);
 }
 
@@ -258,6 +274,7 @@ void thread_exit(int status) {
     struct tcb *t = mythread();
     struct proc *p = t->p;
     struct thread_group *tg = &(p->tg);
+    int thread_cnt = 0;
 
     if( t->state == TCB_SLEEPING) 
         thread_wakeup_specific(t);
@@ -268,11 +285,11 @@ void thread_exit(int status) {
     if(t->clear_child_tid) {
         tid_t clear = 0;
         // thread_wakeup_chan((void*)t->clear_child_tid);
-        futex_wake(t->clear_child_tid, 1);
         copyout(p->mm.pagetable, t->clear_child_tid, (char *)&clear, sizeof(t->tid));
+        futex_wake(t->clear_child_tid, 1);
     }
 
-    if(atomic_dec_return(&tg->thread_cnt) == 1) {
+    if((thread_cnt = atomic_dec_return(&tg->thread_cnt))== 1) {
 
         proc_exit(status);
         release(&p->lock);
@@ -288,7 +305,7 @@ void thread_exit(int status) {
     acquire(&t->lock);
     free_thread(t);
     // tcb_q_change_state(t, TCB_UNUSED);
-    if(atomic_read(&tg->thread_cnt) == 0)
+    if(thread_cnt == 1)
         release(&p->lth_exitlock);
 
     thread_sched();
@@ -336,15 +353,18 @@ thread_sleep(void *chan, struct spinlock *lk, __nullable const struct timespec *
   tcb_q_change_state(t, TCB_SLEEPING);
   // sched();
 #ifdef __DEBUG_TSLEEP
-    Log("thread %d sleep on chan %p", t->tid, chan);
+    if(t->timeout)
+        Log("thread %d sleep on chan %p, timeout %d", t->tid, chan, t->timeout);
 #endif
   thread_sched();
 #ifdef __DEBUG_TSLEEP
-    Log("thread %d wakeup on chan %p", t->tid, chan);
+    if(t->timeout)
+        Log("thread %d wakeup on chan %p, timeout %d", t->tid, chan, t->timeout);
 #endif
   // Tidy up.
   // p->chan = 0;
   t->chan = 0;
+  t->timeout = 0; // reset timeout
   
   // Reacquire original lock.
   release(&t->lock);
@@ -358,6 +378,9 @@ void thread_wakeup_timeout(uint ticks_now)
         if(t != cur_thread) {
             acquire(&t->lock);
             if(t->state == TCB_SLEEPING && t->timeout == ticks_now) {
+#ifdef __DEBUG_WAKEUP_TIMEOUT
+                Log("thread_wakeup_timeout: thread %d wakeup on timeout %d", t->tid, t->timeout);
+#endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 // t->timeout = UINT64_MAX; // reset timeout
                 release(&t->lock);
@@ -377,6 +400,9 @@ void thread_wakeup_chan_timeout(void *chan, uint ticks_now)
         if(t != cur_thread) {
             acquire(&t->lock);
             if(t->state == TCB_SLEEPING && t->chan == chan && t->timeout == ticks_now) {
+#ifdef __DEBUG_WAKEUP_CHAN_TIMEOUT
+                Log("thread_wakeup_chan_timeout: thread %d wakeup on chan %p, timeout %d", t->tid, chan, t->timeout);
+#endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 t->timeout = 0; // reset timeout
                 release(&t->lock);
@@ -432,6 +458,10 @@ thread_wakeup_chan(void *chan)
         if(t!= cur_threads) {
             acquire(&t->lock);
             if(t->chan == chan && t->state == TCB_SLEEPING) {
+#ifdef __DEBUG_WAKEUP_CHAN
+                if(chan == &ticks)
+                    Log("thread_wakeup_chan %d at chan %p", t->tid, chan);
+#endif
                 tcb_q_change_state(t, TCB_RUNNABLE);
                 // queue_t *tcb_q_new = g_tcb_queues[TCB_RUNNABLE];
                 // queue_t *tcb_q_old = g_tcb_queues[TCB_SLEEPING];
@@ -456,7 +486,7 @@ void thread_wakeup_specific_atomic(struct tcb *t) {
     // queue_remove_atomic(t->wait_chan_entry, (void *)t);
     ASSERT(t->state == TCB_SLEEPING);
     // t->wait_chan_entry = NULL;
-    ASSERT(t->chan != NULL);
+    ASSERT(t->chan != NULL || t->wait_chan_entry != NULL);
     t->chan = NULL; // clear the chan, so that we can wake it up
     tcb_q_change_state(t, TCB_RUNNABLE);
 
@@ -471,7 +501,7 @@ void thread_wakeup_specific(struct tcb *t) {
     // queue_remove_atomic(t->wait_chan_entry, (void *)t);
     ASSERT(t->state == TCB_SLEEPING);
     // t->wait_chan_entry = NULL;
-    ASSERT(t->chan != NULL);
+    ASSERT(t->chan != NULL || t->wait_chan_entry != NULL);
     t->chan = NULL; // clear the chan, so that we can wake it up
     tcb_q_change_state(t, TCB_RUNNABLE);
 }
@@ -540,8 +570,11 @@ int free_allother_threads_group(struct tcb *t) {
 }
 
 void sighandinit(struct tcb *t) {
-    initlock(&t->sigs.siglock, "sighand lock");
-    atomic_set(&t->sigs.ref, 1);
+    if ((t->sigs = kmalloc(sizeof(struct sighand))) == NULL) {
+        panic("sighandinit: kmalloc failed\n");
+    }
+    initlock(&t->sigs->siglock, "sighand lock");
+    atomic_set(&t->sigs->ref, 1);
 }
 
 /**
@@ -575,7 +608,9 @@ int thread_kill(int tid, sig_t sig) {
     struct tcb *t = NULL;
     siginfo_t info;
     if(tid < 0 || tid >= NTHREADS) {
+#ifdef __DEBUG_THREAD_KILL
         Warn("thread_kill: invalid tid %d", tid);
+#endif  
         return -1;
     }
     for(t = tcb_pool; t < &tcb_pool[NTHREADS]; t++) {

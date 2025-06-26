@@ -44,7 +44,7 @@ w_mepc(uint64 x)
 }
 
 // Supervisor Status Register, sstatus
-
+#define SSTATUS_SUM (1L << 18) // Supervisor User Memory Access
 #define SSTATUS_SPP (1L << 8)  // Previous mode, 1=Supervisor, 0=User
 #define SSTATUS_SPIE (1L << 5) // Supervisor Previous Interrupt Enable
 #define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
@@ -359,7 +359,6 @@ w_sscratch(uint64 x) {
 #define PGSHIFT 12  // bits of offset within a page
 
 // bit trick
-// 先预加上了一个PAGESIZE，然后屏蔽了末12位0
 // 向上对齐PGSIZE
 #define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
 // 屏蔽末十二位0
@@ -371,6 +370,7 @@ w_sscratch(uint64 x) {
 #define PTE_W (1L << 2)
 #define PTE_X (1L << 3)
 #define PTE_U (1L << 4) // user can access
+#define PTE_A (1L << 6)
 #define PTE_D (1L << 7) // dirty
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
@@ -394,6 +394,6 @@ w_sscratch(uint64 x) {
 // MAXVA is actually one bit less than the max allowed by
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
-#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1)) //0x4000000000
 
 #endif

@@ -85,7 +85,7 @@ struct futex_hash_node {
 
 int futex_need_timeout(int futex_op);
 int futex_wake(uint64 uaddr, int nr_wake);
-int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space const struct timespec *timeout, uint32 val2, uint32 uaddr2, uint32 val3);
+int do_futex(uint64 uaddr, int futex_op, uint32 val, __nullable __kernel_space const struct timespec *timeout, uint32 val2, uint64 uaddr2, uint32 val3);
 void futex_hash_init();
 
 #endif

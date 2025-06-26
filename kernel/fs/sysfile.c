@@ -53,14 +53,19 @@ fdalloc(struct file *f)
 {
   int fd;
   struct proc *p = myproc();
-
+  if(is_exc_rcfile(p)) {
+    // Warn("fdalloc: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+    return -EMFILE; // Too many open files
+  }
   for(fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd] == 0){
       p->ofile[fd] = f;
+      p->ofile_cnt++;
+      // Log("++ofile_cnt %d", p->ofile_cnt);
       return fd;
     }
   }
-  return -1;
+  return -EMFILE;
 }
 
 static int fdalloc_spec(struct file *f, int spec_fd) {
@@ -68,11 +73,20 @@ static int fdalloc_spec(struct file *f, int spec_fd) {
   if (spec_fd < 0 || spec_fd >= NOFILE) {
     return -1;
   }
+  // we have at least one fd to use, so don't check
+  // if(is_exc_rcfile(p)) {
+  //   Warn("fdalloc_spec: too many open files, ofile_cnt %d, rlim %d", p->ofile_cnt, p->rlim[RLIMIT_NOFILE].rlim_cur);
+  //   return -EMFILE; // Too many open files
+  // }
   if(p->ofile[spec_fd] != 0) {
-    fileclose(p->ofile[spec_fd]);
+    fileclose(p->ofile[spec_fd], 1);
     p->ofile[spec_fd] = 0;
   }
   p->ofile[spec_fd] = f;
+  p->ofile_cnt++;
+#ifdef __DEBUG_FDALLOC_SPEC
+  Log("++ofile_cnt %d", p->ofile_cnt);
+#endif
   return spec_fd;
 }
 
@@ -90,8 +104,8 @@ sys_dup(void)
 
   if(argfd(0, 0, &f) < 0)
     return -1;
-  if((fd=fdalloc(f)) < 0)
-    return -1;
+  if((fd = fdalloc(f)) < 0)
+    return fd;
   filedup(f);
   return fd;
 }
@@ -104,7 +118,7 @@ sys_dup(void)
  * @return uint64 
  */
 uint64 sys_dup3(void) {
-  int oldfd, newfd, flags;
+  int oldfd, newfd, flags, ret;
   struct file *f;
   if(argfd(0, &oldfd, &f) < 0)
     return -1;
@@ -115,14 +129,17 @@ uint64 sys_dup3(void) {
 #ifdef __DEBUG_SYS_DUP3
   Log("sys_dup3: oldfd=%d, newfd=%d, flags=%d", oldfd, newfd, flags);
 #endif
-  if(fdalloc_spec(f, newfd) < 0)
-    return -1;
+  if(newfd == oldfd) {
+    return -EINVAL;
+  }
+  if((ret = fdalloc_spec(f, newfd)) < 0)
+    return ret;
   if (flags & O_CLOEXEC) {
     f->flags |= O_CLOEXEC; // set the close-on-exec flag
   } else {
     f->flags &= ~O_CLOEXEC; // clear the close-on-exec flag
   }
-  f->ref++;
+  filedup(f);
   return newfd;
 }
 /**
@@ -254,9 +271,9 @@ sys_close(void)
   if(argfd(0, &fd, &f) < 0)
     return -1;
   myproc()->ofile[fd] = 0;
-  fileclose(f);
+  fileclose(f, 1);
 #ifdef __DEBUG_CLOSE
-  Log("sys_close: fd=%d, f=%p, ref after close %d, f->fpos %d, path %s", fd, f, f->ref, f->fpos, f->info.path);
+  Log("sys_close: fd=%d, f=%p, ref after close %d, f->fpos %d, path %s, f->type %d", fd, f, f->ref, f->fpos, f->info.path, f->type);
 #endif
   return 0;
 }
@@ -448,7 +465,7 @@ uint64 sys_mkdirat(void) {
   argint(0, &dirfd);
   arguint32(2, &mode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
-  printf("sys_mkdirat: abs_path = %s\n", abs_path);
+  // printf("sys_mkdirat: abs_path = %s\n", abs_path);
   return generic_mkdir(abs_path, mode);
 }
 
@@ -475,7 +492,9 @@ static uint64 generic_mknod(char *path, mode_t mode, dev_t dev) {
     printf("sys_mknod: fsops->mknod failed\n");
     return -1;
   }
-  Log("sys_mknod : path %s successfully created", path);
+#ifdef __DEBUG_GENERIC_MKNOD
+  Log("sys_mknod : path %s successfully created, dev %d", path, dev);
+#endif
   return 0;
 }
 /**
@@ -577,54 +596,60 @@ uint64 sys_execve(void){
 // come in like:
 // # execve(path, argv, envp)
 // where path is stored in a0, argv in a1 and envp in a2
-char path[MAXPATH], *argv[MAXARG], *envp[MAXENV];
-int i;
-uint64 uargv, uarg, uenvp, uenv = 0;
+  char path[MAXPATH], *argv[MAXARG], *envp[MAXENV];
+  int i;
+  uint64 uargv, uarg, uenvp, uenv = 0;
 
-// copy path and argv from user space to kernel space
-argaddr(1, &uargv);
-if(argstr(0, path, MAXPATH) < 0) {
-  return -1;
-}
-argaddr(2, &uenvp);
-memset(envp, 0, sizeof(envp));
-for(i=0;; i++){
-  if(i >= NELEM(envp)){
-    goto badenv;
+  // copy path and argv from user space to kernel space
+  argaddr(1, &uargv);
+  if(argstr(0, path, MAXPATH) < 0) {
+    return -1;
   }
-  if(uenvp)
-    if(fetchaddr(uenvp+sizeof(uint64)*i, (uint64*)&uenv) < 0){
+  argaddr(2, &uenvp);
+
+#ifdef __DEBUG_SYS_EXECVE
+  Log("sys_execve: path = %s, uargv = %p, uenvp = %p", path, uargv, uenvp);
+#endif
+  memset(envp, 0, sizeof(envp));
+  for(i=0;; i++){
+    if(i >= NELEM(envp)){
       goto badenv;
     }
-  if(uenv == 0){
-    envp[i] = 0;
-    break;
-  }
-  envp[i] = kalloc();
-  if(envp[i] == 0)
-    goto badenv;
-  if(fetchstr(uenv, envp[i], PGSIZE) < 0)
-    goto badenv;
-}
+    if(uenvp) {
+      if(fetchaddr(uenvp+sizeof(uint64)*i, (uint64*)&uenv) < 0){
+        goto badenv;
+      }
+    }
 
-memset(argv, 0, sizeof(argv));
+    if(uenv == 0){
+      envp[i] = 0;
+      break;
+    }
+    envp[i] = kalloc();
+    if(envp[i] == 0)
+      goto badenv;
+    if(fetchstr(uenv, envp[i], PGSIZE) < 0)
+      goto badenv;
+  }
 
-for(i=0;; i++){
-  if(i >= NELEM(argv)){
-    goto bad;
-  }
-  if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
-    goto bad;
-  }
-  if(uarg == 0){
-    argv[i] = 0;
-    break;
-  }
-  argv[i] = kalloc();
-  if(argv[i] == 0)
-    goto bad;
-  if(fetchstr(uarg, argv[i], PGSIZE) < 0) 
-    goto bad;
+  memset(argv, 0, sizeof(argv));
+
+  for(i=0;; i++){
+    if(i >= NELEM(argv)){
+      goto bad;
+    }
+    if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
+      goto bad;
+    }
+    if(uarg == 0){
+      argv[i] = 0;
+      break;
+    }
+    argv[i] = kalloc();
+    if(argv[i] == 0)
+      goto bad;
+    if(fetchstr(uarg, argv[i], PGSIZE) < 0) 
+      goto bad;
 }
 
 // now path and argv holds the user's args
@@ -652,63 +677,6 @@ return -1;
 }
 
 uint64
-sys_exec(void)
-{
-  // come in like:
-  // # exec(path, argv)
-  // where path is stored in a0, argv in a1 
-  char path[MAXPATH], *argv[MAXARG];
-  int i;
-  uint64 uargv, uarg;
-
-  // copy path and argv from user space to kernel space
-  argaddr(1, &uargv);
-  if(argstr(0, path, MAXPATH) < 0) {
-    return -1;
-  }
-
-#ifdef __DEBUG_SYS_EXEC
-  Log("do sys_exec");
-  Log("path = %s", path);
-#endif
-  memset(argv, 0, sizeof(argv));
-  for(i=0;; i++){
-    if(i >= NELEM(argv)){
-      goto bad;
-    }
-    if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
-      goto bad;
-    }
-	if(uarg == 0){
-      argv[i] = 0;
-      break;
-    }
-    argv[i] = kalloc();
-    if(argv[i] == 0)
-      goto bad;
-    if(fetchstr(uarg, argv[i], PGSIZE) < 0)
-      goto bad;
-  }
-
-  // now path and argv holds the user's args
-  int ret = exec(path, argv);
-
-  // free the temporary memory then return
-  for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]);
-#ifdef __DEBUG_SYS_EXEC
-  Log("sys_exec done"); 
-#endif
-
-  return ret;
-
- bad:
-  for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]);
-  return -1;
-}
-
-uint64
 sys_pipe(void)
 {
   uint64 fdarray; // user pointer to array of two integers
@@ -721,20 +689,24 @@ sys_pipe(void)
     return -1;
   fd0 = -1;
   if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){
+    // the fd0 may have been put in the ofile array when fd1 not, so we need to clean it up
     if(fd0 >= 0)
       p->ofile[fd0] = 0;
-    fileclose(rf);
-    fileclose(wf);
+    fileclose(rf, fd0 < 0 ? 0 : 1);
+    fileclose(wf, fd1 < 0 ? 0 : 1);
     return -1;
   }
   if(copyout(p->mm.pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
      copyout(p->mm.pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
     p->ofile[fd0] = 0;
     p->ofile[fd1] = 0;
-    fileclose(rf);
-    fileclose(wf);
+    fileclose(rf, 1);
+    fileclose(wf, 1);
     return -1;
   }
+#ifdef __SYS_PIPE
+  Log("sys_pipe: rf_fd=%d, wf_fd=%d", fd0, fd1);
+#endif
   return 0;
 }
 
@@ -857,7 +829,7 @@ sys_dev(void)
     if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0)
     {
         if (f)
-            fileclose(f);
+            fileclose(f, 0);
         return -1;
     }
 
@@ -870,6 +842,29 @@ sys_dev(void)
 }
 
 
+// static int fileread_com(struct file *f, int user_dst, uint64 addr, uint off, uint n, int *rcnt)
+// {
+//   int r = 0;
+
+//   if(!IS_READABLE(f->flags))
+//     return -1;
+
+//   if(f->type == FD_PIPE){
+//     r = piperead(f->pipe, user_dst, addr, n);
+//   } else if(f->type == FD_DEVICE){
+//     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
+//       return -1;
+//     r = devsw[f->major].read(1, addr, n);
+//   } else if(f->type == FD_INODE){
+//     f->fops->read(f, user_dst, addr, off, n, &r);
+//   } else {
+//     Log("file %p type = %d", f, f->type);
+//     panic("fileread");
+//   }
+
+//   return 0;
+// }
+
 /**
  * @brief generic_open - open a file in the filesystem
  * 
@@ -878,17 +873,26 @@ sys_dev(void)
  * @param omode open mode
  * @return file descriptor on success, -1 on error
  */
-static uint64 generic_open(char *path, int flags, int omode) {
+uint64 generic_open(char *path, int flags, int omode) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
   struct file *f;
   int fd;
   int r = -1;
-  if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
-    if(f)
-      fileclose(f);
+  if((f = filealloc()) == NULL) {
     return -1;
   }
-  r = fd;
+  if((fd = fdalloc(f)) < 0) {
+    fileclose(f, 0);
+    return fd;
+  }
+  // if(strcmp(path, "/usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache") == 0) {
+  //   Warn("generic_open: trying to open /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache, this is not supported yet");
+  //   path = "/dev/null";
+  //   // f->major = 0;
+  //   // f->type = FD_DEVICE;
+  //   // f->fops->read = fileread_com;
+  //   // return fd;
+  // }
   if (fs == NULL) {
     printf("FS type not found\n");
     return -1;
@@ -901,18 +905,21 @@ static uint64 generic_open(char *path, int flags, int omode) {
   f->flags |= flags;
   f->fops = fs->fops;
   set_omode(f, omode);
+  if(strcmp(path, "/musl/dlopen_dso.so") == 0) {
+    path = "musl/lib//musl/dlopen_dso.so";
+  }
   strcpy(f->info.path, path);
-  if (fs->fops->open(f, path, flags) < 0) {
-    fileclose(f);
+  if ((r = fs->fops->open(f, path, flags)) < 0) {
+    fileclose(f, 1);
     myproc()->ofile[fd] = 0;
-    printf("fsops->open failed, path %s\n", path);
-    return -1;
+    // printf("fsops->open failed, path %s\n", path);
+    return r;
   }
   #ifdef __DEBUG_GOPEN
   Log("generic_open : path %s successfully opened, type = %d", path, f->type);
   #endif
 
-  return r;
+  return fd;
 }
 uint64 sys_openat(void) {
 // int openat(int dirfd, const char *pathname, int flags, mode_t mode);
@@ -929,11 +936,13 @@ uint64 sys_openat(void) {
   // printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
 #ifdef __DEBUG_SYS_OPENAT
-  printf("[sys_openat] abs_path = %s\n", abs_path);
+  Log("[sys_openat] abs_path = %s, flags = 0x%x, omode = 0x%x", abs_path, flags, omode);
 #endif
   if((r = generic_open(abs_path, flags, omode)) < 0) {
-    printf("[sys_openat] generic_open failed, abs_path = %s\n", abs_path);
-    return -1;
+#ifdef __DEBUG_SYS_OPENAT
+    Warn("[sys_openat] generic_open failed, abs_path = %s, r = %d\n", abs_path, r);
+#endif
+    return r;
   }
 
 #ifdef __DEBUG_SYS_OPENAT
@@ -978,7 +987,7 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
   struct vfs_filesystem *fs = vfs_resolve_fs(path);
   int r = 0;
   #ifdef __DEBUG_GENERIC_FSTAT
-  printf("[generic_fstat] pathname = %s\n", path);
+  Log("[generic_fstat] pathname = %s", path);
   #endif
   if (fs == NULL) {
       printf("FS type not found\n");
@@ -989,7 +998,7 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
       return EINVAL;
   }
   if ((r = fs->fsops->fstat(path, buf)) != EOK) {
-      printf("fsops->fstat failed, r = %d\n", r);
+      // printf("fsops->fstat failed, r = %d\n", r);
       return r;
   }
   #ifdef __DEBUG_GENERIC_FSTAT
@@ -1025,11 +1034,11 @@ uint64 sys_fstatat() {
 
   get_abpath_from_dirfd(pathname, dirfd, abs_path);
 #ifdef __DEBUG_SYS_FSTATAT
-  printf("[sys_fstatat] abs_path = %s\n", abs_path);
+  Log("[sys_fstatat] abs_path = %s", abs_path);
 #endif
   struct kstat kbuf;
   if((r = generic_fstat(abs_path, &kbuf)) != EOK) {
-      printf("[sys_fstatat] generic_fstat failed\n");
+      // printf("[sys_fstatat] generic_fstat failed\n");
       return -r;
   }
   if (copyout(myproc()->mm.pagetable, statbuf, (char *)&kbuf, sizeof(struct stat)) < 0) {
@@ -1115,13 +1124,13 @@ uint64 sys_ioctl(void) {
   // int ioctl(int fd, int op, ...);            /* musl, other UNIX */
   struct file *f;
   int fd;
-  uint64 op;
+  unsigned long op;
   uint64 arg;
   if (argfd(0, &fd, &f) < 0) {
       return -1;
   }
-  arglong(1, &op);
-  arglong(2, &arg);
+  argulong(1, &op);
+  arguint64(2, &arg);
   // printf("[sys_ioctl] fd = %d, op = 0x%x, arg = 0x%x\n", fd, op, arg);
   return do_ioctl(f, op, arg);
   // return -1;
@@ -1131,13 +1140,13 @@ uint64 sys_fcntl(void) {
   // int fcntl(int fd, int cmd, ... /* arg */ );
   struct file *f;
   int fd;
-  uint64 cmd;
+  int cmd;
   uint64 arg;
   if (argfd(0, &fd, &f) < 0) {
       return -1;
   }
-  arglong(1, &cmd);
-  arglong(2, &arg);
+  argint(1, &cmd);
+  arguint64(2, &arg);
 #ifdef __DEBUG_SYS_FCNTL
   printf("[sys_fcntl] fd = %d, cmd = %d, arg = %d\n", fd, cmd, arg);
 #endif
@@ -1216,7 +1225,7 @@ uint64 sys_getdents64(void) {
 }
 
 int generic_writev(struct file *f, uint64 iov, int iovcnt) {
-  int wcnt = 0;
+  size_t wcnt = 0;
   char *kvecs = NULL;
   if((kvecs = kmalloc(iovcnt * sizeof(struct iovec))) == NULL) {
     printf("generic_writev: kmalloc failed\n");
@@ -1342,7 +1351,7 @@ uint64 sys_faccessat(void) {
     return -1;
   }
   if (fs->fsops->faccess(abs_path, amode, flag) < 0) {
-    printf("sys_faccessat: fsops->faccessat failed\n");
+    // printf("sys_faccessat: fsops->faccessat failed\n");
     return -1;
   }
 #ifdef __DEBUG_SYS_FACCESSAT
@@ -1351,22 +1360,23 @@ uint64 sys_faccessat(void) {
   return 0;
 }
 
-static int file_exist(const char *path) {
-  struct vfs_filesystem *fs = vfs_resolve_fs(path);
-  if (fs == NULL) {
-    printf("file_exsit: vfs_resolve_fs failed\n");
-    return 0;
-  }
-  if(fs->fsops->file_exist == NULL) {
-    printf("file_exsit: fsops->file_exsit is NULL\n");
-    return 0;
-  }
-  return fs->fsops->file_exist(path);
-}
+// static int file_exist(const char *path) {
+//   struct vfs_filesystem *fs = vfs_resolve_fs(path);
+//   if (fs == NULL) {
+//     printf("file_exsit: vfs_resolve_fs failed\n");
+//     return 0;
+//   }
+//   if(fs->fsops->file_exist == NULL) {
+//     printf("file_exsit: fsops->file_exsit is NULL\n");
+//     return 0;
+//   }
+//   return fs->fsops->file_exist(path);
+// }
 
 int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct timespec *times, int flags) {
   char abs_path[MAXPATH];
   struct vfs_filesystem *fs = NULL;
+  int r = 0;
 
   if(flags & ~AT_SYMLINK_NOFOLLOW) {
     printf("generic_utimensat: flags & ~AT_SYMLINK_NOFOLLOW is not supported\n");
@@ -1375,26 +1385,31 @@ int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct ti
   get_abpath_from_dirfd(pathname, dirfd, abs_path);
   
 #ifdef __DEBUG_GENERIC_UTIMENSAT
-  printf("[generic_utimensat] dirfd = %d, pathname = %s, abs_path = %s, flags = %d\n", dirfd, pathname ? pathname : "NULL", abs_path, flags);
+  Log("[generic_utimensat] dirfd = %d, pathname = %s, abs_path = %s, flags = %d", dirfd, pathname ? pathname : "NULL", abs_path, flags);
+  if(file_exist(abs_path)) {
+    Log("[generic_utimensat] file %s exists", abs_path);
+  } else {
+    Log("[generic_utimensat] file %s does not exist", abs_path);
+  } 
 #endif
-  if(!file_exist(abs_path)) {
-    // printf("generic_utimensat: file %s does not exist\n", abs_path);
-    // return -1;
+  // if(!file_exist(abs_path)) {
+  //   // printf("generic_utimensat: file %s does not exist\n", abs_path);
+  //   // return -1;
 
-    // or create a new file if it does not exist?
-    int flags = O_CREAT | O_RDWR;
-    int omode = 0644; // default mode
-    int fd = generic_open(abs_path, flags, omode);
-    if(fd < 0) {
-      printf("generic_utimensat: generic_open failed, abs_path = %s\n", abs_path);
-      return -1;
-    }
-    // close the file descriptor
-    struct file *f = myproc()->ofile[fd];
-    fileclose(f);
-    myproc()->ofile[fd] = NULL; // clear the file descriptor
-    // now we can set the timestamps
-  }
+  //   // or create a new file if it does not exist?
+  //   int flags = O_CREAT | O_RDWR;
+  //   int omode = 0644; // default mode
+  //   int fd = generic_open(abs_path, flags, omode);
+  //   if(fd < 0) {
+  //     printf("generic_utimensat: generic_open failed, abs_path = %s\n", abs_path);
+  //     return -1;
+  //   }
+  //   // close the file descriptor
+  //   struct file *f = myproc()->ofile[fd];
+  //   fileclose(f, 1);
+  //   myproc()->ofile[fd] = NULL; // clear the file descriptor
+  //   // now we can set the timestamps
+  // }
 
   fs = vfs_resolve_fs(abs_path);
   if (fs == NULL) {
@@ -1405,9 +1420,9 @@ int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct ti
     printf("generic_utimensat: fsops->utimensat is NULL\n");
     return -1;
   }
-  if (fs->fsops->utimens(abs_path, times) < 0) {
-    printf("generic_utimensat: fsops->utimensat failed\n");
-    return -1;
+  if ((r = fs->fsops->utimens(abs_path, times))< 0) {
+    printf("generic_utimensat: fsops->utimensat failed, r = %d\n", r);
+    return r;
   }
 #ifdef __DEBUG_GENERIC_UTIMENSAT
   Log("generic_utimensat: abs_path %s successfully utimensat", abs_path);
@@ -1528,65 +1543,66 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
   
   ssize_t nread = 0;
   ssize_t nwritten = 0;
-  // off_t offset;
+  off_t offset = 0;
+  // off_t original_offset = 0;
   void *kbuf = NULL;
 
   if(offset_addr) {
-    if(copyin(myproc()->mm.pagetable, (char *)&in_f->fpos, (uint64)offset_addr, sizeof(off_t)) < 0) {
+    if(copyin(myproc()->mm.pagetable, (char *)&offset, (uint64)offset_addr, sizeof(off_t)) < 0) {
       printf("do_sendfile: copyin failed\n");
       return -1;
     }
   } else {
-    // offset = in_f->fpos;
+    offset = in_f->fpos;
   }
+  // original_offset = in_f->fpos; // save the original file position
 
   if((kbuf = kalloc()) == NULL) {
-    printf("do_sendfile: kalloc failed\n");
+    Warn("do_sendfile: kalloc failed");
     goto bad;
   }
 #ifdef __DEBUG_DO_SENDFILE
-  Log("do_sendfile: kbuf = %p, kbuf size = %d", kbuf, PGSIZE);
-  // Log("local offset addr %p, offset %d", &offset, offset);
-  Log("tkstack: %p, pkstack %p", (void *)mythread()->kstack, (void *)myproc()->kstack);
-  // Log("do_sendfile: out_f = %p, in_f = %p, offset_addr = %p, count = %d, offset = %d", out_f, in_f, (void *)offset_addr, count, offset);
+  Log("do_sendfile: kbuf = %p, kbuf size = %d, count %d, offset = %d", kbuf, PGSIZE, count, offset);
 #endif
 // in fact, the ext4_fread will check if the count larger than the file size, so the path is used for avoiding reading data larger than PGSIZE to kbuf
   if(count > PGSIZE) {
-    nwritten = rw_sharp(out_f, in_f, kbuf, in_f->fpos, count);
+    nwritten = rw_sharp(out_f, in_f, kbuf, offset, count);
+    offset += nwritten; // update the offset
     goto finished; // rw_sharp will handle the read and write operations
   }
   if((nread = fileread(in_f, 0, (uint64)kbuf, count, in_f->fpos)) < 0) {
-    printf("do_sendfile: fileread failed, nread = %d\n", nread);
+    Warn("do_sendfile: fileread failed, nread = %d", nread);
     goto bad;
   }
 
-  // offset += nread;
-
-  // if(offset != in_f->fpos) { // for debug, the f->pos should have been updated by fileread
-  //   printf("do_sendfile: offset != in_f->fpos, offset = %d, in_f->fpos = %d\n", offset, in_f->fpos);
-  //   goto bad;
-  // }
+  offset += nread;
+  if(offset != in_f->fpos) { // for debug, the f->pos should have been updated by fileread
+    printf("do_sendfile: offset != in_f->fpos, offset = %d, in_f->fpos = %d\n", offset, in_f->fpos);
+    goto bad;
+  }
   if((nwritten = filewrite(out_f, 0, (uint64)kbuf, nread, out_f->fpos)) < 0) {
-    printf("do_sendfile: filewrite failed, nwritten = %d\n", nwritten);
+    Warn("do_sendfile: filewrite failed, nwritten = %d", nwritten);
     goto bad;
   }
   if(nwritten != nread) {
-    printf("do_sendfile: nwritten != nread, nwritten = %d, nread = %d\n", nwritten, nread);
+    Warn("do_sendfile: nwritten != nread, nwritten = %d, nread = %d", nwritten, nread);
     goto bad;
   }
 
 finished:
 #ifdef __DEBUG_DO_SENDFILE
-  // Log("finished local offset addr %p, offset %d", &offset, offset);
+  Log("finished local offset addr %p, offset %d, in_f->fpos = %d", &offset, offset, in_f->fpos);
 #endif
   // offset = in_f->fpos; // update the file position of in_f
   if(offset_addr) {
-    if(copyout(myproc()->mm.pagetable, (uint64) offset_addr, (char *)&in_f->fpos, sizeof(off_t)) < 0) {
-      printf("do_sendfile: copyout failed\n");
+    if(copyout(myproc()->mm.pagetable, (uint64) offset_addr, (char *)&offset, sizeof(off_t)) < 0) {
+      Warn("do_sendfile: copyout failed");
       goto bad;
     }
+    // in_f->fpos = original_offset;
+    in_f->fpos = offset; // update the file position of in_f
   } else {
-    // in_f->fpos = offset; // update the file position
+    in_f->fpos = offset; // update the file position
   }
   kfree(kbuf);
   return nwritten; // return the number of bytes written
@@ -1638,21 +1654,21 @@ uint64 sys_sendfile(void) {
    */
 
   if(argfd(0, &out_fd, &out_f) < 0) {
-    printf("[sys_sendfile] argfd(0, 0, &out_f) failed\n");
+    Warn("[sys_sendfile] argfd(0, 0, &out_f) failed");
     return -1;
   }
   if(argfd(1, &in_fd, &in_f) < 0) {
-    printf("[sys_sendfile] argfd(1, 0, &in_f) failed\n");
+    Warn("[sys_sendfile] argfd(1, 0, &in_f) failed");
     return -1;
   }
   argaddr(2, (uint64 *)&offset_addr);
   arguint64(3, &count);
 #ifdef __DEBUG_SYS_SENDFILE
-  printf("[sys_sendfile] out_fd = %d, in_fd = %d, offset_addr = %p, count = %d\n", out_fd, in_fd, (void *)offset_addr, count);
+  Log("[sys_sendfile] out_fd = %d, in_fd = %d, offset_addr = %p, count = %d", out_fd, in_fd, (void *)offset_addr, count);
 #endif
 
   if(out_f == NULL || in_f == NULL) {
-    printf("[sys_sendfile] out_f or in_f is NULL\n");
+    Warn("[sys_sendfile] out_f or in_f is NULL\n");
     return -1;
   }
   
@@ -1692,13 +1708,17 @@ uint64 sys_lseek(void) {
     printf("[sys_lseek] argfd failed\n");
     return -1;
   }
-  argint(1, (int *)&offset);
+  arglong(1, &offset);
   argint(2, &whence);
 #ifdef __DEBUG_SYS_LSEEK
   Log("[sys_lseek] fd = %d, offset = %d, whence = %d", fd, offset, whence);
 #endif  
   if(f == NULL) {
     printf("[sys_lseek] f is NULL\n");
+    return -1;
+  }
+  if(f->type != FD_INODE) {
+    // printf("[sys_lseek] f->type is not FD_INODE, f->type = %d\n", f->type);
     return -1;
   }
   if(f->fops == NULL) {
@@ -1710,13 +1730,95 @@ uint64 sys_lseek(void) {
     return -1;
   }
   
-  int r = f->fops->lseek(f, offset, whence);
+  off_t r = f->fops->lseek(f, offset, whence);
   if(r < 0) {
-    printf("[sys_lseek] f->fops->lseek failed, r = %d\n", r);
-    return -1;
+    // printf("[sys_lseek] f->fops->lseek failed, r = %d\n", r);
+    return r;
   }
 #ifdef __DEBUG_SYS_LSEEK
   Log("[sys_lseek] f->fops->lseek success, r = %d, f->fpos = %d", r, f->fpos);
 #endif
   return r; // return the new file position
+}
+
+/**
+ * @brief The statfs() system call returns information about a mounted
+       filesystem.
+ * @property int statfs(const char *path, struct statfs *buf);
+ * @return   On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_statfs(void) {
+  uint64 ubuf_addr;
+  char path[MAXPATH];
+  struct vfs_filesystem *fs = NULL;
+  int ret;
+  if(argstr(0, path, MAXPATH) < 0) {
+    printf("[sys_statfs] argstr failed\n");
+    return -1;
+  }
+  argaddr(1, &ubuf_addr);
+#ifdef __DEBUG_SYS_STATFS
+  Log("[sys_statfs] path = %s, ubuf_addr = %p", path, (void *)ubuf_addr);
+#endif
+  fs = vfs_resolve_fs(path);
+  if (fs == NULL) {
+    printf("[sys_statfs] vfs_resolve_fs failed\n");
+    return -1;
+  }
+  if(fs->fsops->statfs == NULL) {
+    printf("[sys_statfs] fsops->statfs is NULL\n");
+    return -1;
+  }
+  struct statfs kbuf;
+  if((ret = fs->fsops->statfs(fs, &kbuf)) < 0) {
+    printf("[sys_statfs] fsops->statfs failed\n");
+    return ret;
+  }
+  if(copyout(myproc()->mm.pagetable, ubuf_addr, (char *)&kbuf, sizeof(struct statfs)) < 0) {
+    printf("[sys_statfs] copyout failed\n");
+    return -1;
+  }
+#ifdef __DEBUG_SYS_STATFS
+  Log("[sys_statfs] fsops->statfs success, path = %s, ubuf_addr = %p", path, (void *)ubuf_addr);
+#endif
+  return 0; // success
+}
+
+/**
+ * @brief rename a file, moving it from oldpath to newpath.
+ * @property int renameat2(int olddirfd, const char *oldpath,
+                    int newdirfd, const char *newpath, unsigned int flags);
+ * @return On success, zero is returned.  On error, -1 is returned, and errno
+       is set to indicate the error.
+ */
+uint64 sys_renameat2() {
+  int olddirfd, newdirfd;
+  char oldpath[MAXPATH], newpath[MAXPATH];
+  char oldpath_abs[MAXPATH], newpath_abs[MAXPATH];
+  int flags;
+  struct vfs_filesystem *fs = NULL;
+
+  argint(0, &olddirfd);
+  if(argstr(1, oldpath, MAXPATH) < 0) {
+    printf("[sys_renameat2] argstr(1, oldpath, MAXPATH) failed\n");
+    return -1;
+  }
+  argint(2, &newdirfd);
+  if(argstr(3, newpath, MAXPATH) < 0) {
+    printf("[sys_renameat2] argstr(3, newpath, MAXPATH) failed\n");
+    return -1;
+  }
+  argint(4, &flags);
+
+  get_abpath_from_dirfd(oldpath, olddirfd, oldpath_abs);
+  get_abpath_from_dirfd(newpath, newdirfd, newpath_abs);
+
+  fs = vfs_resolve_fs(oldpath_abs);
+
+  int r = fs->fsops->rename(oldpath_abs, newpath_abs);
+#ifdef __DEBUG_SYS_RENAMEAT2
+  Log("[sys_renameat2] oldpath_abs = %s, newpath_abs = %s, flags = %p, r = %d", oldpath_abs, newpath_abs, flags, r);
+#endif
+  return r;
 }

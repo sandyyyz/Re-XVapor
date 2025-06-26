@@ -8,6 +8,7 @@
 #include "memlayout.h"
 #include "trap.h"
 #include "errno.h"
+#include "vm.h"
 
 static void signal_default(struct tcb *t, int sig_no);
 static int do_handle_signal(struct tcb *t, int sig_no, struct sigaction *sig_act);
@@ -20,7 +21,7 @@ int do_sigaction(int signum, __nullable struct sigaction *act, __nullable struct
 
     if(!valid_signal(signum))
         return -1;
-    acquire(&t->sigs.siglock);
+    acquire(&t->sigs->siglock);
     sa = &sig_action(t, signum);
     if(oldact) {
         *oldact = *sa;
@@ -30,7 +31,7 @@ int do_sigaction(int signum, __nullable struct sigaction *act, __nullable struct
         sig_del_set_mask(act->sa_mask, sig_gen_mask(SIGKILL) | sig_gen_mask(SIGSTOP));
         *sa = *act;
     }
-    release(&t->sigs.siglock);
+    release(&t->sigs->siglock);
     return 0;
 }
 
@@ -38,8 +39,11 @@ int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t 
     struct tcb *t = mythread();
     sigset_t oldmask;
 
-    acquire(&t->sigs.siglock);
+    acquire(&t->sigs->siglock);
     if (set) {
+#ifdef __DEBUG_DO_SIGPROCMASK
+        Log("do_sigprocmask: thread %d, how: %d, set: %p", t->tid, how, set->sig);
+#endif
         switch (how) {
             case SIG_BLOCK:
                 t->blocked.sig |= set->sig;
@@ -51,7 +55,8 @@ int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t 
                 t->blocked.sig = set->sig;
                 break;
             default:
-                release(&t->sigs.siglock);
+                release(&t->sigs->siglock);
+                Warn("do_sigprocmask: invalid how value: %d", how);
                 return -1; // Invalid how value
         }
     }
@@ -64,7 +69,8 @@ int do_sigprocmask(int how, __nullable const sigset_t *set, __nullable sigset_t 
         oldmask = t->blocked;
         *oldset = oldmask;
     }
-    release(&t->sigs.siglock);
+    sig_del_set_mask(t->blocked, sig_gen_mask(SIGKILL) | sig_gen_mask(SIGSTOP));
+    release(&t->sigs->siglock);
     return 0;
 }
 
@@ -83,7 +89,7 @@ static void signal_default(struct tcb *t, int sig_no) {
             break;
         case SIGCHLD:
             // Default action for SIGCHLD is to ignore it
-            // This is usually handled by the kernel, so we can just ignore it here
+            // wait_one(0); // Wait for the child process to exit
             break;
         default:
             // For other signals, we can just ignore them or log a warning
@@ -111,11 +117,14 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
         return 0; // No pending signals
     }
 #ifdef __DEBUG_SIGNAL_HANDLE
-    Log("signal_handle: thread %d has %d pending signals", t->tid, t->pending_cnt);
+    // Log("signal_handle: thread %d has %d pending signals", t->tid, t->pending_cnt);
 #endif
     acquire(&t->sig_pending.siglock);
     list_for_each_entry_safe(sig_cur, sig_tmp, &t->sig_pending.list, list) {
         sig_no = sig_cur->info.si_signo;
+#ifdef __DEBUG_SIGNAL_HANDLE
+        // Log("signal_handle: thread %d processing signal %d", t->tid, sig_no);
+#endif
         if (sig > 0 && sig_no != sig) {
             // If a specific signal is requested, skip others
             continue;
@@ -130,17 +139,25 @@ int signal_handle(struct tcb *t, int sig, __nullable siginfo_t *retinfo) {
         sig_act = sig_action(t, sig_no);
         if (sig_ignored(t, sig_no) || sig_act.sa_handler == SIG_IGN) {
             // Ignore the signal
-            list_del_reinit(&sig_cur->list);
-            t->pending_cnt--;
-            kfree(sig_cur); // Free the signal queue
+            // list_del_reinit(&sig_cur->list);
+            // t->pending_cnt--;
+            // kfree(sig_cur); // Free the signal queue
             continue;
         } else if (sig_act.sa_handler == SIG_DFL) {
+#ifdef __DEBUG_SIGNAL_HANDLE
+            Log("signal_handle: thread %d handle %d with handler SIG_DFL", t->tid, sig_no, sig_act.sa_handler);
+            Log("t->blockd.sig: %p", t->blocked.sig);
+#endif
             // Default action
             signal_default(t, sig_no);
             t->pending_cnt--;
             list_del_reinit(&sig_cur->list);
             kfree(sig_cur); // Free the signal queue
         } else {
+#ifdef __DEBUG_SIGNAL_HANDLE
+            Log("signal_handle: thread %d handle %d with handler %p", t->tid, sig_no, sig_act.sa_handler);
+            Log("t->blockd.sig: %p", t->blocked.sig);
+#endif
             // Custom handler
             if(do_handle_signal(t, sig_no, &sig_act) != 0) {
                 Warn("Failed to handle signal %d for thread %d", sig_no, t->tid);
@@ -183,7 +200,10 @@ static int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, str
 
     tf->ra = (uint64)SIGRETURN; // trampoline to call sigreturn syscall
     tf->sp = (uint64)frame;
-
+#ifdef __DEBUG_SETUP_RT_FRAME
+    walk_va(myproc()->mm.pagetable, SIGRETURN);
+    walk_va(myproc()->mm.pagetable, TRAMPOLINE);
+#endif
     if (sig->sa_flags & SA_SIGINFO) {
         tf->epc = (uint64)sig->sa_sigaction;
         tf->a0 = (uint64)signo; /* a0: signal number */
@@ -355,10 +375,14 @@ int signal_send(siginfo_t *info, struct tcb *t) {
         return -1;
     }
     if (sig_existed(t, sig)) {
+#ifdef __DEBUG_SIGNAL_SEND
         Warn("signal_send : signal %d already exists in pending queue", sig);
+#endif
         return -1;
     }
-
+#ifdef __DEBUG_SIGNAL_SEND
+    Log("signal_send: thread %d send signal %d to thread %d", mythread()->tid, sig, t->tid);
+#endif
     // be killed immediately !!!
     if (sig == SIGKILL || sig == SIGSTOP || sig == SIGTERM) {
         t->killed = 1;
@@ -424,13 +448,19 @@ int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space sig
     acquire(&t->sig_pending.siglock);
     if (!sig_existed(t, sig_no)) {
         // No pending signal in the set
+        t->timeout = INT_MAX; // Set a large timeout value
+        // sleep on the signal pending queue
         while(t->timeout != 0) {
+            // Log("sigtimewait_common: thread %d waiting for signal %d", t->tid, sig_no);
             thread_sleep((void *) sig_no, &t->sig_pending.siglock, timeout);
         }
         release(&t->sig_pending.siglock);
     }
     if(!sig_existed(t, sig_no)) 
         return -EAGAIN ; // timeout
+    
+    if(holding(&t->sig_pending.siglock)) 
+        release(&t->sig_pending.siglock);
     if(signal_handle(t, sig_no, &siginfo) < 0) {
         Warn("sigtimewait_common: signal_handle failed for signal %d", sig_no);
         return -1;
@@ -438,6 +468,6 @@ int do_sigtimedwait(__kernel_space sigset_t *set,  __nullable __kernel_space sig
 
     if(info)
         *info = siginfo; // Copy the siginfo to the output info
-    return info->si_signo; // Return the signal number
+    return siginfo.si_signo; // Return the signal number
 }
 

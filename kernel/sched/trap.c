@@ -11,10 +11,11 @@
 #include "vm.h"
 #include "mmap.h"
 #include "signal.h"
+#include "sbi.h"
 
 struct spinlock tickslock, timeout_lock;
-uint ticks;
-
+uint ticks = 0;
+extern volatile int boot_hart;
 uint get_ticksnow(void) {
   uint t;
   acquire(&tickslock);
@@ -43,6 +44,53 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
+}
+
+static void pgfault_handler() {
+  uint64 va = PGROUNDDOWN(r_stval());
+  struct vma_struct *vma;
+  struct proc *p = myproc();
+  struct tcb *t = mythread();
+
+  acquire(&p->mm.lock);
+  if(!(vma = find_vma(p, va))) {
+    printf("thread %d usertrap: page fault at %p\n", t->tid, va);
+    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("scause=%p\n", r_scause());
+    printf("sstatus=%p\n", r_sstatus());
+    printf("satp=%p\n", r_satp());
+    panic("usertrap: page fault");
+  }
+  char* mem;
+  if(!(mem = kzalloc())) {
+    panic("usertrap: kalloc");
+  }
+#ifdef __DEBUG_PGFAULT
+  Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prem %p\n", p->pid, t->tid, va, PGSIZE, mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X);
+#endif
+  if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
+    panic("usertrap: mappages");
+  }
+#ifdef __DEBUG_UTRAP
+  // vmprint(p->mm.pagetable);
+#endif
+  release(&p->mm.lock);
+  if(vma->type != VMA_FILE) {
+    // anonymous vma, just return
+    return;
+  }
+  struct file* fp = vma->file;
+  int offset = va - vma->vm_start;
+  size_t rcnt = 0;
+  if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
+    printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
+    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("scause=%p\n", r_scause());
+    printf("sstatus=%p\n", r_sstatus());
+    printf("satp=%p\n", r_satp());
+    panic("usertrap: read file failed");
+  }
+  // release(&p->mm.lock);
 }
 
 // trampoline已经换栈和页表
@@ -102,44 +150,10 @@ usertrap(void)
     if(which_dev == 3) {
       // read/write pagefault,maybe mmap cause
       // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
-      uint64 va = PGROUNDDOWN(r_stval());
-      struct vma_struct *vma;
-      acquire(&p->mm.lock);
-      if(!(vma = find_vma(p, va))) {
-        printf("thread %d usertrap: page fault at %p\n", t->tid, va);
-        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-        printf("scause=%p\n", r_scause());
-        printf("sstatus=%p\n", r_sstatus());
-        printf("satp=%p\n", r_satp());
-        panic("usertrap: page fault");
-      }
-      char* mem;
-      if(!(mem = kzalloc())) {
-        panic("usertrap: kalloc");
-      }
-#ifdef __DEBUG_UTRAP
-      Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prot %p\n", p->pid, t->tid, va, PGSIZE, mem, vma->prot | PTE_U | PTE_X);
-#endif
-      if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
-        panic("usertrap: mappages");
-      }
-#ifdef __DEBUG_UTRAP
-      // vmprint(p->mm.pagetable);
-#endif
-      struct file* fp = vma->file;
-      int offset = va - vma->vm_start;
-      int rcnt = 0;
-      if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
-        printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
-        printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-        printf("scause=%p\n", r_scause());
-        printf("sstatus=%p\n", r_sstatus());
-        printf("satp=%p\n", r_satp());
-        panic("usertrap: read file failed");
-      }
-      release(&p->mm.lock);
+      pgfault_handler();
     }
   } else {
+    // devintr unrecognized
 #ifdef __SHOW_UNEXPECTED_UTRAP
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -149,13 +163,14 @@ usertrap(void)
       thread_setkilled(t);
     }
     proc_setkilled(p);
+    thread_exit(-1);
   }
 
   if(thread_killed(t) || proc_killed(p))
     // exit all threads of the process's thread group,
     // and then exit the process
     // every thread will go here
-    thread_exit(-1);
+    thread_exit(0);
     // thread_exit(-1);
     
   // give up the CPU if this is a timer interrupt.
@@ -181,8 +196,6 @@ int inline dodebug() { return 0;}
 void
 usertrapret(void)
 {
-
-
   struct proc *p = myproc();
   struct tcb *t = mythread();
 #ifdef __DEBUG_UTRAPRET
@@ -221,6 +234,7 @@ usertrapret(void)
   unsigned long x = r_sstatus();
   x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
   x |= SSTATUS_SPIE; // enable interrupts in user mode
+  x |= SSTATUS_SUM; // enable user memory access
   w_sstatus(x);
 
   // set S Exception Program Counter to the saved user pc.
@@ -239,23 +253,7 @@ usertrapret(void)
   // and switches to user mode with sret.
   // 定位到userret (trampoline.s)
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
-  #ifdef __DEBUG_UTRAPRET
-  // static int startd = 0;
-  if(dodebug())
-  { 
-    // startd += 1;
-    // Log("TRAMPOLINE = %p, (userret-trampoline) = %p", TRAMPOLINE, userret - trampoline);
-    // Log("usertrapret: trampoline_userret = %p\n", trampoline_userret);
-    // Log("trapframe->ra = %p, epc = %p, tid = %d", t->trapframe->ra, t->trapframe->epc, t->tid);
-    // printf_blue("  startd = %d \n", startd);
-    print_trapframe(t->trapframe);
-    vmprint(p->mm.pagetable);
-    // walk_va(p->mm.pagetable, (uint64)(t->trapframe));
-    // walk_va(p->mm.pagetable, (uint64)(THREAD_TRAPFRAME(t->tidx)));
-    walk_va(p->mm.pagetable, t->trapframe->sp);
-  }
-  #endif
-
+  
   ((void (*)(uint64, uint64))trampoline_userret)(satp, THREAD_TRAPFRAME(t->tidx));
 }
 
@@ -288,6 +286,7 @@ kerneltrap()
     printf("unknow devintr()\n");
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("t->kstack=%p\n", mythread()->kstack);
     panic("kerneltrap");
   }
 
@@ -305,6 +304,7 @@ kerneltrap()
     printf("scause=%p\n", r_scause());
     printf("sstatus=%p\n", r_sstatus());
     printf("satp=%p\n", r_satp());
+    printf("t->kstack=%p\n", mythread()->kstack);
     panic("kerneltrap: page fault");
   }
 
@@ -320,6 +320,9 @@ clockintr()
   acquire(&tickslock);
   ticks++;
   thread_wakeup_chan(&ticks);
+  // if(ticks % TICKS_PER_SECOND == 0) {
+  //   Warn("ticks %d", ticks);
+  // }
   release(&tickslock);
   
   /*
@@ -365,20 +368,23 @@ devintr()
       plic_complete(irq);
 
     return 1;
-  } else if(scause == 0x8000000000000001L){
-    // software interrupt from a machine-mode timer interrupt,
-    // forwarded by timervec in kernelvec.S.
+  } else if (scause == 0x8000000000000005L) {
+      // timer interrupt
+      
+      // how to support mutiple harts?
+      if (cpuid() == boot_hart)
+      {
+          clockintr();
+      } else {
+        Warn("cpuid %d not boot_hart, clockintr skipped", cpuid());
+      }
 
-    // only the fisrt cpu to deal with the clockintr
-    if(cpuid() == 0){
-      clockintr();
-    }
-    
-    // acknowledge the software interrupt by clearing
-    // the SSIP bit in sip.
-    w_sip(r_sip() & ~2);
+      // acknowledge the software interrupt by clearing
+      // the STIP bit in sip.
+      w_sip(r_sip() & ~1 << 5);
+      set_next_trigger();
 
-    return 2;
+      return 2;
   } else if(scause == 13 || scause == 15) {
     // read /write page fault
     return 3;

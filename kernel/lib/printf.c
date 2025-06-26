@@ -14,6 +14,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "proc.h"
+#include "sbi.h"
 
 volatile int panicked = 0;
 int printf_init = 0; // 0: not initialized, 1: initialized
@@ -124,8 +125,9 @@ panic(char *s)
   printf(s);
   printf("\n");
   panicked = 1; // freeze uart output from other CPUs
+  sbi_shutdown(0);
   for(;;)
-    ;
+  ;
 }
 
 void

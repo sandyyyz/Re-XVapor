@@ -9,7 +9,19 @@ typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int  uint32;
 typedef unsigned long uint64;
+typedef uint64 uint64_t;
+
+typedef uint32 uint32_t;
+
+typedef uint16 uint16_t;
+
+typedef uint8 uint8_t;
+
+typedef int int32_t;
+
+typedef short int16_t;
 typedef long int64;
+typedef int64 int64_t;
 
 #if !(defined (off_t))
 typedef long off_t;

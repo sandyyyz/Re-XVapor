@@ -19,206 +19,15 @@
     aux[index++] = val;
 
 static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offset, uint sz);
-#ifdef __USE_XV6FS
-static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
-#endif
 
 int flags2perm(int flags)
 {
-    int perm = 0;
+    int perm = PTE_A;
     if(flags & 0x1)
       perm = PTE_X;
     if(flags & 0x2)
       perm |= PTE_W;
     return perm;
-}
-/**
- * @brief execute a program
- * 
- * @param path the program path
- * @param argv arguments
- * @return argc of the main(argc, argv), -1 if failed
- * @details create a new pagetable and load the program into memory
- * @details create a new stack for the program
- * @details set trapframe->sp to ustack,and epc to 
- * @attention TODO: how to manage other threads' memory in pgtable? just kill them all right now , and the current thread turn to be the group leader
- */
-int exec(char *path, char **argv)
-{
-#ifdef __DEBUG_EXEC
-  Log("exec path: %s", path);
-#endif
-
-  char *s, *last;
-  int i, off, index = 0;
-  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
-  struct elfhdr elf;
-  int r = 0, rcnt = 0;
-  struct proghdr ph;
-  pagetable_t pagetable = 0, oldpagetable;
-  
-  struct proc *p = myproc();
-  struct tcb *t = mythread();
-
-  char abs_path[MAXPATH];
-  struct file *f;
-  if((f = filealloc()) == 0)
-    return -1;
-  get_absolute_path(path, myproc()->cinfo.path, abs_path);
-  if((r = ext4_vfopen(f, abs_path, O_RDONLY)) != EOK) {
-    Log("ext4_fopen2 failed %d", r);
-    return -1;
-  }
-
-  if(((r = ext4_vfread(f, 0, (uint64) &elf, 0, sizeof(elf), &rcnt)) != EOK) || 
-     (rcnt != sizeof(elf))) {
-    Log("ext4_fread failed %d", r);
-    ext4_vfclose(f);
-    return -1;
-  }
-
-  if(elf.magic != ELF_MAGIC)
-    goto bad;
-
-  if((pagetable = proc_pagetable(p)) == 0)
-    goto bad;
-
-  
-  
-  // Load program into memory.
-  for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if((r = ext4_vfread(f, 0, (uint64)&ph, off, sizeof(ph), &rcnt)) != EOK || rcnt != sizeof(ph))
-      goto bad;
-
-    if(ph.type == ELF_PROG_INTERP)
-      printf("ELF_PROG_INTERP not supported\n");
-    if(ph.type != ELF_PROG_LOAD) {
-      printf("ph.type == 0x%x\n", ph.type);
-      continue;
-    }
-    if(ph.memsz < ph.filesz)
-      goto bad;
-    if(ph.vaddr + ph.memsz < ph.vaddr)
-      goto bad;
-    // if(ph.vaddr % PGSIZE != 0)
-    //   goto bad;
-    uint64 sz1;
-    // allocate and map memory for the segment into process' pagetable
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
-      goto bad;
-    sz = sz1;
-    #ifdef __USE_XV6FS
-    // now load segment into mapped memory in pgtble
-    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
-      goto bad;
-    #else 
-    if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
-      goto bad;
-    #endif
-    
-  } 
-
-  // fix size, and allocate ustack and stack guard page
-  p = myproc();
-  uint64 oldsz = p->sz;
-
-  // Allocate two pages at the next page boundary.
-  // Make the first inaccessible as a stack guard.
-  // Use the second as the user stack.
-  sz = PGROUNDUP(sz);
-  uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 32 * PGSIZE, PTE_W)) == 0)
-    goto bad;
-  sz = sz1;
-  uvmclear(pagetable, sz - 32 * PGSIZE);
-  sp = sz;
-  stackbase = sp - 31 * PGSIZE;
-  
-  // Push argument strings, prepare rest of stack in ustack.
-  for(argc = 0; argv[argc]; argc++) {
-    if(argc >= MAXARG)
-      goto bad;
-    sp -= strlen(argv[argc]) + 1;
-    sp -= sp % 16; // riscv sp must be 16-byte aligned
-    if(sp < stackbase)
-      goto bad;
-    if(copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
-      goto bad;
-    ustack[argc] = sp;
-  }
-  ustack[argc] = 0;
-
-  // Load AUX vectors
-  sp -= 16;
-  uint64 aux[MAX_AT * 2];
-
-  ADD_AUXV(AT_HWCAP, 0);
-  ADD_AUXV(AT_PAGESZ, PGSIZE);
-  ADD_AUXV(AT_PHDR, elf.phoff);
-  ADD_AUXV(AT_PHENT, elf.phentsize);
-  ADD_AUXV(AT_PHNUM, elf.phnum);
-  ADD_AUXV(AT_BASE, 0);
-  ADD_AUXV(AT_ENTRY, elf.entry);
-  ADD_AUXV(AT_UID, 0);
-  ADD_AUXV(AT_EUID, 0);
-  ADD_AUXV(AT_GID, 0);
-  ADD_AUXV(AT_EGID, 0);
-  ADD_AUXV(AT_SECURE, 0);
-  ADD_AUXV(AT_RANDOM, sp);
-  ADD_AUXV(AT_NULL, 0);
-
-  //三个向量的压栈顺序：AUX -> envp -> argv,argc
-  // 1. AUX vector, 已经16字节对齐
-  sp -= sizeof(aux);
-  if (copyout(pagetable, sp, (char *)aux, sizeof(aux)) < 0)
-      goto bad;
-
-  // push the array of argv[] pointers.
-  sp -= (argc+1) * sizeof(uint64);
-  sp -= sp % 16;
-  if(sp < stackbase)
-    goto bad;
-  if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
-    goto bad;
-  
-  // now free other threads
-  free_allother_threads_group(t);
-  // and transfer trapframe
-  transfer_trapframe(t, pagetable,0);
-
-  // arguments to user main(argc, argv)
-  // argc is returned via the system call return
-  // value, which goes in a0.
-  t->trapframe->a1 = sp;
-
-  // Save program name for debugging.
-  for(last=s=path; *s; s++)
-    if(*s == '/')
-      last = s+1;
-  safestrcpy(p->name, last, sizeof(p->name));
-    
-  // Commit to the user image.
-  oldpagetable = p->mm.pagetable;
-  p->mm.pagetable = pagetable;
-  p->sz = sz;
-  t->trapframe->epc = elf.entry;  // initial program counter = main
-  t->trapframe->sp = sp; // initial stack pointer
-// #ifdef __DEBUG_EXEC
-//   Log("check elf.entry = %p", elf.entry);
-//   walk_va(pagetable, elf.entry);
-// #endif
-  proc_freepagetable(oldpagetable, oldsz, 1);
-
-  return argc; // this ends up in a0, the first argument to main(argc, argv)
-
- bad:
-  if(pagetable)
-    proc_freepagetable(pagetable, sz, 1);
-
-  if(f)
-    ext4_vfclose(f);
-  return -1;
-
 }
 
 int execve(char *path, char **argv, char **envp)
@@ -226,7 +35,8 @@ int execve(char *path, char **argv, char **envp)
   
   char *s, *last;
   int i, off;
-  int r = 0, rcnt = 0, index = 0;
+  int r = 0, index = 0;
+  size_t rcnt = 0;
   uint64 argc, envc, sz = 0, sp, ustack[MAXARG], estack[MAXENV + 1], stackbase;
   struct elfhdr elf;
   struct proghdr ph;
@@ -236,6 +46,10 @@ int execve(char *path, char **argv, char **envp)
   struct tcb *t = mythread();
   char abs_path[MAXPATH];
   struct file *f;
+  int need_dynamic = 0;
+  uint64 prog_entry = 0, interp_base = 0;
+  uint64 progh_base = 0;
+  int first = 0;
 
   if((f = filealloc()) == 0)
     return -1;
@@ -244,7 +58,9 @@ int execve(char *path, char **argv, char **envp)
   Log("execve abs_path: %s, path %s, cinfo.path %s", abs_path, path, myproc()->cinfo.path);
 #endif
   if((r = ext4_vfopen(f, abs_path, O_RDONLY)) != EOK) {
-    Log("ext4_fopen2 failed %d", r);
+#ifdef __DEBUG_EXECVE
+    Warn("ext4_fopen2 failed %d", r);
+#endif
     return -1;
   }
   if(((r = ext4_vfread(f, 0, (uint64) &elf, 0, sizeof(elf), &rcnt)) != EOK) || 
@@ -265,10 +81,16 @@ int execve(char *path, char **argv, char **envp)
                         || rcnt != sizeof(ph))
       goto bad;
 
-    // if(ph.type == ELF_PROG_INTERP)
-    //   printf("ELF_PROG_INTERP not supported\n");
+    if(ph.type == ELF_PROG_INTERP) {
+#ifdef __DEBUG_EXECVE
+      Warn("ELF_PROG_INTERP!");
+#endif
+      need_dynamic = 1;
+    }
     if(ph.type != ELF_PROG_LOAD) {
-      // printf("ph.type == 0x%x\n", ph.type);
+#ifdef __DEBUG_EXECVE
+      Log("ph.type == 0x%x", ph.type);
+#endif
       continue;
     }
 
@@ -279,16 +101,93 @@ int execve(char *path, char **argv, char **envp)
     // if(ph.vaddr % PGSIZE != 0)
     //   goto bad;
     uint64 sz1;
+#ifdef __DEBUG_EXECVE
+    Log("ph.vaddr = %p, ph.memsz = 0x%x, ph.filesz = 0x%x, ph.off = %p, ph.flags = 0x%x", 
+        ph.vaddr, ph.memsz, ph.filesz, ph.off, ph.flags);
+#endif
     // allocate and map memory for the segment into process' pagetable
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags) | PTE_W)) == 0)
       goto bad;
     sz = sz1;
-
+#ifdef __DEBUG_EXECVE
+    printf_green("ph.off = %p, PGROUNDDOWN(ph.off) = %p, ph.vaddr = %p, PGROUNDDOWN(ph.vaddr) = %p, ph.filesz = %d\n", 
+            ph.off, PGROUNDDOWN(ph.off), ph.vaddr, PGROUNDDOWN(ph.vaddr), ph.filesz);
+#endif
     if(floadseg(pagetable, f, PGROUNDDOWN(ph.vaddr), PGROUNDDOWN(ph.off), ph.filesz + (ph.vaddr - PGROUNDDOWN(ph.vaddr))) < 0)
       goto bad;
+    if(first == 0) {
+      progh_base = PGROUNDDOWN(ph.vaddr);
+      first = 1; 
+    }
   }
 
   ext4_vfclose(f);
+
+  if (need_dynamic) {
+      struct file* interp;
+      struct elfhdr interp_elf;
+      struct proghdr interp_ph;
+      const char* interp_path = "/musl/lib/libc.so";
+
+      interp_base = PGROUNDUP(sz);
+      if((interp = filealloc()) == 0) {
+          Warn("filealloc failed for dynamic linker");
+          goto bad;
+      }
+      // printf("[execve] dynamic link start, interp_base: %p\n", interp_base);
+
+      if((r = ext4_vfopen(interp, interp_path, O_RDONLY)) != EOK) {
+          Warn("ext4_vfopen2 failed %d", r);
+          goto bad;
+      }
+
+      r = ext4_vfread(interp, 0, (uint64)&interp_elf, 0, sizeof(struct elfhdr), &rcnt);
+      if (r != EOK || rcnt != sizeof(struct elfhdr))
+          goto bad;
+      if (interp_elf.magic != ELF_MAGIC) {
+        Warn("ELF magic not match for dynamic linker");
+        ext4_vfclose(interp);
+        interp = NULL;
+        goto bad;
+      }
+      for (i = 0, off = interp_elf.phoff; i < interp_elf.phnum; i++, off += sizeof(struct proghdr))
+      {
+          r = ext4_vfread(interp, 0, (uint64)&interp_ph, off, sizeof(struct proghdr), &rcnt);
+          if (r != EOK || rcnt != sizeof(struct proghdr))
+              goto bad;
+          if (interp_ph.type != ELF_PROG_LOAD)
+              continue;
+          if (interp_ph.memsz < interp_ph.filesz)
+              goto bad;
+          if (interp_ph.vaddr + interp_ph.memsz < interp_ph.vaddr)
+              goto bad;
+#ifdef __DEBUG_EXECVE
+          Log("interp_ph.vaddr = %p, interp_ph.memsz = 0x%x, interp_ph.filesz = 0x%x, interp_ph.off = %p, interp_ph.flags = 0x%x", 
+              interp_ph.vaddr, interp_ph.memsz, interp_ph.filesz, interp_ph.off, interp_ph.flags);
+#endif
+          uint64 sz1;
+          if ((sz1 = uvmalloc(pagetable, sz, interp_base + interp_ph.vaddr + interp_ph.memsz, PTE_W | PTE_X)) == 0)
+              goto bad;
+          sz = sz1;
+
+          uint margin_size = 0;
+          if ((interp_ph.vaddr % PGSIZE) != 0)
+          {
+              margin_size = interp_ph.vaddr % PGSIZE;
+          }
+          if (floadseg(pagetable, interp, interp_base + PGROUNDDOWN(interp_ph.vaddr), PGROUNDDOWN(interp_ph.off), interp_ph.filesz + margin_size) < 0)
+              goto bad;
+      }
+      ext4_vfclose(interp);
+      prog_entry = interp_base + interp_elf.entry;
+#ifdef __DEBUG_EXECVE
+      Warn("dynamic linker base = %p, intep_elf.entry = %p", interp_base, interp_elf.entry);
+#endif
+  } else
+      prog_entry = elf.entry;
+#ifdef __DEBUG_EXECVE
+  Warn("execve: prog_entry = %p, elf_entry = %p, need_dynamic = %d", prog_entry, elf.entry, need_dynamic);
+#endif
   // fix size, and allocate ustack and stack guard page
   p = myproc();
   uint64 oldsz = p->sz;
@@ -296,15 +195,24 @@ int execve(char *path, char **argv, char **envp)
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
   // Use the second as the user stack.
-  sz = PGROUNDUP(sz);
+
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 32 * PGSIZE, PTE_W)) == 0)
+  sz = PGROUNDUP(sz);
+
+  // Log("uvmalloc sz = %p, sz + 64 * PGSIZE = %p", sz, sz + 64 * PGSIZE);
+  if((sz1 = uvmalloc(pagetable, sz, sz + 64 * PGSIZE, PTE_W)) == 0)
     goto bad;
   sz = sz1;
-  uvmclear(pagetable, sz - 32 * PGSIZE);
+  uvmclear(pagetable, sz - 64 * PGSIZE);
   sp = sz;
-  stackbase = sp - 31 * PGSIZE;
+  stackbase = sp - 63 * PGSIZE;
   
+  // if((sz1 = map_ustack(pagetable, sz, 63)) == 0)
+  //     goto bad;
+  // sp = sz1;
+  // stackbase = sp - 63 * PGSIZE;
+
+  // Log("execve: sz = %p, sp = %p, stackbase = %p", sz, sp, stackbase);
   sp -= 16;
   // push environment strings
   for (envc = 0; envp[envc]; envc++)
@@ -339,13 +247,19 @@ int execve(char *path, char **argv, char **envp)
   // Load AUX vectors
   sp -= 16;
   uint64 aux[MAX_AT * 2];
-
-  ADD_AUXV(AT_HWCAP, 0);
+  // int fd = generic_open(abs_path, O_RDONLY, 0);
+  // if(fd < 0) {
+  //   Log("execve: generic_open failed for %s, fd = %d", abs_path, fd);
+  //   goto bad;
+  // } else {
+  //   Log("execve: generic_open success for %s, fd = %d", abs_path, fd);
+  // }
+  // ADD_AUXV(AT_HWCAP, 0);
   ADD_AUXV(AT_PAGESZ, PGSIZE);
-  ADD_AUXV(AT_PHDR, elf.phoff);
+  ADD_AUXV(AT_PHDR, elf.phoff + progh_base);
   ADD_AUXV(AT_PHENT, elf.phentsize);
   ADD_AUXV(AT_PHNUM, elf.phnum);
-  ADD_AUXV(AT_BASE, 0);
+  ADD_AUXV(AT_BASE, need_dynamic ? interp_base : 0);
   ADD_AUXV(AT_ENTRY, elf.entry);
   ADD_AUXV(AT_UID, 0);
   ADD_AUXV(AT_EUID, 0);
@@ -353,8 +267,8 @@ int execve(char *path, char **argv, char **envp)
   ADD_AUXV(AT_EGID, 0);
   ADD_AUXV(AT_SECURE, 0);
   ADD_AUXV(AT_RANDOM, sp);
+  // ADD_AUXV(AT_EXECFN, fd);
   ADD_AUXV(AT_NULL, 0);
-
 
   //三个向量的压栈顺序：AUX -> envp -> argv,argc
   // 1. AUX vector, 已经16字节对齐
@@ -407,7 +321,7 @@ int execve(char *path, char **argv, char **envp)
   p->mm.pagetable = pagetable;
   p->sz = sz;
   // Log("exec: %s, sz = %p", p->name, sz);
-  t->trapframe->epc = elf.entry;  // initial program counter = main
+  t->trapframe->epc = prog_entry;
   t->trapframe->sp = sp; // initial stack pointer
 // #ifdef __DEBUG_EXEC
 //   Log("check elf.entry = %p", elf.entry);
@@ -418,11 +332,16 @@ int execve(char *path, char **argv, char **envp)
   // close the file with flag O_CLOEXEC
   for(i = 0; i < NOFILE; i++) {
     if (p->ofile[i] && p->ofile[i]->flags & O_CLOEXEC) {
-      fileclose(p->ofile[i]);
+      fileclose(p->ofile[i], 1);
       p->ofile[i] = 0;
     }
   }
-  return argc; // this ends up in a0, the first argument to main(argc, argv)
+
+  // return argc; // this ends up in a0, the first argument to main(argc, argv)
+  
+  // start.S in glibc expects a0 to store the address of the dynamic linker destructor
+  // NULL now 
+  return 0; 
 
   bad:
   if(pagetable)
@@ -438,7 +357,8 @@ static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offse
   Log("enter floadseg: va %p, offset %p, sz 0x%x", va, offset, sz);
   #endif
   uint i, n;
-  int r = 0, rcnt = 0;
+  int r = 0;
+  size_t rcnt = 0;
   uint64 pa;
   if ((va % PGSIZE) != 0)
     panic("loadseg: va must be page aligned");

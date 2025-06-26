@@ -841,3 +841,768 @@ ls为啥一直在写0个字节？？？
 为什么sleep 1 会传进来这么奇怪一个数字 0x7fff ffff
 ![busybox.14.1](image-158.png)  
 是INT_MAX  
+
+### busybox.15
+========== END test_read ==========
+Testing sleep :
+========== START test_sleep ==========
+8  282377
+[LOG][sysproc.c,137,sys_nanosleep] [sys_nanosleep] ticks: 0, ticks0: 0, rticks: 10
+时钟中断问题，启动核不一定为0  
+
+### busybox.16
+
+thread 5 syscall 73: sys_ppoll
+thread 5 syscall 94: sys_exit_group
+[LOG][ipc/pipe.c,75,pipeclose] pipeclose: pi 0x000000009fb77000 -> readopen = 0
+thread 2 syscall 260: sys_wait4
+thread 4 syscall 96: sys_set_tid_address
+thread 4 syscall 174: sys_getuid
+thread 4 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /musl/busybox_cmd.txt
+[LOG][fs/sysfile.c,971,sys_openat] [sys_openat] generic_open success, fd = 4, path = /musl/busybox_cmd.txt, f 0x0000000080235f68, f->fpos 0, flags 8000
+thread 4 syscall 71: sys_sendfile
+[LOG][fs/sysfile.c,1678,sys_sendfile] [sys_sendfile] out_fd = 1, in_fd = 4, offset_addr = 0x0000000000000000, count = 16777216
+[LOG][fs/sysfile.c,1578,do_sendfile] do_sendfile: kbuf = 0x000000009f9ca000, kbuf size = 4096
+rw_sharp: filewrite failed, wcnt = -1
+thread 4 syscall 63: sys_read
+thread 4 syscall 57: sys_close
+[LOG][fs/sysfile.c,276,sys_close] sys_close: fd=4, f=0x0000000080235f68, ref after close 0, f->fpos 0, path , f->type 0
+thread 4 syscall 94: sys_exit_group
+[LOG][ipc/pipe.c,69,pipeclose] pipeclose: pi 0x000000009fb77000 -> writeopen = 0
+[LOG][ipc/pipe.c,82,pipeclose] pipeclose: pi 0x0000000000000001 -> both readopen and writeopen are 0, releasing pipe
+
+ppoll未实现 
+fixed
+
+### busybox.16
+
+#### musl
+
+[LOG][ipc/signal.c,45,do_sigprocmask] do_sigprocmask: thread 5, how: 0, set: 0xffffffffffffffff
+thread 5 syscall 220: sys_clone
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 5, sz 0x00000000001a8000, oldt->trapframe->sp 0x00000000001a4fd0
+[LOG][sched/proc.c,709,do_clone] do_clone: np 6, sz 0x00000000001a8000, t->trapframe->sp 0x00000000001a4fd0
+thread 5 syscall 135: sys_rt_sigprocmask
+[LOG][ipc/signal.c,45,do_sigprocmask] do_sigprocmask: thread 5, how: 2, set: 0xffffffffffffffff
+thread 5 syscall 260: sys_wait4
+thread 6 syscall 178: sys_gettid
+thread 6 syscall 135: sys_rt_sigprocmask
+[LOG][ipc/signal.c,45,do_sigprocmask] do_sigprocmask: thread 6, how: 2, set: 0xffffffffffffffff
+thread 6 syscall 221: sys_execve
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/busybox, path ./busybox, cinfo.path /musl
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e551
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e552
+thread 6 syscall 96: sys_set_tid_address
+thread 6 syscall 174: sys_getuid
+thread 6 syscall 214: sys_brk
+thread 6 syscall 214: sys_brk
+thread 6 syscall 64: sys_write
+
+independent command test
+thread 6 syscall 94: sys_exit_group
+[LOG][ipc/futex.c,298,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x0000000000163c14
+
+[WARN][ipc/futex.c,303,futex_wake] futex_wake: futex not found for address 0x0000000000163c14
+
+[LOG][ipc/signal.c,384,signal_send] signal_send: thread 6 send signal 17 to thread 5
+thread 5 syscall 260: sys_wait4
+thread 5 syscall 64: sys_write
+testcase busybox echo "#### independent command test" success
+
+
+#### glibc
+
+[LOG][fs/exec.c,273,execve] ph.type == 0x70000003
+[LOG][fs/exec.c,273,execve] ph.type == 0x4
+[LOG][fs/exec.c,273,execve] ph.type == 0x7
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e551
+[LOG][fs/exec.c,273,execve] ph.type == 0x6474e552
+thread 6 syscall 214: sys_brk
+thread 6 syscall 214: sys_brk
+thread 6 syscall 96: sys_set_tid_address
+thread 6 syscall 99: sys_set_robust_list
+thread 6 syscall 160: sys_uname
+thread 6 syscall 261: sys_prlimit64
+thread 6 syscall 78: sys_readlinkat
+thread 6 syscall 278: sys_getrandom
+thread 6 syscall 214: sys_brk
+thread 6 syscall 214: sys_brk
+thread 6 syscall 174: sys_getuid
+thread 6 syscall 64: sys_write
+
+independent command test
+
+thread 6 syscall 94: sys_exit_group
+[LOG][ipc/futex.c,298,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x00000000002020d0
+
+[WARN][ipc/futex.c,303,futex_wake] futex_wake: futex not found for address 0x00000000002020d0
+
+[LOG][ipc/signal.c,384,signal_send] signal_send: thread 6 send signal 17 to thread 5
+[LOG][ipc/signal.c,148,signal_handle] signal_handle: thread 5 handle 17 with handler 0x0000000000000000
+[LOG][ipc/signal.c,149,signal_handle] t->blockd.sig: 0x0000000000000000
+thread 5 syscall 260: sys_wait4
+thread 5 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache
+[WARN][fs/sysfile.c,964,sys_openat] [sys_openat] generic_open failed, abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache, r = -2
+
+thread 5 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules
+[WARN][fs/sysfile.c,964,sys_openat] [sys_openat] generic_open failed, abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules, r = -2
+
+thread 5 syscall 56: sys_openat
+[LOG][fs/sysfile.c,960,sys_openat] [sys_openat] abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.d
+[WARN][fs/sysfile.c,964,sys_openat] [sys_openat] generic_open failed, abs_path = /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.d, r = -2
+
+thread 5 syscall 98: sys_futex
+[LOG][sysproc.c,631,sys_futex] [sys_futex] uaddr: 0x00000000001c102c, futex_op: 129, val: 2147483647, timeout_addr: 0x0000000000000000, val2: 0, uaddr2: 0x0000000000000000, val3: 2
+[LOG][ipc/futex.c,298,futex_wake] futex_wake: waking up at most 2147483647 waiters on futex at address 0x00000000001c102c
+
+[WARN][ipc/futex.c,303,futex_wake] futex_wake: futex not found for address 0x00000000001c102c
+
+thread 5 usertrap: page fault at 0x0000000000000000
+sepc=0x00000000000ed044 stval=0x0000000000000028
+scause=0x000000000000000f
+sstatus=0x8000000000046020
+satp=0x80000000000a01ff
+panic: usertrap: page fault
+
+1. 提前拷贝依赖文件（不知道测评机器有无root权限）
+2. 绕过（自己构造输出）  
+
+现在伪造了一个空的这个文件，但是发现他最后还是会尝试打开别的路径下的conv文件，还会在同一个地方崩溃。那么其实也许没有这个依赖文件也是可以运行的吧！  
+
+![busybox.16.1](image-169.png)
+我猜是这行：
+
+```c
+
+	failed:
+	  data->fcts = (void *) &__wcsmbs_gconv_fcts_c;
+
+```
+难道是这个private为空？  
+struct lc_ctype_data *data = new_category->private;  
+打出的data为空指针  
+刚进函数的时候a0就是0  
+
+#### musl busybox test:
+
+Filesystem           1K-blocks      Used Available Use% Mounted on
+df: /proc/mounts: No such file or directory
+testcase busybox df fail
+
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /sbin/ls
+sys_faccessat: fsops->faccessat failed
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /usr/sbin/ls
+sys_faccessat: fsops->faccessat failed
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /bin/ls
+sys_faccessat: fsops->faccessat failed
+[ext4_vfaccess] ext4_raw_inode_fill error!, path /usr/bin/ls
+sys_faccessat: fsops->faccessat failed
+testcase busybox which ls fail
+
+
+PID   USER     TIME  COMMAND
+ps: can't open '/proc': No such file or directory
+testcase busybox ps fail
+
+              total        used        free      shared  buff/cache   available
+Mem:   free: can't open '/proc/meminfo': No such file or directory
+testcase busybox free fail
+
+hwclock: can't open '/dev/misc/rtc': No such file or directory
+testcase busybox hwclock fail'
+
+/musl/busybox_testcode.sh: eval: line 0: can't open '/dev/null': No such file or directory
+kill: can't kill pid 28: Operation not permitted
+testcase busybox sh -c 'sleep 5' & ./busybox kill $! fail
+
+sys_mkdirat: abs_path = /musl/test_dir
+testcase busybox mkdir test_dir success
+fsops->fstat failed, r = 2
+[sys_fstatat] generic_fstat failed
+[WARN][syscall.c,134,syscall] thread 57 syscall 276: unknown
+mv: can't rename 'test_dir': Operation not permitted
+testcase busybox mv test_dir test fail  
+
+
+__mbsrtowcs_l (似乎没有hit)->   
+1. 先弄明白这个函数在哪里会被调用，作用是什么， 可能的问题是什么  
+
+## libc-test
+
+### libc-test-static 
+
+#### libc.1
+
+pgfault handler:  
+&pte = 0x9fb82fa0
+pgtable addr:0x9fb80000  
+va 0x0000003fffff4000, size 0x0000000000001000  
+
+futex_copyin:
+pgtable addr: 0x9fb80000  
+pte = 0;  
+
+
+#### libc.2
+`thread_cancel_points()`  
+
+/musl # thread 2 syscall 63
+/musl/runtest.exe -w entry-static.exe pthread_cancel_points
+thread 2 syscall 135
+thread 2 syscall 220
+[LOG][sysproc.c,221,sys_clone] [sys_clone] flags: 0x11, stack: 0x0000000000000000, ptid: 1595216, tls: 0x0000000000000008, ctid: 0x0000000000000800
+thread 2 syscall 135
+thread 3 syscall 178
+thread 3 syscall 135
+thread 2 syscall 260
+thread 3 syscall 134
+thread 3 syscall 134
+thread 3 syscall 134
+thread 3 syscall 221
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/runtest.exe, path /musl/runtest.exe, cinfo.path /musl
+thread 3 syscall 96
+thread 3 syscall 135
+thread 3 syscall 135
+thread 3 syscall 134
+thread 3 syscall 64
+========== START entry-static.exe pthread_cancel_points ==========
+thread 3 syscall 135
+thread 3 syscall 220
+[LOG][sysproc.c,221,sys_clone] [sys_clone] flags: 0x11, stack: 0x0000000000000000, ptid: 252736, tls: 0x0000000000000008, ctid: 0x0000000000000000
+thread 3 syscall 135
+thread 4 syscall 178
+thread 3 syscall 137
+thread 4 syscall 135
+thread 4 syscall 261
+thread 4 syscall 221
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/entry-static.exe, path entry-static.exe, cinfo.path /musl
+thread 4 syscall 96
+thread 4 syscall 135
+thread 4 syscall 222
+thread 4 syscall 226
+thread 4 syscall 135
+thread 4 syscall 220
+[LOG][sysproc.c,221,sys_clone] [sys_clone] flags: 0x7d0f00, stack: 0x0000003fffff4ad8, ptid: -46272, tls: 0x0000003fffff4be8, ctid: 0x000000000009db80
+CLONE_SETTLS
+CLONE_CHILD_CLEARTID
+set stack to 0x0000003fffff4ad8
+CLONE_SIGHAND
+CLONE_PARENT_SETTID
+thread 4 syscall 135
+thread 4 syscall 134
+thread 4 syscall 130
+thread 4 syscall 98
+[LOG][sysproc.c,622,sys_futex] [sys_futex] uaddr: 0x0000003fffff4b48, futex_op: 128, val: 1, timeout_addr: 0x0000000000000000, val2: 0, uaddr2: 0x0000000000000000, val3: 0
+thread 5 syscall 135
+[LOG][ipc/signal.c,114,signal_handle] signal_handle: thread 5 has 1 pending signals
+[WARN][ipc/signal.c,90,signal_default] Default action for signal 33 not implemented
+thread 5 syscall 135
+[LOG][ipc/futex.c,274,futex_wait] futex_wait: thread 4 waiting on futex at address 0x0000003fffff4b48 with value 1, timeout 0 ticks
+
+thread 5 syscall 98
+[LOG][sysproc.c,622,sys_futex] [sys_futex] uaddr: 0x0000003fffff4b48, futex_op: 129, val: 1, timeout_addr: 0x0000000000000000, val2: 0, uaddr2: 0x0000000000000002, val3: -46264
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x0000003fffff4b48
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x0000003fffff4b48
+
+thread 5 syscall 93
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x000000000009db80
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x000000000009db80
+
+[LOG][sched/thread.c,367,thread_wakeup_timeout] thread_wakeup_timeout: thread 3 wakeup on timeout 74
+thread 3 syscall 129
+[LOG][sched/proc.c,905,proc_kill] kill: pid 4, name entry-static.ex, sig 9 
+[LOG][ipc/futex.c,278,futex_wait] futex_wait: thread 4 woke up from futex wait on address 0x0000003fffff4b48
+
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x000000000009db80
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x000000000009db80
+
+thread 3 syscall 260
+thread 3 syscall 64
+FAIL pthread_cancel_points [status 255]
+thread 3 syscall 64
+========== END entry-static.exe pthread_cancel_points ==========
+thread 3 syscall 94
+[LOG][ipc/futex.c,297,futex_wake] futex_wake: waking up at most 1 waiters on futex at address 0x000000000001d238
+
+[WARN][ipc/futex.c,301,futex_wake] futex_wake: futex not found for address 0x000000000001d238
+
+thread 2 syscall 260
+thread 2 syscall 29
+thread 2 syscall 17
+thread 2 syscall 175
+thread 2 syscall 66
+/musl # thread 2 syscall 63
+
+
+### libc.3
+这个bug难道和RLIMIT_STACK尚未支持有关吗？  
+![libc.3](image-159.png)
+
+### libc.4
+unsupport now:  
+
+/musl/runtest.exe -w entry-static.exe pthread_tsd  
+/musl/runtest.exe -w entry-static.exe pthread_cond
+/musl/runtest.exe -w entry-static.exe setjmp    
+/musl/runtest.exe -w entry-static.exe socket
+/musl/runtest.exe -w entry-static.exe stat
+/musl/runtest.exe -w entry-static.exe utime
+/musl/runtest.exe -w entry-static.exe fflush_exit
+/musl/runtest.exe -w entry-static.exe pthread_robust_detach
+/musl/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
+/musl/runtest.exe -w entry-static.exe pthread_cond_smasher
+/musl/runtest.exe -w entry-static.exe pthread_once_deadlock
+/musl/runtest.exe -w entry-static.exe syscall_sign_extend
+/musl/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+/musl/runtest.exe -w entry-static.exe pthread_cancel_points
+14/107
+
+for dynamic: 17/110
+
+/glibc/runtest.exe -w entry-static.exe clocale_mbfuncs
+/glibc/runtest.exe -w entry-static.exe fdopen
+/glibc/runtest.exe -w entry-static.exe fnmatch
+/glibc/runtest.exe -w entry-static.exe fwscanf
+/glibc/runtest.exe -w entry-static.exe mbc
+/glibc/runtest.exe -w entry-static.exe pthread_cancel_points
+/glibc/runtest.exe -w entry-static.exe pthread_cancel
+/glibc/runtest.exe -w entry-static.exe pthread_cond
+/glibc/runtest.exe -w entry-static.exe pthread_tsd
+/glibc/runtest.exe -w entry-static.exe setjmp
+/glibc/runtest.exe -w entry-static.exe snprintf
+/glibc/runtest.exe -w entry-static.exe socket
+/glibc/runtest.exe -w entry-static.exe sscanf
+/glibc/runtest.exe -w entry-static.exe sscanf_long
+/glibc/runtest.exe -w entry-static.exe stat
+/glibc/runtest.exe -w entry-static.exe strftime
+/glibc/runtest.exe -w entry-static.exe strptime
+/glibc/runtest.exe -w entry-static.exe strtod
+/glibc/runtest.exe -w entry-static.exe strtod_simple
+/glibc/runtest.exe -w entry-static.exe strtof
+/glibc/runtest.exe -w entry-static.exe strtol
+/glibc/runtest.exe -w entry-static.exe strtold
+/glibc/runtest.exe -w entry-static.exe swprintf
+/glibc/runtest.exe -w entry-static.exe utime
+/glibc/runtest.exe -w entry-static.exe wcstol
+/glibc/runtest.exe -w entry-static.exe daemon_failure
+/glibc/runtest.exe -w entry-static.exe dn_expand_empty
+/glibc/runtest.exe -w entry-static.exe dn_expand_ptr_0
+/glibc/runtest.exe -w entry-static.exe fflush_exit
+/glibc/runtest.exe -w entry-static.exe fgetwc_buffering
+/glibc/runtest.exe -w entry-static.exe ftello_unflushed_append
+/glibc/runtest.exe -w entry-static.exe mbsrtowcs_overflow
+/glibc/runtest.exe -w entry-static.exe printf_fmt_g_round
+/glibc/runtest.exe -w entry-static.exe printf_fmt_g_zeros
+/glibc/runtest.exe -w entry-static.exe pthread_cond_smasher
+/glibc/runtest.exe -w entry-static.exe pthread_condattr_setclock
+/glibc/runtest.exe -w entry-static.exe pthread_exit_cancel
+/glibc/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+/glibc/runtest.exe -w entry-static.exe regex_bracket_icase
+/glibc/runtest.exe -w entry-static.exe regex_ere_backref
+/glibc/runtest.exe -w entry-static.exe regex_escaped_high_byte
+/glibc/runtest.exe -w entry-static.exe rewind_clear_error
+/glibc/runtest.exe -w entry-static.exe setvbuf_unget
+/glibc/runtest.exe -w entry-static.exe sigprocmask_internal
+/glibc/runtest.exe -w entry-static.exe sscanf_eof
+/glibc/runtest.exe -w entry-static.exe syscall_sign_extend
+/glibc/runtest.exe -w entry-static.exe uselocale_0
+
+45/107
+
+好几个bug都是这种类似的错误
+thread 8 usertrap: page fault at 0x0000000000000000
+sepc=0x00000000000589ba stval=0x0000000000000028
+scause=0x000000000000000f
+sstatus=0x0000000000000020
+satp=0x800000000009ffff
+
+1. 测试signal返回用户空间
+2. 检查execve用户栈构造（包括aux）
+目前signal没有测试能否成功返回用户空间再回到内核， glibc退出user会崩溃。  
+3. entry-static.exe似乎只是检查执行程序退出状态来判断是否执行成功的，如果遇到usertrap直接exit(0)直接就会输出PASS,但是实际上功能并没有完全执行完毕。。。
+我真的要疯了。
+`__dl_aux_init()`
+
+只有glibc才会有`__libc_start_main()`以及`__run_exit_handlers()`的过程， 难道是这里出了问题？？  
+首先搞清楚glibc启动和退出相对于musl而言做了哪些额外工作  
+
+`  __run_exit_handlers (status, &__exit_funcs, true, true);`
+![libc.4.1](image-160.png)
+
+``` c 
+static struct exit_function_list initial;
+struct exit_function_list *__exit_funcs = &initial;
+```
+~~ 这个链表好像是空 ~~
+
+![libc.4.2](image-161.png)
+
+不对，其实这是一个存了两个析构函数的表！
+
+![libc.4.4](image-163.png)
+这行控制转移了 
+![libc.4.3](image-162.png)
+
+执行第二个析构函数的时候崩了,
+第一个
+这个函数为call_fini,在aexit时注册了,执行完了好像没问题
+注册的时候rtld_fini == NULL, 那这个第一个注册的析构函数到底是什么？
+exit_funcs这里有两个函数(idx == 2)，但是为什么有一个非常奇怪的函数，func == 0x3???
+![libc.4.6](image-165.png)
+一些关键的断点：
+![libc.4.5](image-164.png)
+0xd0e7e: jlr __internal_atexit 1
+0xd0ea0: jlr __internal_atexit 2
+0xd0c08 call_fini
+0xd585c jalr s10
+0xd5740 ld s9(__exit_funcs)
+
+__start()里a5就被赋值0x3
+
+``` 
+mov a5, a0
+```
+在__libc_start_main_impl里又将a5给了s4，之后对s4判断是否为空，如果空就跳过存入析构函数，否则就把这儿数当作一个析构函数指针注册。。。
+那么这个_start()中为什么a5 == 3?
+
+!!! 详见glibc start.S
+``` c
+
+/* The entry point's job is to call __libc_start_main.  Per the ABI,
+   a0 contains the address of a function to be passed to atexit.
+   __libc_start_main wants this in a5.  */
+
+```
+也就是说，glibc需要a0中存入的是动态链接器的析构函数的地址！这将在atexit中得到注册！  
+先前execve一直return argc， argc == 3！！！！  这和先前的定义是不一样的！
+
+``` c
+  return argc; // this ends up in a0, the first argument to main(argc, argv)
+```
+
+### libc.5 
+
+START thread 10 syscall 64: sys_write
+test_execvethread 10 syscall 64: sys_write
+ ==========
+thread 10 syscall 221: sys_execve
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/basic/test_echo, path test_echo, cinfo.path /musl/basic
+thread 10 kerneltrap: page fault at 0x0000003ffffea000
+sepc=0x000000008022a896 stval=0x0000003ffffea000
+scause=0x000000000000000f
+sstatus=0x8000000000006100
+satp=0x80000000000a01ff
+panic: kerneltrap: page fault
+3ffffe8000
+0x0000003ffffe6000
+kernel 里访问了一个0x3f未映射的地址，然后一直对栈递减，最后call了kerneltrap
+难道是访问到了guard page??
+和调用的速度和具体的测试程序无关，跑几个测试程序就在固定第N个崩溃。
+
+execve->ext4_vfopen->ext4_raw_inode_fill->ext4_generic_open2->ext4_fs_get_inode_ref->__ext4_fs_get_inode_ref->ext4_fs_get_block_group_ref->ext4_trans_block_get->ext4_block_get->ext4_block_get_noread->ext4_block_cache_shake->ext4_block_flush_buf(->buf->end_write(bc, buf, r, buf->end_write_arg);?->jbd_write_sb)->ext4_blocks_set_direct->ext4_bdif_bwrite->int r = bdev->bdif->bwrite(bdev, buf, blk_id, blk_cnt);
+
+有时在endwrite时崩溃了，有时在bwrite时崩溃了。。  
+但是我之前测，哪怕没有修改为legacy磁盘时，也会崩  
+
+0x8020126c这条指令跳到了release函数里,里面的popoff  
+![libc.5.1](image-166.png)
+![libc.5.2](image-167.png)
+![libc.5.2](image-168.png)
+这里的栈好像炸了。。  
+[WARN][sched/thread.c,111,alloc_thread] thread 21 alloc with kstack 0x0000003ffffd3000  
+我只给每个线程开了一个页大小的内核栈，这个地方已经超出了一个页，所以访问到了一个guard page  
+那么怎么增加内核栈的大小呢？    
+但是在这之前，第一个kernelvec似乎已经进入kerneltrap了，是在kerneltrap里崩的，这也许是两个问题  
+第一个是Supervisor external interrupt，这个没问题.  
+所以应该是第一次不知何种原因有一个外部中断（但是应该是正常的），随后尝试在kerneltrap中处理的时候爆栈了，这个时候又跳到了kernelvec, 栈一直往下递减直到越过了guard page，到达下一个线程内核栈的时候输出了trap信息，但是此时的信息和原本的原因已经相差甚远了。    
+但是这样的话，我之前尝试映射guard page为什么还是跑不了？？试一下。    
+居然可以跑到panic未知devintr那里！
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x00000000802361e8 stval=0x00000000802361e8
+panic: kerneltrap  
+
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x0000000080337eb0 stval=0x0000000080337eb0
+panic: kerneltrap
+QEMU: Terminated
+
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x0000003ffffd2fc0 stval=0x0000003ffffd2fc0
+panic: kerneltrap
+
+unknow devintr()
+scause 0x000000000000000c
+sepc=0x0000003ffffd2f90 stval=0x0000003ffffd2f90
+panic: kerneltrap
+
+居然每次trap的sepc都不一样。。。。。。。。  
+[LOG][fs/exec.c,244,execve] execve abs_path: /musl/basic/mount, path ./mount, cinfo.path /musl/basic
+[LOG][fs/blockdev.c,95,blockdev_bwrite] blockdev_bwrite: bdev 0x0000000080233f38, buf 0x000000009fe9a000, blockid 6032, blk_cnt 8
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6032, i = 0
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6033, i = 1
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6034, i = 2
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6035, i = 3
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6036, i = 4
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6037, i = 5
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6038, i = 6
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 6039, i = 7
+[LOG][fs/blockdev.c,95,blockdev_bwrite] blockdev_bwrite: bdev 0x0000000080233f38, buf 0x00000000802e90d0, blockid 3932160, blk_cnt 2
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 3932160, i = 0
+[LOG][fs/blockdev.c,100,blockdev_bwrite] blockdev_bwrite: writing block 3932161, i = 1
+[LOG][fs/exec.c,271,execve] ph.type == 0x6
+[WARN][fs/exec.c,269,execve] ELF_PROG_INTERP not supported
+
+[LOG][fs/exec.c,271,execve] ph.type == 0x3
+[LOG][fs/exec.c,271,execve] ph.type == 0x70000003
+[LOG][fs/exec.c,271,execve] ph.type == 0x2
+[LOG][fs/exec.c,271,execve] ph.type == 0x4
+[LOG][fs/exec.c,271,execve] ph.type == 0x6474e551
+
+不过此时其实已经open成功了，会不会是因为前面并没有真的好好安排内核栈，只是映射了guard page导致栈被写坏了。（真的吗？》。。。）  
+先把内核栈安排好再考虑这件事情吧   
+[WARN][sched/thread.c,111,alloc_thread] thread 2 alloc with kstack 0x0000003fffff0000  这内核栈地址不太对劲吧？这位置应该是trampoline的吧。  
+不对 trampoline应该是0x3ffffff000
+
+new :
+[LOG][mm/vm.c,592,map_ustack] map_ustack: stack_low_aligned 0x0000000000166000, stack_high 0x00000000001a6000, pages 63
+[LOG][fs/exec.c,320,execve] execve: sz = 0x0000000000166000, sp = 0x00000000001a6000, stackbase = 0x0000000000167000
+
+old:
+[LOG][fs/exec.c,309,execve] uvmalloc sz = 0x0000000000166000, sz + 64 * PGSIZE = 0x00000000001a6000
+[LOG][fs/exec.c,322,execve] execve: sz = 0x00000000001a6000, sp = 0x00000000001a6000, stackbase = 0x0000000000167000
+
+
+[LOG][sched/proc.c,450,userinit] userinit: proc 1, pagetable 0x000000009fef4000, sz 0x0000000000041000, initcode_len 3950, sz - 64 * PGSIZE: 0x0000000000001000
+
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 1, sz 0x0000000000041000, oldt->trapframe->sp 0x0000000000040ff0
+
+[LOG][sched/proc.c,709,do_clone] do_clone: np 2, sz 0x0000000000041000, t->trapframe->sp 0x0000000000040ff0
+
+[LOG][fs/sysfile.c,609,sys_execve] sys_execve: path = /musl/busybox, uargv = 0x0000000000000d70, uenvp = 0x0000000000000f70
+
+
+
+with and without allocating stack for initproc:
+
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 1, sz 0x0000000000041000, oldt->trapframe->sp 0x0000000000040ff0
+[LOG][sched/proc.c,709,do_clone] do_clone: np 2, sz 0x0000000000041000, t->trapframe->sp 0x0000000000040ff0
+thread 1 syscall 3: sys_wait
+thread 2 syscall 49: sys_chdir
+thread 2 syscall 221: sys_execve
+[LOG][fs/sysfile.c,609,sys_execve] sys_execve: path = /musl/busybox, uargv = 0x0000000000000d70, uenvp = 0x0000000000000f70
+[LOG][fs/sysfile.c,618,sys_execve] sys_execve: fetching envp[0] from 0x0000000000000f70
+[LOG][fs/sysfile.c,633,sys_execve] try to fetch envp[0] from 0x0000000080310d08
+
+
+[LOG][sched/proc.c,708,do_clone] do_clone: old proc 1, sz 0x0000000000001000, oldt->trapframe->sp 0x0000000000000ff0
+[LOG][sched/proc.c,709,do_clone] do_clone: np 2, sz 0x0000000000001000, t->trapframe->sp 0x0000000000000ff0
+thread 1 syscall 3: sys_wait
+thread 2 syscall 49: sys_chdir
+thread 2 syscall 221: sys_execve
+[LOG][fs/sysfile.c,609,sys_execve] sys_execve: path = /musl/busybox, uargv = 0x0000000000000d70, uenvp = 0x0000000000000f70
+[LOG][fs/sysfile.c,618,sys_execve] sys_execve: fetching envp[0] from 0x0000000000000f70
+
+难道是栈和数据段重合了？？
+0xf70
+
+[LOG][sched/proc.c,450,userinit] userinit: proc 1, pagetable 0x000000009fef4000, sz 0x0000000000003000, initcode_len 0x0000000000000f6e, sz - 64 * PGSIZE: 0xfffffffffffc3000
+好像是uvmfirst的问题。。。（哈哈，AI改的代码）  
+接下来思考怎么映射大于1个页大小的代码就好啦  
+
+### dynamic-linking
+
+zoe@sreyuim:~/rexvapor$ ls ./mnt/glibc/lib
+dlopen_dso.so                libc.so    libm.so    tls_align_dso.so        tls_init_dso.so
+ld-linux-riscv64-lp64d.so.1  libc.so.6  libm.so.6  tls_get_new-dtv_dso.so
+zoe@sreyuim:~/rexvapor$ ls ./mnt/musl/lib
+dlopen_dso.so  libc.so  tls_align_dso.so  tls_get_new-dtv_dso.so  tls_init_dso.so
+
+0xc5b08 _dlstart
+0xc5b24 _dlstart_c
+0xc82d8 __dls2
+0xc6d30 reloc_all
+0xc6398 do_relocs
+0xC5fa4 find_sym
+
+0xC5D54 sysv_lookup
+a0: 0x101210
+
+AT_PHDR 传错了！！！=-=  
+
+
+
+### testing
+
+local:  
+
+OpenSBI v1.5.1
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name             : riscv-virtio,qemu
+Platform Features         : medeleg
+Platform HART Count       : 1
+Platform IPI Device       : aclint-mswi
+Platform Timer Device     : aclint-mtimer @ 10000000Hz
+Platform Console Device   : uart8250
+Platform HSM Device       : ---
+Platform PMU Device       : ---
+Platform Reboot Device    : syscon-reboot
+Platform Shutdown Device  : syscon-poweroff
+Platform Suspend Device   : ---
+Platform CPPC Device      : ---
+Firmware Base             : 0x80000000
+Firmware Size             : 327 KB
+Firmware RW Offset        : 0x40000
+Firmware RW Size          : 71 KB
+Firmware Heap Offset      : 0x49000
+Firmware Heap Size        : 35 KB (total), 2 KB (reserved), 11 KB (used), 21 KB (free)
+Firmware Scratch Size     : 4096 B (total), 416 B (used), 3680 B (free)
+Runtime SBI Version       : 2.0
+
+Domain0 Name              : root
+Domain0 Boot HART         : 0
+Domain0 HARTs             : 0*
+Domain0 Region00          : 0x0000000000100000-0x0000000000100fff M: (I,R,W) S/U: (R,W)
+Domain0 Region01          : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region02          : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region03          : 0x0000000080040000-0x000000008005ffff M: (R,W) S/U: ()
+Domain0 Region04          : 0x0000000080000000-0x000000008003ffff M: (R,X) S/U: ()
+Domain0 Region05          : 0x000000000c400000-0x000000000c5fffff M: (I,R,W) S/U: (R,W)
+Domain0 Region06          : 0x000000000c000000-0x000000000c3fffff M: (I,R,W) S/U: (R,W)
+Domain0 Region07          : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address      : 0x0000000080200000
+Domain0 Next Arg1         : 0x00000000bfe00000
+Domain0 Next Mode         : S-mode
+Domain0 SysReset          : yes
+Domain0 SysSuspend        : yes
+
+Boot HART ID              : 0
+Boot HART Domain          : root
+Boot HART Priv Version    : v1.12
+Boot HART Base ISA        : rv64imafdch
+Boot HART ISA Extensions  : sstc,zicntr,zihpm,zicboz,zicbom,sdtrig,svadu
+Boot HART PMP Count       : 16
+Boot HART PMP Granularity : 2 bits
+Boot HART PMP Address Bits: 54
+Boot HART MHPM Info       : 16 (0x0007fff8)
+Boot HART Debug Triggers  : 2 triggers
+Boot HART MIDELEG         : 0x0000000000001666
+Boot HART MEDELEG         : 0x0000000000f0b509
+
+reXvapor kernel is booting  
+
+testcase busybox ls success
+testcase busybox sleep 1 success
+'#### file opration test'
+testcase busybox echo "#### file opration test" success
+testcase busybox touch test.txt success
+panic: filewrite
+
+[LOG][fs/sysfile.c,919,generic_open] generic_open : path /musl/busybox_cmd.bak successfully opened, type = 6
+thread 16 syscall 25: sys_fcntl
+thread 16 syscall 61: sys_getdents64
+thread 16 kerneltrap: page fault at 0x0000000000000028
+sepc=0x000000008020a150 stval=0x0000000000000028
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003fffbef000
+panic: kerneltrap: page fault  
+
+好像只有busybox文件系统操作的时候会出问题。主要涉及创建和删除的时候。 远程平台应该在cat这个文件，但是还没结束就崩了。
+
+[LOG][fs/sysfile.c,939,sys_openat] [sys_openat] abs_path = /musl/test.txt, flags = 0x8000, omode = 0x0
+[LOG][fs/sysfile.c,919,generic_open] generic_open : path /musl/test.txt successfully opened, type = 2
+[LOG][fs/sysfile.c,950,sys_openat] [sys_openat] generic_open success, fd = 3, path = /musl/test.txt, f 0x0000000080239478, f->fpos 0, flags 8000
+thread 7 syscall 71: sys_sendfile
+[LOG][fs/sysfile.c,1565,do_sendfile] do_sendfile: kbuf = 0x000000009ed67000, kbuf size = 4096
+hello world
+thread 7 kerneltrap: page fault at 0x0000003effffff88
+sepc=0x000000008021d830 stval=0x0000003effffff88
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003fffe38000
+panic: kerneltrap: page fault
+
+哇，改了sendfile符合要求之后居然在远程平台同款的位置崩了！  
+每次崩的位置都不一样
+
+thread 3 kerneltrap: page fault at 0x0000003effffffa8
+sepc=0x000000008021d6a2 stval=0x0000003effffffa8
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003ffff3c000
+panic: kerneltrap: page fault
+
+
+thread 3 kerneltrap: page fault at 0x0000003effffffa8
+sepc=0x000000008021d6a2 stval=0x0000003effffffa8
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003ffff3c000
+panic: kerneltrap: page fault
+
+正确的s0应该是: 0x3ffff7bf40  
+fileread() sp : 0x3ffff7be40
+0x802064fc 栈里的内容不对！
+
+0x8020639c
+rw_sharp()->fileread()开始往栈里存了a0，但是结束之后栈里内容不对。另外，改了编译等级之后发现输出不了hello world就崩了，怀疑是内核栈的问题
+![testing.1](image-170.png)
+0x8020edc2修改了栈里寸的s0 ...
+
+![alt text](image-171.png) 
+
+我好像找到问题所在在了 ,看rcnt类型。。。这样清空内存会多清4个字节。。。
+
+``` c
+
+typedef long unsigned int size_t;
+
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    char *kbuf = NULL;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return EINVAL;
+    }
+    if((r = ext4_fseek(efp, off, SEEK_SET)) != EOK) {
+        printf("[ext4] ext4_fseek error! r=%d\n", r);
+        return r;
+    }
+    if(user_dst) {
+        kbuf = (char *)kmalloc(size);
+        if(!kbuf) {
+            // printf("[ext4] kmalloc error!\n");
+            return ENOMEM;
+        }
+    } else {
+        kbuf = (char *)dst;
+    }
+    #ifdef __DEBUG_EXT4_VFREAD
+    Log("[ext4] ext4_vfread: kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
+    #endif
+    if((r = ext4_fread(efp, kbuf, (size_t)size, (size_t*) rcnt)) != EOK) {
+```  
+
+先吃饭  

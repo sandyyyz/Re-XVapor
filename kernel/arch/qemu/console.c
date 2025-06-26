@@ -179,6 +179,18 @@ consoleintr(int c)
   release(&cons.lock);
 }
 
+int devnullread(int user_dst, uint64 dst, int n)
+{
+  // /dev/null: read returns nothing.
+  return n;
+}
+
+int devnullwrite(int user_src, uint64 src, int n)
+{
+  // /dev/null: write returns nothing.
+  return n;
+}
+
 void
 consoleinit(void)
 {
@@ -190,4 +202,7 @@ consoleinit(void)
   // to consoleread and consolewrite.
   devsw[CONSOLE].read = consoleread;
   devsw[CONSOLE].write = consolewrite;
+
+  devsw[DEVNULL].read = devnullread;
+  devsw[DEVNULL].write = devnullwrite;
 }

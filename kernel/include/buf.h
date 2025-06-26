@@ -2,7 +2,7 @@
 #define __BUF_H
 #include "sleeplock.h"
 
-#define BSIZE 1024
+#define BSIZE 512
 
 struct buf {
   int valid;   // has data been read from disk?

@@ -6,13 +6,14 @@
 #define QEMU 1
 
 #if defined QEMU
-#define FREQUENCY 10000000L // qemu时钟频率12500000
+#define FREQUENCY 12500000L // qemu时钟频率12500000
 #elif defined VISIONFIVE
 #define FREQUENCY 4000000L
 #endif
 
-#define CLK_FREQ 10000000
+#define CLK_FREQ FREQUENCY
 #define TICKS_PER_SECOND 10  
+#define INTERVAL CLK_FREQ / TICKS_PER_SECOND
 
 #define TIMESPEC2TICKS(ts) ((ts).tv_sec * TICKS_PER_SECOND + (ts).tv_nsec * TICKS_PER_SECOND / 1000000000)
 #define TICKS2TIMESPEC(ticks, ts) \

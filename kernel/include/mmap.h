@@ -16,6 +16,8 @@
 #define MAP_SHARED	0x01		/* Share changes */
 #define MAP_PRIVATE	0x02		/* Changes are private */
 #define MAP_SHARED_VALIDATE 0x03	/* share + validate extension flags */
+#define MAP_ANONYMOUS 0x20 /* Don't use a file.  */
+
 /* compatibility flags */
 #define MAP_FILE	0
 /* flags for mmap */
@@ -36,6 +38,11 @@ void freeprocvm(struct proc *p);
 int proc_copy_vma(struct proc *p, struct proc *np);
 int mmap_writeback_unmapf(pagetable_t pgtable, struct vma_struct *vma, int len);
 
+typedef enum {
+    VMA_FILE,
+    VMA_ANONYMOUS,
+} vma_type_t;
+
 struct vma_struct {
     int valid; // 0: invalid, 1: valid
     uint64 vm_start; // start address
@@ -45,6 +52,7 @@ struct vma_struct {
     int prot; // protection
     int fd; // file descriptor
     struct file* file; // file
+    vma_type_t type; // type of vma, VMA_FILE or VMA_ANONYMOUS
     struct list_head vma_list; // list
 };
 

@@ -28,6 +28,7 @@ kvmmake(void)
   kpgtbl = (pagetable_t) kalloc();
   memset(kpgtbl, 0, PGSIZE);
 
+  kvmmap(kpgtbl, FINISHER_BASE, FINISHER_BASE, PGSIZE, PTE_R | PTE_W);
   // uart registers
   kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -134,6 +135,7 @@ void walk_va(pagetable_t pagetable, uint64 va) {
       printf("pa %p\n", PTE2PA(*pte));
       printf("flags %p\n", PTE_FLAGS(*pte));
       printf("walk va success\n");
+      printf("\n");
     }
 }
 
@@ -272,21 +274,28 @@ void
 uvmfirst(pagetable_t pagetable, uchar *src, uint sz)
 {
   char *mem;
+  // uint64 sz1 = PGROUNDUP(sz);
 
-  if(sz >= PGSIZE)
-    panic("uvmfirst: more than a page");
-  mem = kalloc();
-  memset(mem, 0, PGSIZE);
-  mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
+  // if(sz >= PGSIZE) {
+  //   Warn("uvmfirst: sz >= PGSIZE, sz %p", sz);
+  //   panic("uvmfirst: more than a page");
+  // }
 
-
-  // just for testing
-  // char *testmem;
-  // testmem = kalloc();
-  // memset(testmem, 0, PGSIZE);
-  // mappages(pagetable, PGSIZE, PGSIZE, (uint64)testmem, PTE_W|PTE_R|PTE_X|PTE_U);
-
-  memmove(mem, src, sz);
+  // mem = kalloc();
+  // memset(mem, 0, PGSIZE);
+  // mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
+  // memmove(mem, src, sz);
+  for(uint64 i = 0; i < sz; i += PGSIZE){
+    mem = kalloc();
+    if(mem == 0)
+      panic("uvmfirst: kalloc failed");
+    memset(mem, 0, PGSIZE);
+    if(mappages(pagetable, i, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U) != 0){
+      kfree(mem);
+      panic("uvmfirst: mappages failed");
+    }
+    memmove(mem, src + i, PGSIZE < sz - i ? PGSIZE : sz - i);
+  }  
 }
 
 // 增长进程空间？
@@ -396,6 +405,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uint64 pa, i;
   uint flags;
   char *mem;
+#ifdef __DEBUG_UVMCOPY
+  Log("uvmcopy: old %p, new %p, sz %p", old, new, sz);
+#endif
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -434,6 +446,19 @@ uvmclear(pagetable_t pagetable, uint64 va)
   *pte &= ~PTE_U;
 }
 
+
+void uvmadd(pagetable_t pagetable, uint64 va, int perm) {
+  pte_t *pte;
+
+  pte = walk(pagetable, va, 0);
+  if(pte == 0)
+    panic("uvmset: pte should exist");
+  if((*pte & PTE_V) == 0)
+    panic("uvmset: page not present");
+  if(PTE_FLAGS(*pte) == PTE_V)
+    panic("uvmset: not a leaf");;
+  *pte |= perm; // 设置权限
+}
 // 在pagetable中找dstva对应pa,将src开始len长字节copy到pa
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
@@ -573,4 +598,24 @@ vmprint(pagetable_t pgtbl)
 {
   printf("page table %p\n", pgtbl);
   _vmprint(pgtbl, 0);
+}
+
+/**
+ * @brief allocate and map user stack, including ummaping a guard page.
+ * 
+ * @param pagetable user pagetable
+ * @param stack_low low address of user stack
+ * @param pages pages to allocate for user stack, not including the guard page
+ * @return uint64 stack high address
+ */
+uint64 map_ustack(pagetable_t pagetable, uint64 stack_low, int pages) {
+  uint64 stack_low_aligned = PGROUNDUP(stack_low);
+  uint64 stack_high = stack_low_aligned + (pages + 1) * PGSIZE;
+  uint64 sz1;
+  Log("map_ustack: stack_low_aligned %p, stack_high %p, pages %d", stack_low_aligned, stack_high, pages);
+  if((sz1 = uvmalloc(pagetable, stack_low_aligned, stack_high, PTE_W)) == 0) {
+    return 0; // allocation failed
+  }
+  uvmclear(pagetable, stack_low_aligned); // clear the stack guard page
+  return sz1; // return the new high address of the stack
 }

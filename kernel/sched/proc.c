@@ -81,9 +81,9 @@ procinit(void)
   }
 
 
-  Info("========= Information of proc table and tcb table ==========\n");
-  Info("number of proc : %d\n", NPROC);
-  Info("proc table init [ok]\n");
+  // Info("========= Information of proc table and tcb table ==========\n");
+  // Info("number of proc : %d\n", NPROC);
+  // Info("proc table init [ok]\n");
   
   return;
 }
@@ -123,18 +123,28 @@ void thread_mapstacks(pagetable_t kpgtbl)
   struct tcb *t;
   
   for(t = tcb_pool;  t < &tcb_pool[NTHREADS]; t++) {
-    char *pa = kalloc();
-    if(pa == 0)
-      panic("kalloc");
+    // !!! here just allocate one page for each thread's kernel stack
+    // but map it to KSTACK_PAGE * PGSIZE!!!!
+    char *pa = NULL;
     uint64 va = KSTACK((int) (t - tcb_pool));
-    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    for(int i = 0; i < KSTACK_PAGE; i++) {
+      if((pa = (char*)kzalloc()) == NULL) {
+        panic("thread_mapstacks: kstack alloc failed");
+      }
+      if(mappages(kpgtbl, va + i * PGSIZE, PGSIZE, (uint64)pa, PTE_R | PTE_W) < 0) {
+        panic("thread_mapstacks: mappages failed");
+      }
+    }
+#ifdef __DEBUG_THREAD_MAPSTACKS
+    Log("thread %d map with kstack base %p, kstack top %p", t - tcb_pool + 1, va + KSTACK_PAGE * PGSIZE , va);
+#endif
   }
 }
 
 
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
-// to a different CPU.
+// to a different CPU.  
 int
 cpuid()
 {
@@ -166,7 +176,10 @@ myproc(void)
   return p;
 }
 
-
+static void init_rlimit(struct rlimit *rlim) {
+    rlim->rlim_cur = RLIM_INFINITY;
+    rlim->rlim_max = RLIM_INFINITY;
+}
 
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
@@ -213,6 +226,12 @@ allocproc(void)
 #endif
   INIT_LIST_HEAD(&p->mm.vma_list);
   p->mm.max_vma = MMAP_MAX_ADDR_START;
+
+  memset(p->rlim, 0, sizeof(p->rlim));
+  for (int i = 0; i < RLIM_NLIMITS; i++) {
+      init_rlimit(&p->rlim[i]);
+  }
+  p->ofile_cnt = 0;
 
   return p;
 }
@@ -307,6 +326,8 @@ void freeproc(struct proc *p)
   p->xstate = 0;
   p->utime = 0;
   p->ktime = 0;
+  p->ofile_cnt = 0;
+  memset(p->rlim, 0, sizeof(p->rlim));
   // p->state = UNUSED;
   // change to UNUSED state
   pcb_q_change_state(p, UNUSED);
@@ -327,7 +348,7 @@ proc_pagetable(struct proc *p)
   // An empty page table.
   pagetable = uvmcreate();
   if(pagetable == 0)
-    return 0;
+  return 0;
 
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
@@ -344,6 +365,7 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // printf_green("trampoline : %p, __user_rt_sigreturn %p", (uint64)trampoline, (uint64) __user_rt_sigreturn);
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
   // if(mappages(pagetable, TRAPFRAME, PGSIZE,
@@ -374,25 +396,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz, int unmmap_ttf)
   uvmfree(pagetable, sz);
 }
 
-#ifdef __USE_XV6FS
-// a user program that calls exec("/init")
-// assembled from ../user/initcode.S
-// od -t xC ../user/initcode
-uchar initcode[] = {
-  0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02,
-  0x97, 0x05, 0x00, 0x00, 0x93, 0x85, 0x35, 0x02,
-  0x93, 0x08, 0x70, 0x00, 0x73, 0x00, 0x00, 0x00,
-  0x93, 0x08, 0x20, 0x00, 0x73, 0x00, 0x00, 0x00,
-  0xef, 0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69,
-  0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00
-};
-
-unsigned int initcode_len = sizeof(initcode);
-
-#else 
-#include "../../build/user/initcode.h"
-#endif
+#include "../include/initcode.h"
 
 // Set up first user process.
 void
@@ -411,23 +415,34 @@ userinit(void)
 
   // allocate one user page and copy initcode's instructions
   // and data into it.
+  uint64 sz = PGROUNDUP(initcode_len);
   uvmfirst(p->mm.pagetable, initcode, initcode_len);
-  p->sz = PGSIZE; // TODO: how large?? maybe bug here
+
+  uint64 sz1;
+  if((sz1 = uvmalloc(p->mm.pagetable, sz, sz + 8 * PGSIZE, PTE_W)) == 0) {
+    panic("userinit: uvmalloc failed");
+  }
+  sz = sz1;
+  uvmclear(p->mm.pagetable, sz - 8 * PGSIZE); // clear the stack guard page  
+
+  p->sz = sz; // TODO: how large?? maybe bug here
+
+#ifdef __DEBUG_USERINIT
+  Log("userinit: proc %d, pagetable %p, sz %p, initcode_len %p, sz - 64 * PGSIZE: %p", 
+      p->pid, p->mm.pagetable, sz, initcode_len, sz - 64 *PGSIZE);
+#endif
 
   // prepare for the very first "return" from kernel to user.
 
   t->trapframe->epc = 0;      // user program counter
-  t->trapframe->sp = PGSIZE;  // user stack pointer
+  t->trapframe->sp = sz;  // user stack pointer
   // Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));
   safestrcpy(p->tg.group_leader->name, "/init-0", 10);
-
+  sighandinit(t); // init the signal handler
   // p->state = RUNNABLE; 
   tcb_q_change_state(t, TCB_RUNNABLE);
 
-#ifdef __DEBUG_PROC
-
-#endif //__DEBUG_PROC 
   release(&p->lock);
 }
 
@@ -499,11 +514,12 @@ fork(void)
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)
-    if(p->ofile[i])
+    if(p->ofile[i]) {
       np->ofile[i] = filedup(p->ofile[i]);
-
+      np->ofile_cnt++;
+  }
   safestrcpy(np->name, p->name, sizeof(p->name));
-
+  sighandinit(np->tg.group_leader); // init the signal handler
   pid = np->pid;
   strncpy(np->cinfo.path, p->cinfo.path, MAXPATH);
   // release(&np->tg.group_leader->lock);
@@ -565,6 +581,9 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
 
   if(flags & CLONE_THREAD) {
     // if CLONE_THREAD, we just create a new thread in the same process
+#ifdef __DEBUG_DO_CLONE
+    printf("CLONE_THREAD\n");
+#endif
     if((t = alloc_thread(thread_forkret)) == 0)
       return -1; 
     if(proc_join_thread(p, t, NULL) < 0) {
@@ -585,31 +604,46 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
   t->trapframe->a0 = 0;
 
   if(flags & CLONE_SETTLS) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_SETTLS\n");
+#endif
     t->trapframe->tp = tls; // set the tp register
   }
   if(flags & CLONE_CHILD_SETTID) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_CHILD_SETTID\n");
+#endif
     if(copyout(p->mm.pagetable, ctid, (char *)&t->tid, sizeof(t->tid)) < 0) {
       goto bad;
     }
     t->set_child_tid = ctid; // for debug
   }
   if(flags & CLONE_CHILD_CLEARTID) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_CHILD_CLEARTID\n");
+#endif
     // clear when exit
     t->clear_child_tid = ctid;
   }
   if(stack) {
+#ifdef __DEBUG_DO_CLONE
     printf("set stack to %p\n", stack);
+#endif
     t->trapframe->sp = stack;
   }
   if(flags & CLONE_SIGHAND) {
-    // not support yet
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_SIGHAND\n");
+#endif
+    t->sigs = p->tg.group_leader->sigs; // share the signal handler
+    atomic_add_return(&t->sigs->ref, 1); // increment the reference count
+  } else {
+    sighandinit(t); // init the signal handler
   }
   if(flags & CLONE_PARENT_SETTID) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_PARENT_SETTID\n");
+#endif
     // set the parent tid
     if(copyout(p->mm.pagetable, ptid, (char *)&t->tid, sizeof(t->tid)) < 0) {
       goto bad;
@@ -626,7 +660,9 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     create a process
   */
   if(flags & CLONE_VM) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_VM\n");
+#endif
     np->mm.pagetable = p->mm.pagetable; // share the same pagetable
   } else {
     if(uvmcopy(p->mm.pagetable, np->mm.pagetable, p->sz) < 0){
@@ -637,10 +673,14 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
   }
   // just not support right now
   if(flags & CLONE_FS) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_FS\n");
+#endif
   }
   if(flags & CLONE_FILES) {
+#ifdef __DEBUG_DO_CLONE
     printf("CLONE_FILES\n");
+#endif
   }
   if(proc_copy_vma(p, np) < 0) {
     freeproc(np);
@@ -648,11 +688,18 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid)
     return -1;
   }
   np->sz = p->sz;
+#ifdef __DEBUG_DO_CLONE
+  Log("do_clone: old proc %d, sz %p, oldt->trapframe->sp %p", p->pid, p->sz, p->tg.group_leader->trapframe->sp);
+  Log("do_clone: np %d, sz %p, t->trapframe->sp %p", np->pid, np->sz, t->trapframe->sp);
+  Log("flags = %p ", flags);
+#endif
   // increment reference counts on open file descriptors.
   // child process "open" the files
   for(i = 0; i < NOFILE; i++)
-    if(p->ofile[i])
+    if(p->ofile[i]) {
       np->ofile[i] = filedup(p->ofile[i]);
+      np->ofile_cnt++;
+    }
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -723,7 +770,7 @@ void proc_exit(int status)
     if(p->ofile[fd]){
       struct file *f = p->ofile[fd];
       if(f->ref > 0)
-        fileclose(f);
+        fileclose(f, 1);
       p->ofile[fd] = 0;
     }
   }
@@ -745,6 +792,14 @@ void proc_exit(int status)
   p->xstate = status;
   p->xstate <<= 8; // shift to high byte
   pcb_q_change_state(p, ZOMBIE);
+  
+  siginfo_t info;
+  struct proc *pp = p->parent;
+  signal_info_init(SIGCHLD, &info, 1);
+  acquire(&pp->tg.group_leader->lock);
+  thread_send_signal(pp->tg.group_leader, &info); // send SIGCHLD to the group leader thread
+  release(&pp->tg.group_leader->lock);
+
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.

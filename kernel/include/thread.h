@@ -110,7 +110,7 @@ struct tcb {
     /* CLONE_CHILD_CLEARTID: */
     uint64 clear_child_tid;   
     
-    struct sighand sigs; // store all signal action
+    struct sighand *sigs; // store all signal action
     sigset_t blocked; // the blocked signal
     struct sigpending sig_pending; // the queue of signals waiting thread to process
     int pending_cnt; // the count of pending signals
@@ -143,5 +143,6 @@ int thread_group_kill(int tgid, int tid, sig_t sig);
 void thread_wakeup_timeout(uint ticks_now);
 void thread_wakeup_chan_timeout(void *chan, uint ticks_now);
 uint get_timeout_ticks(const struct timespec *ts);
+void sighandinit(struct tcb *t);
 
 #endif

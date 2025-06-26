@@ -29,16 +29,15 @@ void            consoleintr(int);
 void            consputc(int);
 
 // exec.c
-int             exec(char*, char**);
 int execve(char *path, char **argv, char **envp);
 // file.c
 struct file*    filealloc(void);
-void            fileclose(struct file*);
+void            fileclose(struct file*, int drop_ofile_cnt);
 struct file*    filedup(struct file*);
 void            fileinit(void);
-int fileread(struct file *f, int user_dst, uint64 addr, int n, int off);
+int fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off);
 int             filestat(struct file*, uint64 addr);
-int filewrite(struct file *f, int user_src, uint64 addr, int n, int off);
+int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off);
 
 // fs.c
 struct inode*   idup(struct inode*);
@@ -147,7 +146,8 @@ int substr_cmp(const char *p, const char *q);
 char *strcat(char *dest, const char *src);
 
 // syscall.c
-void            arglong(int, uint64*);
+void            arglong(int, long*);
+void argulong(int n, unsigned long *lip);
 void            argint(int, int*);
 int             argstr(int, char*, int);
 void arguint32(int n, uint32 *lip);
@@ -185,10 +185,11 @@ int             uvmcopy(pagetable_t, pagetable_t, uint64);
 void            uvmfree(pagetable_t, uint64);
 void            uvmunmap(pagetable_t, uint64, uint64, int);
 void            uvmclear(pagetable_t, uint64);
+void uvmadd(pagetable_t pagetable, uint64 va, int perm);
 pte_t *         walk(pagetable_t, uint64, int);
 uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
-int             copyin(pagetable_t, char *, uint64, uint64);
+int             copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 void            vmprint(pagetable_t pgtbl);
 // plic.c
@@ -201,6 +202,8 @@ void            plic_complete(int);
 void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr(void);
+
+uint64 generic_open(char *path, int flags, int omode);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

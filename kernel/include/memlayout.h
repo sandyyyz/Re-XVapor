@@ -1,3 +1,6 @@
+#ifndef __MEMLAYOUT_H
+#define __MEMLAYOUT_H
+#include "param.h"
 // Physical memory layout
 
 // qemu -machine virt is set up like this,
@@ -16,6 +19,9 @@
 // 80000000 -- entry.S, then kernel text and data
 // end -- start of kernel page allocation area
 // PHYSTOP -- end RAM used by the kernel
+
+// shutdown ??
+#define FINISHER_BASE 0x100000L
 
 // qemu puts UART registers here in physical memory.
 #define UART0 0x10000000L
@@ -41,10 +47,10 @@
 #define PLIC_MCLAIM(hart) (PLIC + 0x200004 + (hart)*0x2000)
 #define PLIC_SCLAIM(hart) (PLIC + 0x201004 + (hart)*0x2000)
 
-// the kernel expects there to be RAM
-// for use by the kernel and user pages
-// from physical address 0x80000000 to PHYSTOP.
-#define KERNBASE 0x80000000L
+// for opensbi
+#define MBASE 0x80000000L
+
+#define KERNBASE 0x80200000L
 #define PHYSTOP (KERNBASE + 512 * 1024 * 1024)
 
 // map the trampoline page to the highest address,
@@ -52,18 +58,22 @@
 #define TRAMPOLINE (MAXVA - PGSIZE)
 
 // the kernel stack grows down from KSTACKTOP.
-#define KSTACK_PAGE 1
-
+#define KSTACK_PAGE 64
+#define MAX_THREAD NTHREADS_PER_PROC
 // now every single thread has its own kernel stack
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.'
 // KSTACK means KSTACK_BASE actrually 
 #define KSTACK(t) (TRAMPOLINE - ((t) + 1) * (KSTACK_PAGE + 1) * PGSIZE)
+#define BRKTOP KSTACK(NTHREADS + 1) // bottom of the kernel stack
+
+// user space
 
 #define SIGRETURN (TRAMPOLINE - PGSIZE) // trampoline to call sigreturn syscall
 #define TRAPFRAME (SIGRETURN - PGSIZE)
 // thread-exclusive
 #define THREAD_TRAPFRAME(idx) (TRAPFRAME - (idx) * PGSIZE)
-#define MAX_THREAD 8 // max thread number in a process
+// #define KSTACK(t) (THREAD_TRAPFRAME(MAX_THREAD - 1 - (t)) - KSTACK_PAGE * PGSIZE)
 
-#define BRKTOP (TRAMPOLINE - (MAX_THREAD + 1) * PGSIZE)
+
+#endif

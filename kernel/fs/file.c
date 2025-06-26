@@ -14,6 +14,7 @@
 #include "proc.h"
 #include "debug.h"
 #include "thread.h"
+#include "proc.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -55,6 +56,7 @@ struct file* filealloc(void)
       f->omode = 0;
       f->info.fs = fs;
       f->fpos = 0;
+      f->istmp = 0;
       release(&ftable.lock);
       return f;
     }
@@ -80,12 +82,23 @@ filedup(struct file *f)
   return f;
 }
 
-// Close file f.  (Decrement ref count, close when reaches 0.)
-void
-fileclose(struct file *f)
+/**
+ * @brief close a file
+ * 
+ * @param f file pointer
+ * @param drop_ofile_cnt if set to 1, will drop the ofile_cnt of the process, otherwise will not drop it. 
+ * This parameter is nassary because it may be called before a call to fdalloc, or after a failed fdalloc, which will not increase the ofile_cnt. 
+ */
+void fileclose(struct file *f, int drop_ofile_cnt)
 {
   struct file ff;
-
+  struct proc *p = myproc();
+  if(drop_ofile_cnt) {
+    p->ofile_cnt--;
+    // Log("--ofile_cnt %d", p->ofile_cnt);;
+  }
+  if(p->ofile_cnt < 0)
+    panic("fileclose: ofile_cnt < 0");
 #ifdef __DEBUG_FILE_CLOSE
   Log("fileclose : f %p ref %d", f, f->ref);
 #endif
@@ -98,6 +111,8 @@ fileclose(struct file *f)
   }
   if(f->private_data) {
     f->fops->close(f);
+    if(f->istmp)
+      f->info.fs->fsops->unlink(f->info.path, 0);
     f->fops->cleansf(f);
   }
   ff = *f;
@@ -138,9 +153,9 @@ filestat(struct file *f, uint64 addr)
 }
 
 
-int fileread(struct file *f, int user_dst, uint64 addr, int n, int off)
+int fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off)
 {
-  int r = 0;
+  size_t r = 0;
 
   if(!IS_READABLE(f->flags))
     return -1;
@@ -172,9 +187,10 @@ int fileread(struct file *f, int user_dst, uint64 addr, int n, int off)
  * only used for FD_INODE type file
  * @return int return the number of bytes written, -1 if failed 
  */
-int filewrite(struct file *f, int user_src, uint64 addr, int n, int off)
+int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off)
 {
-  int r, ret = 0;
+  int ret = 0;
+  size_t r = 0;
 
   // Log("file path = %s", f->info.path);
   // Log("file type = %d", f->type);
@@ -198,4 +214,8 @@ int filewrite(struct file *f, int user_src, uint64 addr, int n, int off)
   }
   return ret;
   
+}
+
+int is_exc_rcfile(struct proc *p) {
+  return p->ofile_cnt >= p->rlim[RLIMIT_NOFILE].rlim_cur || p->ofile_cnt >= NOFILE;
 }

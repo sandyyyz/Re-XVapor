@@ -51,6 +51,7 @@ struct proc {
 
   // struct trapframe *trapframe; // data page for trampoline.S
   // struct context context;      // swtch() here to run process
+  int ofile_cnt;            // Number of open files
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
 

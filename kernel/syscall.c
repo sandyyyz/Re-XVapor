@@ -70,9 +70,13 @@ argint(int n, int *ip)
 {
   *ip = argraw(n);
 }
-void arglong(int n, uint64 *lip) {
+void arglong(int n, long *lip) {
   *lip = (long) argraw(n); 
 }
+void argulong(int n, unsigned long *lip) {
+  *lip = (unsigned long) argraw(n); 
+}
+
 void arguint32(int n, uint32 *lip) {
   *lip = (uint32) argraw(n); 
 }
@@ -106,6 +110,8 @@ static uint64 (*syscalls[])(void) = {
 #include "sysfunc.h"
 };
 
+#include "sysname.h"
+
 void
 syscall(void)
 {
@@ -114,16 +120,17 @@ syscall(void)
   struct tcb *t = mythread();
 
   num = t->trapframe->a7; // call number
-#ifdef __DEBUG_SYSCALL
-  printf("thread %d syscall %d\n", t->tid, num);
-#endif
+
     if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+#ifdef __DEBUG_SYSCALL
+      printf("thread %d syscall %d: %s\n", t->tid, num, syscall_name[num]);
+#endif
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     t->trapframe->a0 = syscalls[num]();
     // printf("%d %s: syscall %d\n", p->pid, p->name, num);
   } else {
     t->trapframe->a0 = -1;
-    Log("thread %d syscall %d: unknown", t->tid, num);
+    Warn("thread %d syscall %d: unknown", t->tid, num);
   }
 }

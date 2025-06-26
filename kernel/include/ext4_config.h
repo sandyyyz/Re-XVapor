@@ -85,7 +85,7 @@ extern "C" {
 
 /**@brief  Enable/disable journaling*/
 #ifndef CONFIG_JOURNALING_ENABLE
-#define CONFIG_JOURNALING_ENABLE 1
+#define CONFIG_JOURNALING_ENABLE 0
 #endif
 
 /**@brief  Enable/disable xattr*/

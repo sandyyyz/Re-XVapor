@@ -33,6 +33,7 @@ uint64 sys_clock_nanosleep(void) {
   struct timespec req, rem;
   uint rticks;
   uint ticks0;
+  int is_invalid = 0;
   struct proc *p = myproc();
   argint(0, &clock_id);
   argint(1, &flags);
@@ -55,9 +56,12 @@ uint64 sys_clock_nanosleep(void) {
   Log("req_sec: %d, req_nsec %d, rticks: %d", req.tv_sec, req.tv_nsec, rticks);
 #endif
   if(req.tv_sec == INT_MAX){
-    Warn("INTMAX sec in sys_clock_nanosleep, set to 1 sec\n");
+    // Warn("INTMAX sec in sys_clock_nanosleep, set to 1 sec\n");
     req.tv_sec = 1;
     rticks = TIMESPEC2TICKS(req);
+    is_invalid = 1;
+    // release(&tickslock);
+    // thread_exit(0);
   }
   // release(&tickslock);
   // return EINVAL;
@@ -89,6 +93,8 @@ uint64 sys_clock_nanosleep(void) {
 #endif
   }
   release(&tickslock);
+  if(is_invalid)
+    thread_exit(0);
   return 0;
 }
 /**
@@ -118,9 +124,6 @@ uint64 sys_nanosleep(void)
         return -1;
 
     rticks = TIMESPEC2TICKS(req);
-#ifdef __DEBUG_SYS_NANOSLEEP
-    Log("[sys_nanosleep] sec: %d, nsec: %d, rticks: %d, addr0: %p, addr1: %p", req.tv_sec, req.tv_nsec, rticks, (void *)addr0, (void *)addr1);
-#endif
     acquire(&tickslock);
     ticks0 = ticks;
     while (ticks - ticks0 < rticks)
@@ -136,6 +139,9 @@ uint64 sys_nanosleep(void)
             release(&tickslock);
             return -1;
         }
+#ifdef __DEBUG_SYS_NANOSLEEP
+        Log("[sys_nanosleep] ticks: %d, ticks0: %d, rticks: %d", ticks, ticks0, rticks);
+#endif
         thread_sleep(&ticks, &tickslock, NULL);
     }
     if(addr1) {
@@ -226,7 +232,7 @@ uint64 sys_clone(void) {
 uint64
 sys_fork(void)
 {
-  return fork();
+  return do_clone(0, 0, 0, 0, 0);
 }
 
 uint64 sys_wait4(void) {
@@ -346,7 +352,7 @@ uint64 sys_kill(void)
   sig_t sig;
 
   argint(0, &pid);
-  arglong(1, &sig);
+  arguint64(1, &sig);
   
   return proc_kill(pid, sig);
 }
@@ -356,7 +362,7 @@ uint64 sys_tkill(void) {
   sig_t sig;
 
   argint(0, &tid);
-  arglong(1, &sig);
+  arguint64(1, &sig);
 #ifdef __DEBUG_SYS_TKILL
   Log("[sys_tkill] tid: %d, sig: %d", tid, sig);
 #endif
@@ -451,6 +457,15 @@ static int do_prlimit(struct proc *p, uint32 resource, struct rlimit *new_rlim, 
   if (resource >= RLIM_NLIMITS)
       return -EINVAL;
 
+#ifdef __DEBUG_DO_PRLIMIT
+  Log("[do_prlimit] resource: %d, new_rlim: %p, old_rlim: %p", resource, new_rlim, old_rlim);
+  if(new_rlim) {
+      Log("[do_prlimit] new_rlim->rlim_cur: %d, new_rlim->rlim_max: %d", new_rlim->rlim_cur, new_rlim->rlim_max);
+  }
+  if(old_rlim) {
+      Log("[do_prlimit] old_rlim->rlim_cur: %d, old_rlim->rlim_max: %d", old_rlim->rlim_cur, old_rlim->rlim_max);
+  } 
+#endif
   struct rlimit *rlim = p->rlim + resource;
   if (!retval) {
       if (old_rlim)
@@ -605,16 +620,16 @@ uint64 sys_setpgid(void) {
  */
 uint64 sys_futex(void) {
   int futex_op;
-  uint32_t val, val2, val3, uaddr, uaddr2;
-  uint64 timeout_addr;
+  uint32_t val, val2, val3;
+  uint64 timeout_addr, uaddr, uaddr2;
   struct timespec timeout;
 
-  arguint32(0, &uaddr);
+  argaddr(0, &uaddr);
   argint(1, &futex_op);
   arguint32(2, &val);
-  arguint64(3, &timeout_addr);
+  argaddr(3, &timeout_addr);
   arguint32(3, &val2);
-  arguint32(4, &uaddr2);
+  argaddr(4, &uaddr2);
   arguint32(5, &val3);
 
 #ifdef __DEBUG_SYS_FUTEX

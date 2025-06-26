@@ -72,10 +72,12 @@ SYSTBL=scripts/syscall.tbl
 SYSDECL=kernel/include/sysdecl.h
 SYSNUM=kernel/include/sysnum.h
 SYSFUNC=kernel/include/sysfunc.h
+SYSNAME=kernel/include/sysname.h
+
 USYSPL=user/usys.pl
 syscall_gen:
 	@echo "Generating syscall files..."
-	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL)
+	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL) $(SYSNAME)
 	@echo "Generating syscall files done."
 kernel:	user syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
@@ -97,10 +99,9 @@ mkfs/mkfs: mkfs/mkfs.c $(KERNEL_DIR)/include/xv6fs.h $(KERNEL_DIR)/include/param
 # $(USER_BUILD_DIR)/uprogs-list.mk:
 # 	$(MAKE) -C $(USER_DIR) uprogs-list.mk
 
-fs.img: $(UPROGS_TEST) $(UEXTRA) $(UPROGS) mkfs/mkfs README  
+fs.img: $(UPROGS_TEST) $(UEXTRA) $(UPROGS) README  
 	$(MAKE) -C $(USER_DIR) all
 	@mkdir -p build/fs
-	mkfs/mkfs build/fs/fs.img README $(UEXTRA) $(UPROGS) $(UPROGS_TEST) 
 
 -include kernel/*.d user/*.d
 
@@ -117,15 +118,15 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
 ifndef CPUS
-CPUS := 4
+CPUS := 1
 endif
 
 
-QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/kernel/kernel -m 4G -smp $(CPUS) -nographic
-QEMUOPTS += -global virtio-mmio.force-legacy=false
+QEMUOPTS = -machine virt -bios default -kernel $(BUILD_DIR)/kernel/kernel -m 1G -smp $(CPUS) -nographic
+# QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
-QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-
+QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -no-reboot 
+# QEMUOPTS += -device virtio-net-device,netdev=net -netdev user,id=net -rtc base=utc
 
 qemu: user kernel 
 	$(QEMU) $(QEMUOPTS)
