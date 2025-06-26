@@ -69,7 +69,7 @@ sys_gettimeofday(void)
     struct timeval ts;
     ts.tv_sec = t / CLK_FREQ;
     ts.tv_usec = (t % CLK_FREQ) * 1000000 / CLK_FREQ;
-    printf("%d  %d\n",ts.tv_sec,ts.tv_usec);
+    // printf("%d  %d\n",ts.tv_sec,ts.tv_usec);
     if (copyout(myproc()->mm.pagetable, addr, (char *)&ts, sizeof(struct timeval)) < 0)
         return -1;
     return 0;

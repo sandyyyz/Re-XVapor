@@ -465,7 +465,7 @@ uint64 sys_mkdirat(void) {
   argint(0, &dirfd);
   arguint32(2, &mode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
-  printf("sys_mkdirat: abs_path = %s\n", abs_path);
+  // printf("sys_mkdirat: abs_path = %s\n", abs_path);
   return generic_mkdir(abs_path, mode);
 }
 
