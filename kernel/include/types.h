@@ -21,6 +21,7 @@ typedef int int32_t;
 
 typedef short int16_t;
 typedef long int64;
+typedef int64 int64_t;
 
 #if !(defined (off_t))
 typedef long off_t;

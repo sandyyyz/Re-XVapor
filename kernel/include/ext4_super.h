@@ -90,7 +90,7 @@ static inline void ext4_sb_set_free_blocks_cnt(struct ext4_sblock *s,
 /**@brief   Block size get from superblock.
  * @param   s superblock descriptor
  * @return  block size in bytes*/
-inline uint32_t ext4_sb_get_block_size(struct ext4_sblock *s)
+static inline uint32_t ext4_sb_get_block_size(struct ext4_sblock *s)
 {
 	return 1024 << to_le32(s->log_block_size);
 }

@@ -123,7 +123,10 @@
         "atomic.h": "c",
         "futex.h": "c",
         "sysname.h": "c",
-        "vm.h": "c"
+        "vm.h": "c",
+        "ext4_super.h": "c",
+        "ext4_dir_idx.h": "c",
+        "ext4_mkfs.h": "c"
     },
 
     "multiCommand.commands": [

@@ -126,12 +126,12 @@ struct file_ops {
 
     int             (*open)(struct file *f, const char *path, int flags);
     int             (*close)(struct file *f);
-    int             (*read)(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
-    int             (*write)(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
+    int             (*read)(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t size, size_t *rcnt);
+    int             (*write)(struct file *fp, int user_src, uint64 src, int64_t off, size_t size, size_t *wcnt);
     int             (*filestat)(struct file *f, uint64 addr);
     int             (*cleansf)(struct file* f);
     int (*getdents)(struct file *fp, struct linux_dirent64 *dirp, int count);
-    int (*writev)(struct file *fp, int user_src, uint64 iovec, int iovcnt, int *wcnt);
+    int (*writev)(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, size_t *wcnt);
     off_t (*lseek)(struct file *fp, off_t offset, int whence);
 };
 

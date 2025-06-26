@@ -20,9 +20,7 @@
 #include "ext4_super.h"
 
 void ext4_ilock(struct inode *ip);
-int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, int flags);
-int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt);
 int ext4_vmknod(const char *pathname, mode_t mode, dev_t dev);
 int ext4_vcleansf(struct file *fp);
 int ext4_vmkdir(const char *pathname, mode_t mode);
@@ -158,7 +156,7 @@ struct ext4_file *ext4_falloc() {
     return fp;
 }
 
-inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
+static inline struct ext4_mfile *parent_mfile(struct ext4_file *efp) {
     return container_of(efp, struct ext4_mfile, ext4_fentry);
 }
 /**
@@ -199,7 +197,7 @@ struct ext4_inode *ext4_ialloc() {
     return ip;
 }
 
-inline struct ext4_minode *parent_minode(struct ext4_inode *eip) {
+static inline struct ext4_minode *parent_minode(struct ext4_inode *eip) {
     return container_of(eip, struct ext4_minode, ext4_ientry);
 }
 
@@ -269,7 +267,7 @@ void ext4_ilock(struct inode *ip) {
  * @attention rcnt shouldn't be NULL !!!!!, it will be set to the number of bytes read
  * @return int 
  */
-int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt) {
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t size, size_t *rcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kbuf = NULL;
@@ -329,11 +327,11 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
  * @attention iovec should in kernel space
  * @return 0 on success, -1 on error
  */
-int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, int *wcnt) {
+int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, size_t *wcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kvecs = (char*) iovec;
-    int wc = 0;
+    size_t wc = 0;
     if(!efp) {
         printf("[ext4] efp is NULL!\n");
         return EINVAL;
@@ -370,7 +368,7 @@ int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int
     return r;
     
 }
-int ext4_vwrite(struct file *fp, int user_src, uint64 src, uint off, uint size, int *wcnt) {
+int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t size, size_t *wcnt) {
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kbuf = NULL;
@@ -983,7 +981,7 @@ int ext4_vfaccess(char *path, int amode, int flags) {
 int ext4_vutimens(const char *path, __nullable const struct timespec *ts) {
     struct timespec atime, mtime, nowtime;
     int seta = 1, setm = 1;
-   
+    int r = 0;
     nowtime = TIME2TIMESPEC(rdtime());
 
     if(ts == NULL) {
@@ -1011,15 +1009,15 @@ int ext4_vutimens(const char *path, __nullable const struct timespec *ts) {
         return EOK;
     }
     if(seta) {
-        if(ext4_atime_set(path, atime.tv_sec) != EOK) {
+        if((r = ext4_atime_set(path, atime.tv_sec)) != EOK) {
             printf("[ext4] ext4_atime_set error!\n");
-            return -1;
+            return -r;
         }
     }
     if(setm) {
-        if(ext4_mtime_set(path, mtime.tv_sec) != EOK) {
+        if((r = ext4_mtime_set(path, mtime.tv_sec)) != EOK) {
             printf("[ext4] ext4_mtime_set error!\n");
-            return -1;
+            return -r;
         }
     }
     return EOK;
