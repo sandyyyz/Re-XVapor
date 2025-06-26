@@ -132,7 +132,7 @@ char *musl_libctest_static_cmds[] = {
   "/musl/runtest.exe -w entry-static.exe wcsncpy_read_overflow",
   "/musl/runtest.exe -w entry-static.exe wcsstr_false_negative",
 
-  "echo '#### OS COMP TEST GROUP END libctest-musl ####'",
+  // "echo '#### OS COMP TEST GROUP END libctest-musl ####'",
   NULL
 };
 
@@ -347,7 +347,7 @@ int main(void)
   } else {
     wait(0);
   }
-  
+
   // musl libctest-static
   for (int i = 0; musl_libctest_static_cmds[i] != NULL; i++) {
     pid = fork();
