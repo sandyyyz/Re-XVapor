@@ -322,6 +322,19 @@ int main(void)
     printf(glibc_basic_end_str);
   }
 
+  // musl busybox test
+  pid = fork();
+  if(pid == 0) {
+    if(chdir(musl_dir) < 0) {
+      printf("init: chdir %s failed\n", musl_dir);
+      exit(-1);
+    }
+    int ret = execve(musl_busybox_path, musl_busybox_test_argv, busybox_envp);
+    printf("execve returned %d\n", ret);
+  } else { 
+    wait(0);
+  }
+
   // glibc busybox test
   pid = fork();
   if(pid == 0) {
@@ -369,19 +382,6 @@ int main(void)
     }
   }
 
-    // musl busybox test
-    pid = fork();
-    if(pid == 0) {
-      if(chdir(musl_dir) < 0) {
-        printf("init: chdir %s failed\n", musl_dir);
-        exit(-1);
-      }
-      int ret = execve(musl_busybox_path, musl_busybox_test_argv, busybox_envp);
-      printf("execve returned %d\n", ret);
-    } else { 
-      wait(0);
-    }
-  
 
 #endif
 

@@ -153,9 +153,9 @@ filestat(struct file *f, uint64 addr)
 }
 
 
-int fileread(struct file *f, int user_dst, uint64 addr, int n, int off)
+int fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off)
 {
-  int r = 0;
+  size_t r = 0;
 
   if(!IS_READABLE(f->flags))
     return -1;
@@ -187,9 +187,10 @@ int fileread(struct file *f, int user_dst, uint64 addr, int n, int off)
  * only used for FD_INODE type file
  * @return int return the number of bytes written, -1 if failed 
  */
-int filewrite(struct file *f, int user_src, uint64 addr, int n, int off)
+int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off)
 {
-  int r, ret = 0;
+  int ret = 0;
+  size_t r = 0;
 
   // Log("file path = %s", f->info.path);
   // Log("file type = %d", f->type);

@@ -1513,3 +1513,96 @@ testcase busybox sleep 1 success
 testcase busybox echo "#### file opration test" success
 testcase busybox touch test.txt success
 panic: filewrite
+
+[LOG][fs/sysfile.c,919,generic_open] generic_open : path /musl/busybox_cmd.bak successfully opened, type = 6
+thread 16 syscall 25: sys_fcntl
+thread 16 syscall 61: sys_getdents64
+thread 16 kerneltrap: page fault at 0x0000000000000028
+sepc=0x000000008020a150 stval=0x0000000000000028
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003fffbef000
+panic: kerneltrap: page fault  
+
+好像只有busybox文件系统操作的时候会出问题。主要涉及创建和删除的时候。 远程平台应该在cat这个文件，但是还没结束就崩了。
+
+[LOG][fs/sysfile.c,939,sys_openat] [sys_openat] abs_path = /musl/test.txt, flags = 0x8000, omode = 0x0
+[LOG][fs/sysfile.c,919,generic_open] generic_open : path /musl/test.txt successfully opened, type = 2
+[LOG][fs/sysfile.c,950,sys_openat] [sys_openat] generic_open success, fd = 3, path = /musl/test.txt, f 0x0000000080239478, f->fpos 0, flags 8000
+thread 7 syscall 71: sys_sendfile
+[LOG][fs/sysfile.c,1565,do_sendfile] do_sendfile: kbuf = 0x000000009ed67000, kbuf size = 4096
+hello world
+thread 7 kerneltrap: page fault at 0x0000003effffff88
+sepc=0x000000008021d830 stval=0x0000003effffff88
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003fffe38000
+panic: kerneltrap: page fault
+
+哇，改了sendfile符合要求之后居然在远程平台同款的位置崩了！  
+每次崩的位置都不一样
+
+thread 3 kerneltrap: page fault at 0x0000003effffffa8
+sepc=0x000000008021d6a2 stval=0x0000003effffffa8
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003ffff3c000
+panic: kerneltrap: page fault
+
+
+thread 3 kerneltrap: page fault at 0x0000003effffffa8
+sepc=0x000000008021d6a2 stval=0x0000003effffffa8
+scause=0x000000000000000d
+sstatus=0x8000000200046120
+satp=0x80000000000a01ff
+t->kstack=0x0000003ffff3c000
+panic: kerneltrap: page fault
+
+正确的s0应该是: 0x3ffff7bf40  
+fileread() sp : 0x3ffff7be40
+0x802064fc 栈里的内容不对！
+
+0x8020639c
+rw_sharp()->fileread()开始往栈里存了a0，但是结束之后栈里内容不对。另外，改了编译等级之后发现输出不了hello world就崩了，怀疑是内核栈的问题
+![testing.1](image-170.png)
+0x8020edc2修改了栈里寸的s0 ...
+
+![alt text](image-171.png) 
+
+我好像找到问题所在在了 ,看rcnt类型。。。这样清空内存会多清4个字节。。。
+
+``` c
+
+typedef long unsigned int size_t;
+
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt) {
+    int r = EOK;
+    struct ext4_file *efp = fp->private_data;
+    char *kbuf = NULL;
+    if(!efp) {
+        printf("[ext4] efp is NULL!\n");
+        return EINVAL;
+    }
+    if((r = ext4_fseek(efp, off, SEEK_SET)) != EOK) {
+        printf("[ext4] ext4_fseek error! r=%d\n", r);
+        return r;
+    }
+    if(user_dst) {
+        kbuf = (char *)kmalloc(size);
+        if(!kbuf) {
+            // printf("[ext4] kmalloc error!\n");
+            return ENOMEM;
+        }
+    } else {
+        kbuf = (char *)dst;
+    }
+    #ifdef __DEBUG_EXT4_VFREAD
+    Log("[ext4] ext4_vfread: kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
+    #endif
+    if((r = ext4_fread(efp, kbuf, (size_t)size, (size_t*) rcnt)) != EOK) {
+```  
+
+先吃饭  

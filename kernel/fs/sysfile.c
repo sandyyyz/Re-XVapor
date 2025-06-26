@@ -936,7 +936,7 @@ uint64 sys_openat(void) {
   // printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
   get_abpath_from_dirfd(path, dirfd, abs_path);
 #ifdef __DEBUG_SYS_OPENAT
-  Log("[sys_openat] abs_path = %s", abs_path);
+  Log("[sys_openat] abs_path = %s, flags = 0x%x, omode = 0x%x", abs_path, flags, omode);
 #endif
   if((r = generic_open(abs_path, flags, omode)) < 0) {
 #ifdef __DEBUG_SYS_OPENAT
@@ -1225,7 +1225,7 @@ uint64 sys_getdents64(void) {
 }
 
 int generic_writev(struct file *f, uint64 iov, int iovcnt) {
-  int wcnt = 0;
+  size_t wcnt = 0;
   char *kvecs = NULL;
   if((kvecs = kmalloc(iovcnt * sizeof(struct iovec))) == NULL) {
     printf("generic_writev: kmalloc failed\n");
@@ -1360,22 +1360,23 @@ uint64 sys_faccessat(void) {
   return 0;
 }
 
-static int file_exist(const char *path) {
-  struct vfs_filesystem *fs = vfs_resolve_fs(path);
-  if (fs == NULL) {
-    printf("file_exsit: vfs_resolve_fs failed\n");
-    return 0;
-  }
-  if(fs->fsops->file_exist == NULL) {
-    printf("file_exsit: fsops->file_exsit is NULL\n");
-    return 0;
-  }
-  return fs->fsops->file_exist(path);
-}
+// static int file_exist(const char *path) {
+//   struct vfs_filesystem *fs = vfs_resolve_fs(path);
+//   if (fs == NULL) {
+//     printf("file_exsit: vfs_resolve_fs failed\n");
+//     return 0;
+//   }
+//   if(fs->fsops->file_exist == NULL) {
+//     printf("file_exsit: fsops->file_exsit is NULL\n");
+//     return 0;
+//   }
+//   return fs->fsops->file_exist(path);
+// }
 
 int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct timespec *times, int flags) {
   char abs_path[MAXPATH];
   struct vfs_filesystem *fs = NULL;
+  int r = 0;
 
   if(flags & ~AT_SYMLINK_NOFOLLOW) {
     printf("generic_utimensat: flags & ~AT_SYMLINK_NOFOLLOW is not supported\n");
@@ -1384,26 +1385,31 @@ int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct ti
   get_abpath_from_dirfd(pathname, dirfd, abs_path);
   
 #ifdef __DEBUG_GENERIC_UTIMENSAT
-  printf("[generic_utimensat] dirfd = %d, pathname = %s, abs_path = %s, flags = %d\n", dirfd, pathname ? pathname : "NULL", abs_path, flags);
+  Log("[generic_utimensat] dirfd = %d, pathname = %s, abs_path = %s, flags = %d", dirfd, pathname ? pathname : "NULL", abs_path, flags);
+  if(file_exist(abs_path)) {
+    Log("[generic_utimensat] file %s exists", abs_path);
+  } else {
+    Log("[generic_utimensat] file %s does not exist", abs_path);
+  } 
 #endif
-  if(!file_exist(abs_path)) {
-    // printf("generic_utimensat: file %s does not exist\n", abs_path);
-    // return -1;
+  // if(!file_exist(abs_path)) {
+  //   // printf("generic_utimensat: file %s does not exist\n", abs_path);
+  //   // return -1;
 
-    // or create a new file if it does not exist?
-    int flags = O_CREAT | O_RDWR;
-    int omode = 0644; // default mode
-    int fd = generic_open(abs_path, flags, omode);
-    if(fd < 0) {
-      printf("generic_utimensat: generic_open failed, abs_path = %s\n", abs_path);
-      return -1;
-    }
-    // close the file descriptor
-    struct file *f = myproc()->ofile[fd];
-    fileclose(f, 1);
-    myproc()->ofile[fd] = NULL; // clear the file descriptor
-    // now we can set the timestamps
-  }
+  //   // or create a new file if it does not exist?
+  //   int flags = O_CREAT | O_RDWR;
+  //   int omode = 0644; // default mode
+  //   int fd = generic_open(abs_path, flags, omode);
+  //   if(fd < 0) {
+  //     printf("generic_utimensat: generic_open failed, abs_path = %s\n", abs_path);
+  //     return -1;
+  //   }
+  //   // close the file descriptor
+  //   struct file *f = myproc()->ofile[fd];
+  //   fileclose(f, 1);
+  //   myproc()->ofile[fd] = NULL; // clear the file descriptor
+  //   // now we can set the timestamps
+  // }
 
   fs = vfs_resolve_fs(abs_path);
   if (fs == NULL) {
@@ -1414,9 +1420,9 @@ int generic_utimensat(int dirfd, __nullable char *pathname, __nullable struct ti
     printf("generic_utimensat: fsops->utimensat is NULL\n");
     return -1;
   }
-  if (fs->fsops->utimens(abs_path, times) < 0) {
-    printf("generic_utimensat: fsops->utimensat failed\n");
-    return -1;
+  if ((r = fs->fsops->utimens(abs_path, times))< 0) {
+    printf("generic_utimensat: fsops->utimensat failed, r = %d\n", r);
+    return r;
   }
 #ifdef __DEBUG_GENERIC_UTIMENSAT
   Log("generic_utimensat: abs_path %s successfully utimensat", abs_path);
@@ -1537,28 +1543,31 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
   
   ssize_t nread = 0;
   ssize_t nwritten = 0;
-  // off_t offset;
+  off_t offset = 0;
+  // off_t original_offset = 0;
   void *kbuf = NULL;
 
   if(offset_addr) {
-    if(copyin(myproc()->mm.pagetable, (char *)&in_f->fpos, (uint64)offset_addr, sizeof(off_t)) < 0) {
+    if(copyin(myproc()->mm.pagetable, (char *)&offset, (uint64)offset_addr, sizeof(off_t)) < 0) {
       printf("do_sendfile: copyin failed\n");
       return -1;
     }
   } else {
-    // offset = in_f->fpos;
+    offset = in_f->fpos;
   }
+  // original_offset = in_f->fpos; // save the original file position
 
   if((kbuf = kalloc()) == NULL) {
     Warn("do_sendfile: kalloc failed");
     goto bad;
   }
 #ifdef __DEBUG_DO_SENDFILE
-  Log("do_sendfile: kbuf = %p, kbuf size = %d", kbuf, PGSIZE);
+  Log("do_sendfile: kbuf = %p, kbuf size = %d, count %d, offset = %d", kbuf, PGSIZE, count, offset);
 #endif
 // in fact, the ext4_fread will check if the count larger than the file size, so the path is used for avoiding reading data larger than PGSIZE to kbuf
   if(count > PGSIZE) {
-    nwritten = rw_sharp(out_f, in_f, kbuf, in_f->fpos, count);
+    nwritten = rw_sharp(out_f, in_f, kbuf, offset, count);
+    offset += nwritten; // update the offset
     goto finished; // rw_sharp will handle the read and write operations
   }
   if((nread = fileread(in_f, 0, (uint64)kbuf, count, in_f->fpos)) < 0) {
@@ -1566,12 +1575,11 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
     goto bad;
   }
 
-  // offset += nread;
-
-  // if(offset != in_f->fpos) { // for debug, the f->pos should have been updated by fileread
-  //   printf("do_sendfile: offset != in_f->fpos, offset = %d, in_f->fpos = %d\n", offset, in_f->fpos);
-  //   goto bad;
-  // }
+  offset += nread;
+  if(offset != in_f->fpos) { // for debug, the f->pos should have been updated by fileread
+    printf("do_sendfile: offset != in_f->fpos, offset = %d, in_f->fpos = %d\n", offset, in_f->fpos);
+    goto bad;
+  }
   if((nwritten = filewrite(out_f, 0, (uint64)kbuf, nread, out_f->fpos)) < 0) {
     Warn("do_sendfile: filewrite failed, nwritten = %d", nwritten);
     goto bad;
@@ -1583,16 +1591,18 @@ int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint6
 
 finished:
 #ifdef __DEBUG_DO_SENDFILE
-  // Log("finished local offset addr %p, offset %d", &offset, offset);
+  Log("finished local offset addr %p, offset %d, in_f->fpos = %d", &offset, offset, in_f->fpos);
 #endif
   // offset = in_f->fpos; // update the file position of in_f
   if(offset_addr) {
-    if(copyout(myproc()->mm.pagetable, (uint64) offset_addr, (char *)&in_f->fpos, sizeof(off_t)) < 0) {
+    if(copyout(myproc()->mm.pagetable, (uint64) offset_addr, (char *)&offset, sizeof(off_t)) < 0) {
       Warn("do_sendfile: copyout failed");
       goto bad;
     }
+    // in_f->fpos = original_offset;
+    in_f->fpos = offset; // update the file position of in_f
   } else {
-    // in_f->fpos = offset; // update the file position
+    in_f->fpos = offset; // update the file position
   }
   kfree(kbuf);
   return nwritten; // return the number of bytes written

@@ -35,7 +35,8 @@ int execve(char *path, char **argv, char **envp)
   
   char *s, *last;
   int i, off;
-  int r = 0, rcnt = 0, index = 0;
+  int r = 0, index = 0;
+  size_t rcnt = 0;
   uint64 argc, envc, sz = 0, sp, ustack[MAXARG], estack[MAXENV + 1], stackbase;
   struct elfhdr elf;
   struct proghdr ph;
@@ -356,7 +357,8 @@ static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offse
   Log("enter floadseg: va %p, offset %p, sz 0x%x", va, offset, sz);
   #endif
   uint i, n;
-  int r = 0, rcnt = 0;
+  int r = 0;
+  size_t rcnt = 0;
   uint64 pa;
   if ((va % PGSIZE) != 0)
     panic("loadseg: va must be page aligned");

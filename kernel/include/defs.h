@@ -35,9 +35,9 @@ struct file*    filealloc(void);
 void            fileclose(struct file*, int drop_ofile_cnt);
 struct file*    filedup(struct file*);
 void            fileinit(void);
-int fileread(struct file *f, int user_dst, uint64 addr, int n, int off);
+int fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off);
 int             filestat(struct file*, uint64 addr);
-int filewrite(struct file *f, int user_src, uint64 addr, int n, int off);
+int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off);
 
 // fs.c
 struct inode*   idup(struct inode*);

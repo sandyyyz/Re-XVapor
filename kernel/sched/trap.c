@@ -81,7 +81,7 @@ static void pgfault_handler() {
   }
   struct file* fp = vma->file;
   int offset = va - vma->vm_start;
-  int rcnt = 0;
+  size_t rcnt = 0;
   if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
     printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());

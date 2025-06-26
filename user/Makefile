@@ -30,7 +30,6 @@ else
 USER_EXTRA_DEPS := $(KERNEL_DIR)/include/initcode.h
 endif
 
-
 all: user
 
 uprogs-list.mk: $(UPROGS) $(UPROGS_TEST)

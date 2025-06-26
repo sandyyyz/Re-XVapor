@@ -18,14 +18,13 @@ int ext4_init();
 int init_ext4fs();
 struct inode *ext4_namei(char *rel_path);
 void ext4_ilock(struct inode *ip);
-int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, int *rcnt);
 int ext4_vfopen(struct file *fp, const char *path, int flags);
 int ext4_vfclose(struct file *fp);
 int ext4_vfstat(struct file *f, struct kstat *st);
 int ext4_vstat(char *path, struct kstat *st);
 int ext4_vcleansf(struct file *fp);
 int ext4_temp_vgentdents(struct file *fp, __user_space struct linux_dirent64 *u_dirp, int count);
-int ext4_vwritev(struct file *fp, int user_src, uint64 iovec, int iovcnt, int *wcnt);
+int ext4_vwritev(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, size_t *wcnt);
 int ext4_visdir(const char *path);
 int ext4_vlink(const char *oldpath, const char *newpath, int flags);
 int ext4_vunlink(const char *path, int flags);
@@ -34,5 +33,7 @@ int ext4_vutimens(const char *path, __nullable const struct timespec *ts);
 int ext4_vfile_exist(const char *path);
 off_t ext4_vlseek(struct file *fp, off_t offset, int whence);
 int ext4_vfrename(const char *oldpath, const char *newpath);
+int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t size, size_t *wcnt);
+int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t size, size_t *rcnt);
 
 #endif
