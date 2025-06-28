@@ -17,18 +17,19 @@ https://pubs.opengroup.org/onlinepubs/7908799/xsh/systimes.h.html
 ## sys_gettimeofday
 
 ### struct timespec:
-![timespec](image-1.png)
+![timespec](image/image-1.png)
+
 
 
 ## sys_nano_sleep
 
 ### discription:
 https://man7.org/linux/man-pages/man2/nanosleep.2.html  
-![nanosleep](image-2.png)
+![nanosleep](image/image-2.png)
 
 ### TICKS_PER_SECOND:
 
-![timer_initial](image-3.png)
+![timer_initial](image/image-3.png)
 *TICKS_PER_SECON (timer interrupt's times per second)* == 10 when interval is set to be 1000000  
 
 cpu0 handle the clockintr() every time the time interrupt raises(falls in trap):  
@@ -51,8 +52,8 @@ so can sleep in ``chan == traget_ticks``
 -- 暂时遍历整个等待队列？。。。好像不是很优雅
 
 ## sys_clone
-![clone_synopsis](image-32.png)
-![sys_clone](image-31.png)
+![clone_synopsis](image/image-32.png)
+![sys_clone](image/image-31.png)
 
 ## sys_wait4, sys_clone, sys_exit
 
@@ -60,7 +61,7 @@ closely related
 
 ### sys_wait4
 
-![wait4](image-33.png)
+![wait4](image/image-33.png)
 来看看具体解释：
   wait() and waitpid()
        The wait() system call suspends execution of the calling thread
@@ -157,15 +158,15 @@ closely related
               resumed by delivery of SIGCONT.
 don't need rusage  
 * flags:  
-![flags](image-34.png)
+![flags](image/image-34.png)
 
 
 ### sys_mknod
 
 #### file type and mode
 
-![mode.1](image-124.png)
-![mode.2](image-125.png)
+![mode.1](image/image-124.png)
+![mode.2](image/image-125.png)
 
 ### sys_execve
 
@@ -186,22 +187,22 @@ int execve(const char *pathname, char *const _Nullable argv[],
 主要参考了 Linux 5.10 syscalls，详细请参见：[man7 系统调用文档](https://man7.org/linux/man-pages/man2/syscalls.2.html)
 
 ## 文件系统相关
-- [ ] SYS_getcwd  
-- [ ] SYS_pipe2  
-- [ ] SYS_dup  
-- [ ] SYS_dup3  
-- [ ] SYS_chdir  
-- [ ] SYS_openat  
-- [ ] SYS_close  
-- [ ] SYS_getdents64  
-- [ ] SYS_read  
-- [ ] SYS_write  
-- [ ] SYS_linkat  
-- [ ] SYS_unlinkat  
-- [ ] SYS_mkdirat  
-- [ ] SYS_umount2  
-- [ ] SYS_mount  
-- [ ] SYS_fstat  
+- [x] SYS_getcwd  
+- [x] SYS_pipe2  
+- [x] SYS_dup  
+- [x] SYS_dup3  
+- [x] SYS_chdir  
+- [x] SYS_openat  
+- [x] SYS_close  
+- [x] SYS_getdents64  
+- [x] SYS_read  
+- [x] SYS_write  
+- [x] SYS_linkat  
+- [x] SYS_unlinkat  
+- [x] SYS_mkdirat  
+- [x] SYS_umount2  
+- [x] SYS_mount  
+- [x] SYS_fstat  
 
 ## 进程管理相关
 - [x] SYS_clone  
@@ -212,9 +213,9 @@ int execve(const char *pathname, char *const _Nullable argv[],
 - [x] SYS_getpid  
 
 ## 内存管理相关
-- [ ] SYS_brk  
-- [ ] SYS_munmap  
-- [ ] SYS_mmap  
+- [x] SYS_brk  
+- [x] SYS_munmap  
+- [x] SYS_mmap  
 
 ## 其他
 - [x] SYS_times  

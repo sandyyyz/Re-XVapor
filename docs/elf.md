@@ -17,21 +17,21 @@ Allocate virtual memory for each segment, at the address specified by the p_vadd
 - Read the executable's entry point from the ELF header.  
 - Jump to the executable's entry point in the newly loaded memory.  
 
-![elf-overview](image-114.png)
+![elf-overview](image/image-114.png)
 
 An **ELF header **resides at the beginning and holds a ‘‘road map’’ describing the file’s organization. **Sections** hold the bulk of object file information for the linking view: instructions, data, symbol table, relocation information, and so on.A **program header table**, if present, tells the system how to create a process image
 
 ## ELF - section header
 
-![section-header](image-115.png)
+![section-header](image/image-115.png)
 
 ## ELF - program header
 
-![program-header](image-116.png)
+![program-header](image/image-116.png)
 
 ### p_type
 
-![p_type](image-117.png)
+![p_type](image/image-117.png)
 
 - `PT_LOAD` The array element specifies a loadable segment, `p_filesz` <= `p_memsz` , mem area = area of filesz + memsz - filesz '0' (hold .bss section)
 

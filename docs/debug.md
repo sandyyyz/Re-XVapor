@@ -2,11 +2,11 @@
 
 The system call number of XV6 is different from the required one (a small pitfall), just change it to the required one  
 (call write before calling sys_times here)
-![times_call_number](image-29.png)
+![times_call_number](image/image-29.png)
 
 ## sleep syscall
 The test file seems to use ``timeval`` instead of ``timespec``
- ![struct timeval](image-30.png)
+ ![struct timeval](image/image-30.png)
 
 
 ## other 
@@ -19,22 +19,22 @@ The test file seems to use ``timeval`` instead of ``timespec``
 
 ### thread.1
 
-![panic_thread.1.1](image-52.png)
-![panic_thread.1.2](image-51.png)
-![panic_thread.1.3](image-53.png)
+![panic_thread.1.1](image/image-52.png)
+![panic_thread.1.2](image/image-51.png)
+![panic_thread.1.3](image/image-53.png)
 
 p->thread == null!!
 
-![panic_thread.1.4](image-54.png)
-![panic_thread.1.5](image-55.png)
+![panic_thread.1.4](image/image-54.png)
+![panic_thread.1.5](image/image-55.png)
 
-![panic_thread.1.6](image-56.png)
+![panic_thread.1.6](image/image-56.png)
 scheduler刚开中断，c-> = 0时直接进kerneltrap,导致myproc()空指针引用
 是时钟中断！
-![panic_thread.1.7](image-57.png)
+![panic_thread.1.7](image/image-57.png)
 
 调用``myproc()``必须保证c->t != null!!
-![panic_thread_1.8](image-58.png)
+![panic_thread_1.8](image/image-58.png)
 
 改为
 ``` c
@@ -47,13 +47,13 @@ scheduler刚开中断，c-> = 0时直接进kerneltrap,导致myproc()空指针引
 
 ### thread.2
 
-![panic_thread.2.1](image-59.png)
+![panic_thread.2.1](image/image-59.png)
 
-![panic_thread.2.2](image-60.png)
+![panic_thread.2.2](image/image-60.png)
 
-![panic_thread.2.3](image-61.png)
+![panic_thread.2.3](image/image-61.png)
 
-![panic_thread.2.4](image-62.png)
+![panic_thread.2.4](image/image-62.png)
 
 q == null!
 
@@ -62,54 +62,54 @@ q == null!
 
 ### thread.3
 
-![thread.3.1](image-63.png)
+![thread.3.1](image/image-63.png)
 lost wakeup
 
 push sleeping queue没问题，问题应该出在遍历queue
 原来是调用处写错了member name
-![thread.3.2](image-64.png)
+![thread.3.2](image/image-64.png)
 
 
 ### thread.4
 
 `usertrapret()`之后卡住
 
-![thread.4.3](image-66.png)
-![thread.4.4](image-67.png)
-![thread.4.5](image-68.png)
-![thread.4.6](image-69.png)
+![thread.4.3](image/image-66.png)
+![thread.4.4](image/image-67.png)
+![thread.4.5](image/image-68.png)
+![thread.4.6](image/image-69.png)
 0x0处的代码：
-![thread.4.11](image-74.png)  
+![thread.4.11](image/image-74.png)  
 用户页表 :
-![thread.4.12](image-75.png)
-![thread.4.14](image-77.png)
+![thread.4.12](image/image-75.png)
+![thread.4.14](image/image-77.png)
 
-！！！ 问题在于sret之后不知道发生了什么。但是用户触发了一个外部中断![external intr](image-82.png)进入到uservec中，随后在uservec对栈进行了写入操作。不知为何发生了![store pgf](image-81.png),继续进入uservec，随后死循环
+！！！ 问题在于sret之后不知道发生了什么。但是用户触发了一个外部中断![external intr](image/image-82.png)进入到uservec中，随后在uservec对栈进行了写入操作。不知为何发生了![store pgf](image/image-81.png),继续进入uservec，随后死循环
 
 uservec 暂时先不写栈呢
-![thread.4.15](image-79.png)
+![thread.4.15](image/image-79.png)
 
-![thread.4.16](image-80.png)
+![thread.4.16](image/image-80.png)
 
-![thread.4.17](image-83.png)
+![thread.4.17](image/image-83.png)
 
 xv6的:
-![thread.4.7](image-70.png)
-![thread.4.8](image-71.png)
-![thread.4.9](image-72.png)
-![thread.4.10](image-73.png)
+![thread.4.7](image/image-70.png)
+![thread.4.8](image/image-71.png)
+![thread.4.9](image/image-72.png)
+![thread.4.10](image/image-73.png)
 用户页表：
-![thread.4.13](image-76.png)
+![thread.4.13](image/image-76.png)
 
 ### thread.5
 
 do_exec无法成功返回用户态
 
-![thread.5.1](image-84.png)
-![thread.5.2](image-86.png)
-![thread.5.3](image-87.png)
+![thread.5.1](image/image-84.png)
+![thread.5.2](image/image-86.png)
+![thread.5.3](image/image-87.png)
 trapframe未映射,重新分配即可
-![thread.5.4](image-88.png)
+![thread.5.4](image/image-88.png)
 
 ```
 [LOG][kernel/sysfile.c,447,sys_exec] do sys_exec
@@ -145,15 +145,16 @@ QEMU: Terminated
 
 `exec()`尝试返回用户态时无限重入`usertrapret()`
 
-![thread.6.1](image-89.png)
-![thread.6.2](image-90.png)
-![thread.6.3](image-91.png)
-![thread.6.4](image-92.png)
-![thread.6.5](image-93.png)
+![thread.6.1](image/image-89.png)
+![thread.6.2](image/image-90.png)
+![thread.6.3](image/image-91.png)
+![thread.6.4](image/image-92.png)
+
 
 暂不确定哪里出现了问题，似乎是调试条件打错了导致一直输出调试信息。但是为何一直重入，应该是某个syscall出问题了。
 
 ### thread.7
+![thread.6.5](image/image-93.png)
 
 `fork`之后panic
 
@@ -630,7 +631,7 @@ vma页可能因为还没被访问而未被分配和映射，所以加个判断
 
 ### ext4.1
 奇怪的block_group
-![ext4.1](image-111.png)
+![ext4.1](image/image-111.png)
 
 导致后续``ext4_fs_init_inode_bitmap(struct ext4_block_group_ref *bg_ref)``函数中bitmap_block_addr是一个非常夸张大的数字，导致``ext4_trans_block_get_noread()``失败。事实上这个block_group的数据应该就是错的。checksum时已经抛出了warning
 
@@ -682,24 +683,24 @@ int ext4_block_get(struct ext4_blockdev *bdev, struct ext4_block *b,
 
 ### init.1
 
-![init.1.1](image-126.png)
+![init.1.1](image/image-126.png)
 
 执行execve时卡死。。。。。。。
 
 not align version?:
-![init.1.2](image-127.png)
-![init.1.3](image-128.png)
+![init.1.2](image/image-127.png)
+![init.1.3](image/image-128.png)
 出错位置:(实在是难以定位只能print大法了)
 似乎是函数`ext4_bdif_bread()`问题
-![init.1.4](image-142.png)
-![init.1.5](image-143.png)
-![init.1.6](image-144.png)
+![init.1.4](image/image-142.png)
+![init.1.5](image/image-143.png)
+![init.1.6](image/image-144.png)
 从磁盘读的问题
 
-![init.1.7](image-145.png)
+![init.1.7](image/image-145.png)
 
 这么看应该是lostwakeup问题
-![init.1.8](image-146.png)
+![init.1.8](image/image-146.png)
 wakeup结束了才sleep??  
 好像发现问题所在了。原本xv6使用p->lock保证sleep和wakeup之间的竞态不会发生，也就是保证不会先唤醒再睡眠，但是此时我改成了直接遍历sleeping queue。这会导致有可能还未修改好状态为sleeping，就直接遍历了一个不存在目标即将睡眠线程的sleeping queue.此时该队列中不存在目标线程，自然t->lock对wakeup的约束根本不存在，导致丢失唤醒  
 那么存不存在一种情况，就是wakeup先于sleep获取了进程锁和对应状态，导致lost wakeup呢？？  
@@ -711,9 +712,9 @@ wakeup结束了才sleep??
 
 ### busybox.1
 
-![busybox.1.1](image-112.png)
+![busybox.1.1](image/image-112.png)
 
-![busybox.1.2](image-113.png)
+![busybox.1.2](image/image-113.png)
 
 修改栈布局：  
 https://refspecs.linuxbase.org/LSB_3.1.0/LSB-generic/LSB-generic/baselib---libc-start-main-.html  
@@ -722,21 +723,21 @@ http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
 
 ### busybox.2
 
-![busybox.2.1](image-119.png)
-![busybox.2.2](image-118.png)
+![busybox.2.1](image/image-119.png)
+![busybox.2.2](image/image-118.png)
 
 __libc_setup_tls尝试syscall 214, 即 SYS_brk,添加对应syscall即可
 
 ### busybox.3
 
-![busybox.3.1](image-120.png)
-![busybox.3.2](image-121.png)
+![busybox.3.1](image/image-120.png)
+![busybox.3.2](image/image-121.png)
 brk后最终调用了syscall 17，然后卡死。（在这之前还有很多的syscall也失败了)  
 一个个修吧=-=
 
 ### busybox.4
-![busybox.4.1](image-122.png)
-![busybox.4.2](image-123.png)
+![busybox.4.1](image/image-122.png)
+![busybox.4.2](image/image-123.png)
 居然写了一个代码段的地址？？
 
 
@@ -752,19 +753,19 @@ ash_main 没有解析到命令，然后退出了？事实上非login_sh时，也
 
 ### busybox.6
 
-![busybox.6.1](image-129.png)
+![busybox.6.1](image/image-129.png)
 问题是getdents传入的f->dir == null
 
 ### busybox.7
 
-![busybox.7.1](image-130.png)
-![busybox.7.2](image-131.png)
+![busybox.7.1](image/image-130.png)
+![busybox.7.2](image/image-131.png)
 
 open的返回值写错了，导致每次都返回fd == 0
 
 ### busybox.8
 
-![busybox.8.1](image-132.png)
+![busybox.8.1](image/image-132.png)
 ls一直getdents,怎么解析到读取所有目录项结束呢？，
 
 getdents return 0!! 吗？？？
@@ -774,19 +775,19 @@ getdents return 0!! 吗？？？
 
 ### busybox.9
 
-![busybox.9.1](image-133.png)
-![busybox.9.2](image-134.png)
-![busybox.9.3](image-135.png)
-![busybox.9.4](image-136.png)
-![busybox.9.5](image-137.png)
-![busybox.9.6](image-138.png)
+![busybox.9.1](image/image-133.png)
+![busybox.9.2](image/image-134.png)
+![busybox.9.3](image/image-135.png)
+![busybox.9.4](image/image-136.png)
+![busybox.9.5](image/image-137.png)
+![busybox.9.6](image/image-138.png)
 `ls_main()` 
 nfiles == 0, !cur??
 `scan_and_display_dirs_recur()`
 
-![busybox.9.7](image-139.png)
-![busybox.9.8](image-140.png)
-![busybox.9.9](image-141.png)
+![busybox.9.7](image/image-139.png)
+![busybox.9.8](image/image-140.png)
+![busybox.9.9](image/image-141.png)
 
 第一次到`__bswapdi2()`
 第二次到这个地址0xd585c
@@ -795,12 +796,12 @@ nfiles == 0, !cur??
 要不还是先支持musl busybox吧  
 如果遇到这种异常的utrap，先把进程杀了而不是panic吧。实在找不到什么原因了
 
-![busybox.9.10](image-157.png)
+![busybox.9.10](image/image-157.png)
 clone传入的flags不为0， 难道是clone实现不规范的原因？
 
 ### busybox.10
 
-![busybox.10.1](image-147.png)
+![busybox.10.1](image/image-147.png)
 ls为啥一直在写0个字节？？？  
 跳过非法vector就好了
 
@@ -808,38 +809,38 @@ ls为啥一直在写0个字节？？？
 为什么一直无法退出shell?  
 - 没有到达exitshell
 - 没有退出cmdloop
-![busybox.11.1](image-148.png)
+![busybox.11.1](image/image-148.png)
 
 执行完一轮之后再hit parsecmd()， n == 0x0?why?  
-![busybox.11.2](image-149.png)
-![busybox.11.3](image-150.png)
+![busybox.11.2](image/image-149.png)
+![busybox.11.3](image/image-150.png)
 
 除了第一次，好像从来没有执行inter++这行，一直在重复解析一个指令  mnb 
-![busybox.11.4](image-151.png)
+![busybox.11.4](image/image-151.png)
 
 就改了两次？？。。。
-![busybox.11.5](image-152.png)
+![busybox.11.5](image/image-152.png)
 
 ### busybox.12
 
 虽然我现在没有把sendfile写完，但是为什么他在源源不断地把一个文件内容拷贝到标准输出？难道我fp->pos忘记修改了？？
-![busybox.12.1](image-153.png)
+![busybox.12.1](image/image-153.png)
 
 看样子是的……，难道这就是之前shell一直无限执行一个指令，并且不退出的原因吗？
-![busybox.12.2](image-154.png)
+![busybox.12.2](image/image-154.png)
 没错！
 
 ### busybox.13
 
 这是爆栈了吗？
-![busybox.13.1](image-155.png)
-![busybox.13.2](image-156.png)
+![busybox.13.1](image/image-155.png)
+![busybox.13.2](image/image-156.png)
 回来的时候s0居然和原本的值不一样；；；  
 这个真是个玄学
 
 ### busybox.14
 为什么sleep 1 会传进来这么奇怪一个数字 0x7fff ffff
-![busybox.14.1](image-158.png)  
+![busybox.14.1](image/image-158.png)  
 是INT_MAX  
 
 ### busybox.15
@@ -972,7 +973,7 @@ panic: usertrap: page fault
 
 现在伪造了一个空的这个文件，但是发现他最后还是会尝试打开别的路径下的conv文件，还会在同一个地方崩溃。那么其实也许没有这个依赖文件也是可以运行的吧！  
 
-![busybox.16.1](image-169.png)
+![busybox.16.1](image/image-169.png)
 我猜是这行：
 
 ```c
@@ -1142,7 +1143,7 @@ thread 2 syscall 66
 
 ### libc.3
 这个bug难道和RLIMIT_STACK尚未支持有关吗？  
-![libc.3](image-159.png)
+![libc.3](image/image-159.png)
 
 ### libc.4
 unsupport now:  
@@ -1233,7 +1234,7 @@ satp=0x800000000009ffff
 首先搞清楚glibc启动和退出相对于musl而言做了哪些额外工作  
 
 `  __run_exit_handlers (status, &__exit_funcs, true, true);`
-![libc.4.1](image-160.png)
+![libc.4.1](image/image-160.png)
 
 ``` c 
 static struct exit_function_list initial;
@@ -1241,22 +1242,22 @@ struct exit_function_list *__exit_funcs = &initial;
 ```
 ~~ 这个链表好像是空 ~~
 
-![libc.4.2](image-161.png)
+![libc.4.2](image/image-161.png)
 
 不对，其实这是一个存了两个析构函数的表！
 
-![libc.4.4](image-163.png)
+![libc.4.4](image/image-163.png)
 这行控制转移了 
-![libc.4.3](image-162.png)
+![libc.4.3](image/image-162.png)
 
 执行第二个析构函数的时候崩了,
 第一个
 这个函数为call_fini,在aexit时注册了,执行完了好像没问题
 注册的时候rtld_fini == NULL, 那这个第一个注册的析构函数到底是什么？
 exit_funcs这里有两个函数(idx == 2)，但是为什么有一个非常奇怪的函数，func == 0x3???
-![libc.4.6](image-165.png)
+![libc.4.6](image/image-165.png)
 一些关键的断点：
-![libc.4.5](image-164.png)
+![libc.4.5](image/image-164.png)
 0xd0e7e: jlr __internal_atexit 1
 0xd0ea0: jlr __internal_atexit 2
 0xd0c08 call_fini
@@ -1311,9 +1312,9 @@ execve->ext4_vfopen->ext4_raw_inode_fill->ext4_generic_open2->ext4_fs_get_inode_
 但是我之前测，哪怕没有修改为legacy磁盘时，也会崩  
 
 0x8020126c这条指令跳到了release函数里,里面的popoff  
-![libc.5.1](image-166.png)
-![libc.5.2](image-167.png)
-![libc.5.2](image-168.png)
+![libc.5.1](image/image-166.png)
+![libc.5.2](image/image-167.png)
+![libc.5.2](image/image-168.png)
 这里的栈好像炸了。。  
 [WARN][sched/thread.c,111,alloc_thread] thread 21 alloc with kstack 0x0000003ffffd3000  
 我只给每个线程开了一个页大小的内核栈，这个地方已经超出了一个页，所以访问到了一个guard page  
@@ -1321,8 +1322,8 @@ execve->ext4_vfopen->ext4_raw_inode_fill->ext4_generic_open2->ext4_fs_get_inode_
 但是在这之前，第一个kernelvec似乎已经进入kerneltrap了，是在kerneltrap里崩的，这也许是两个问题  
 第一个是Supervisor external interrupt，这个没问题.  
 所以应该是第一次不知何种原因有一个外部中断（但是应该是正常的），随后尝试在kerneltrap中处理的时候爆栈了，这个时候又跳到了kernelvec, 栈一直往下递减直到越过了guard page，到达下一个线程内核栈的时候输出了trap信息，但是此时的信息和原本的原因已经相差甚远了。    
-但是这样的话，我之前尝试映射guard page为什么还是跑不了？？试一下。    
-居然可以跑到panic未知devintr那里！
+但是这样的话，我之前尝试映射guard page为什么还是跑不了？？试一下。     
+居然可以跑到panic未知devintr那里！  
 unknow devintr()
 scause 0x000000000000000c
 sepc=0x00000000802361e8 stval=0x00000000802361e8
@@ -1567,10 +1568,10 @@ fileread() sp : 0x3ffff7be40
 
 0x8020639c
 rw_sharp()->fileread()开始往栈里存了a0，但是结束之后栈里内容不对。另外，改了编译等级之后发现输出不了hello world就崩了，怀疑是内核栈的问题
-![testing.1](image-170.png)
+![testing.1](image/image-170.png)
 0x8020edc2修改了栈里寸的s0 ...
 
-![alt text](image-171.png) 
+![alt text](image/image-171.png) 
 
 我好像找到问题所在在了 ,看rcnt类型。。。这样清空内存会多清4个字节。。。
 
@@ -1604,5 +1605,3 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, uint off, uint size, 
     #endif
     if((r = ext4_fread(efp, kbuf, (size_t)size, (size_t*) rcnt)) != EOK) {
 ```  
-
-先吃饭  

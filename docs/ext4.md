@@ -9,7 +9,7 @@ https://www.cnblogs.com/KatyuMarisaBlog/p/14366115.html
 The superblock is filled in by a separate program, called mkfs,
 which builds an initial file system.
 
-![xv6fs](image-110.png)
+![xv6fs](image/image-110.png)
 
 ## ext4
 All fields in ext4 are written to disk in little-endian order. HOWEVER, all fields in jbd2 (the journal) are written to disk in big-endian order.  
@@ -22,7 +22,7 @@ https://docs.kernel.org/filesystems/ext4/
 
 ### block group 
 
-![block_group](image-94.png)
+![block_group](image/image-94.png)
 
 The first part of the block group is 1024 bytes reserved that can be
 used for boot code and form part of the first superblock [10, p. 402]. It is not a
@@ -176,11 +176,11 @@ struct ext4_super_block {
 
 compatible feature:  
 
-![compatible-feature](image-95.png)
+![compatible-feature](image/image-95.png)
 
 incompatible feature:  
 
-![incompatible-feature](image-96.png)
+![incompatible-feature](image/image-96.png)
 
 
 ### flex group
@@ -190,12 +190,12 @@ groups. The first block of a flex group will include the bitmaps and the inode t
 all groups within all the flex groups, and the other groups may contain super blocks and group descriptors depending on the sparse superblock feature, and will include
 data block
 
-![flex-group](image-97.png)
+![flex-group](image/image-97.png)
 
 
 ### inode
 
-![special-inode](image-107.png)
+![special-inode](image/image-107.png)
 
 ``` c
 /*
@@ -298,7 +298,7 @@ struct ext4_inode {
 
 the i_mode field name 12 least significant bits are used for user privileges:  
 
-![privileges](image-98.png)
+![privileges](image/image-98.png)
 
 The 3 most significant bits are special privileges. Here they are 000, and it means the Set-UID, Set-GID, and the Sticky
 - Set-UID  makes sure an executable uses the owner as the user executing the file and not the
@@ -348,7 +348,7 @@ two inodes are equal and found in the same file system, then they are both descr
 the same inode.  
 If we have found an inode that obviously is deleted in the
 inode table, finding previous versions of this inode can give us the previous extents in a non deleted state, allowing recovery of a previous state of this file
-![recovery](image-103.png)
+![recovery](image/image-103.png)
 
 ### directory entry
 
@@ -366,11 +366,11 @@ struct ext4_dir_entry {
 
 the way used by previous Ext version: direct and indirect block pointers, like:  
 
-![unix_blockmap](image-99.png)
+![unix_blockmap](image/image-99.png)
 
-![ext3_blockmap](image-100.png)
+![ext3_blockmap](image/image-100.png)
 
-![ext4_iblocks](image-102.png)
+![ext4_iblocks](image/image-102.png)
 
 #### extent tree
 
@@ -425,7 +425,7 @@ struct ext4_extent_header {
 
 ```
 
-![extent-tree](image-101.png)
+![extent-tree](image/image-101.png)
 
 
 page size and block size of ext4: **4k**  
@@ -450,7 +450,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 ```
 为逻辑地址建立到物理地址的映射关系，必要时分配新物理块(连续)
 
-![ext_map_blocks](image-105.png)
+![ext_map_blocks](image/image-105.png)
 ``` c
 struct ext4_ext_path * ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 		 struct ext4_ext_path **orig_path, int flags)
@@ -523,12 +523,12 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 
 ### journal
 
-![journal-transactions](image-104.png)
+![journal-transactions](image/image-104.png)
 
 The journal is normally found in `inode number 8`, but can be placed in any other
 inode defined in the superblock.  
 
-![journal-layout](image-108.png)
+![journal-layout](image/image-108.png)
 https://www.kernel.org/doc/html/latest/filesystems/ext4/journal.html  
 
 Once the important data transaction is fully written to the disk and flushed from the disk write cache, a record of the data being committed is also written to the journal. At some later point in time, the journal code writes the transactions to their final locations on disk (this could involve a lot of seeking or a lot of small read-write-erases) before erasing the commit record. Should the system crash during the second slow write, the journal can be replayed all the way to the latest commit record, guaranteeing the atomicity of whatever gets written through the journal to the disk. The effect of this is to guarantee that the filesystem does not become stuck midway through a metadata update.  
@@ -612,7 +612,7 @@ typedef struct journal_superblock_s
 descriptor block:  
 The descriptor block contains an array of journal block tags that describe the final locations of the data blocks that follow in the journal. Descriptor blocks are open-coded instead of being completely described by a data structure, but here is the block structure anyway. Descriptor blocks consume at least 36 bytes, but use a full block.
 
-![descriptor-block](image-109.png)
+![descriptor-block](image/image-109.png)
 ```c
 typedef struct journal_block_tag_s
 {
@@ -624,7 +624,7 @@ typedef struct journal_block_tag_s
 ```
 ### layout of the block group
 A block is a group of sectors between 1KiB and 64KiB, and the number of sectors must be an integral power of 2. Blocks are in turn grouped into larger units called block groups
-![block-group-layout](image-106.png)  
+![block-group-layout](image/image-106.png)  
 
 super block:  
 ``` c

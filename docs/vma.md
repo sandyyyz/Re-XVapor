@@ -1,6 +1,6 @@
 ## 使用基于VMA的内存管理
 
-![vma](image-40.png)
+![vma](image/image-40.png)
 
 1. 各进程共享的内存区域
 - sigreturn 

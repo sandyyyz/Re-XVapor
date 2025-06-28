@@ -9,7 +9,7 @@ entry.s -> start() -> main()
 references:  https://blog.csdn.net/G129558/article/details/132571881
 
 set sip = 2, pending a software interrupt.
-![pending](image-28.png) 
+![pending](image/image-28.png) 
 
 timerinit() : 
 1. set reg_mtvec = timervec
@@ -113,4 +113,4 @@ Exec(), on the other hand, replaces the process's program with a new program. It
 
 ### pgtbl
 
-![pgtbl](image-85.png)
+![pgtbl](image/image-85.png)

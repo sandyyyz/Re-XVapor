@@ -260,7 +260,7 @@ char *busybox_envp[] = {
   NULL
 };
 
-// #define SHELL
+#define SHELL
 
 int main(void)
 {
@@ -278,11 +278,11 @@ int main(void)
 #ifdef SHELL
   pid = fork();
   if(pid == 0) {
-    if(chdir(glibc_basic_dir) < 0) {
-      printf("init: chdir %s failed\n", glibc_basic_dir);
+    if(chdir(musl_dir) < 0) {
+      printf("init: chdir %s failed\n", musl_dir);
       exit(-1);
     }
-    int ret = execve("/glibc/busybox", glibc_shell_argv, busybox_envp);
+    int ret = execve("/musl/busybox", musl_shell_argv, busybox_envp);
     printf("execve returned %d\n", ret);
     exit(-1);
   } else {

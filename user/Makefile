@@ -23,7 +23,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 # $(info ulib : $(ULIB))default: all
 .PHONY: clean all MKDIR
 
-TESTING_PLATFORM = yes
+TESTING_PLATFORM = no
 ifeq ($(TESTING_PLATFORM),yes)
 USER_EXTRA_DEPS :=
 else
