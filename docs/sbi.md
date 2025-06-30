@@ -124,9 +124,9 @@ qemu-system-riscv64 \
 
 ---
 
-## 你自己的内核如何与 OpenSBI 交互
+## 内核如何与 OpenSBI 交互
 
-你可以直接使用封装好的函数调用 SBI 接口，例如：
+可以直接使用封装好的函数调用 SBI 接口，例如：
 
 ```c
 // 设置时钟中断（定时器）
@@ -155,12 +155,4 @@ static inline long sbi_call(long which, long arg0, long arg1, long arg2) {
 }
 ```
 
----
-
-## 小结
-
-OpenSBI 是构建 RISC-V 操作系统时不可或缺的组件。它将底层硬件操作封装成标准 SBI 接口，使得操作系统在不直接操作 M-mode 的前提下，也能实现定时器、关机、中断等底层功能。
-
-在开发基于 RISC-V 架构的内核时，理解和正确使用 OpenSBI 是完成基本系统调用、时钟中断、多核支持等功能的关键步骤。
-
-
+--- 
