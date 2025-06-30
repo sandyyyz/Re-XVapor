@@ -267,3 +267,6 @@ void futex_free(uint64 uaddr);
 * Ulrich Drepper, *Futexes Are Tricky*, Red Hat
 * Linux kernel source: `kernel/futex/`
 
+# 内核中futex结构设计
+
+![futex](image/image-172.png)

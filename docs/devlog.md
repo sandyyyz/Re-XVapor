@@ -22,7 +22,7 @@
 
 ``` mermaid
 timeline
-    title Re-XVapor 演化路线图（2025 起）
+    title Re-XVapor 演化路线
 
     section 阶段一：xv6 基础重构
       学习xv6-riscv整体架构和具体实现: 2025-01-01

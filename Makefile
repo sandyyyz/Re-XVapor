@@ -66,7 +66,7 @@ export UPROGS
 .PHONY: all user kernel qemu qemu-gdb clean
 .default: kernel
 
-all: kernel user fs.img syscall_gen
+all: kernel user syscall_gen
 
 SYSTBL=scripts/syscall.tbl
 SYSDECL=kernel/include/sysdecl.h

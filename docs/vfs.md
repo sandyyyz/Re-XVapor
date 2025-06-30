@@ -69,7 +69,7 @@
 
 ---
 
-## 实际开发路径建议（Re-XVapor 适配）
+## 实际开发路径思路（Re-XVapor 适配）
 
 1. **扩展 `inode` 和 `file` 结构，加入操作表与 superblock 指针**
 2. **修改原有 `sys_open`, `sys_read`, `sys_write` 等路径，支持通过 VFS 分发**
@@ -102,6 +102,68 @@ VFS 框架围绕三大核心结构展开：
 - 增加 write-back 机制与页缓存（page cache）层
 - 支持更复杂的 mount 类型，如 bind-mount、overlay 等
 - 多用户支持、权限管理与 namespace 支持
-- 编写 `mount`, `umount`, `df`, `lsblk` 等用户态工具
 
 ---
+
+## 核心数据结构
+
+VFS最核心的数据结构就是以下三个统一的操作表。通过这几个操作表可以实现对不同文件系统操作的统一分发。  
+``` c
+struct inode_ops {
+    struct inode*       (*dirlookup)(struct inode *dp, char *name, uint *off);
+    void                (*iupdate)(struct inode *ip);
+    void                (*itrunc)(struct inode *ip);
+    void                (*cleanup)(struct inode *ip);
+    uint                (*bmap)(struct inode *ip, uint bn);
+    void                (*ilock)(struct inode* ip);
+    void                (*iunlock)(struct inode* ip);
+    void                (*stati)(struct inode *ip, struct stat *st);
+    int                 (*readi)(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
+    int                 (*writei)(struct inode *ip,int user_src, uint64 src, uint off, uint n);
+    int                 (*dirlink)(struct inode *dp, char *name, uint inum);
+    int                 (*unlink)(struct inode *dp, uint off);
+    int                 (*isdirempty)(struct inode *dp);
+};
+
+struct file_ops {
+
+    int             (*open)(struct file *f, const char *path, int flags);
+    int             (*close)(struct file *f);
+    int             (*read)(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t size, size_t *rcnt);
+    int             (*write)(struct file *fp, int user_src, uint64 src, int64_t off, size_t size, size_t *wcnt);
+    int             (*filestat)(struct file *f, uint64 addr);
+    int             (*cleansf)(struct file* f);
+    int (*getdents)(struct file *fp, struct linux_dirent64 *dirp, int count);
+    int (*writev)(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, size_t *wcnt);
+    off_t (*lseek)(struct file *fp, off_t offset, int whence);
+};
+
+struct fs_ops {
+    int             (*fs_init) (void);
+    int             (*mount) (struct inode *devi, struct inode *ip);
+    int             (*unmount) (struct inode *devi);
+    struct inode*   (*getroot)(int major, int minor);
+    void            (*readsb)(int dev, struct superblock *sb);
+    struct inode*   (*ialloc)(uint dev, short type);
+    uint            (*balloc)(uint dev);
+    void            (*bzero)(int dev, int bno);
+    void            (*bfree)(int dev, uint b);
+    void            (*brelse)(struct buf *b);
+    void            (*bwrite)(struct buf *b);
+    struct buf*     (*bread)(uint dev, uint blockno);
+    int             (*namecmp)(const char *s, const char *t);
+    int             (*mknod)(const char *pathname, mode_t mode, dev_t dev);
+    int             (*mkdir)(const char *pathname, mode_t mode);
+    int (*fstat)(char *path, struct kstat *kst);
+    int (*isdir)(const char *path);
+    int (*link) (const char *oldpath, const char *newpath, int flags);
+    int (*unlink)(const char *path, int flags);
+    int (*faccess)(char *path, int amode, int flags);
+    int (*utimens)(const char *path, const struct timespec times[2]);
+    int (*file_exist)(const char *path);
+    int (*statfs)(struct vfs_filesystem *fs, struct statfs *buf);
+    int (*rename)(const char *oldpath, const char *newpath);
+};
+```
+---
+

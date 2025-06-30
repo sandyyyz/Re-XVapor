@@ -260,7 +260,7 @@ char *busybox_envp[] = {
   NULL
 };
 
-#define SHELL
+// #define SHELL
 
 int main(void)
 {
