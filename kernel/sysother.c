@@ -1,5 +1,5 @@
 #include "types.h"
-#include "riscv.h"
+#include "arch.h"
 #include "timer.h"
 #include "param.h"
 #include "proc.h"
@@ -9,7 +9,10 @@
 #include "sysinfo.h"
 #include "signal.h"
 #include "memlayout.h"
+
+#ifdef __ARCH_RISCV
 #include "sbi.h"
+#endif
 
 extern struct proc proc[NPROC];
 
@@ -192,7 +195,7 @@ uint64 sys_clock_gettime() {
     argaddr(1, &tp);
 
     volatile struct timespec ts;
-    ts = TIME2TIMESPEC(rdtime());
+    ts = TIME2TIMESPEC(r_time());
     if(copyout(myproc()->mm.pagetable, tp, (char *)&ts, sizeof(ts)) < 0)
         return -1;
     return 0;
@@ -218,7 +221,7 @@ uint64 sys_sysinfo(void) {
     argaddr(0, &addr);
 
     struct sysinfo info;
-    info.uptime = TIME2SEC(rdtime());
+    info.uptime = TIME2SEC(r_time());
     info.totalram = totalram_bytes();
     info.freeram = freemem_bytes();
     info.sharedram = 0; // not supported
@@ -234,20 +237,27 @@ uint64 sys_sysinfo(void) {
     return 0;
 }
 
-// static int qemu_raw_poweroff() {
-//     volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
-//     *poweroff = 0x5555; 
-//     // while(1);
-//     return 0;
-// }
-
+#ifdef __ARCH_LOONGARCH
+static int qemu_raw_poweroff() {
+    volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
+    *poweroff = 0x5555; 
+    // while(1);
+    return 0;
+}
+#else
 static int opensbi_poweroff(int sysfail) {
     sbi_shutdown(sysfail);
     return 0;
 }
+#endif
+
 uint64 sys_poweroff(void) {
     int sysfail;
     argint(0, &sysfail);
+#ifdef __ARCH_RISCV
     opensbi_poweroff(sysfail);
+#else
+    qemu_raw_poweroff();
+#endif
     return 0;
 }

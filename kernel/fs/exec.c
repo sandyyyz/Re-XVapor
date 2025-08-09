@@ -1,7 +1,7 @@
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
+#include "arch.h"
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
@@ -20,6 +20,7 @@
 
 static int floadseg(pagetable_t pagetable, struct file *f, uint64 va, uint offset, uint sz);
 
+#ifdef __ARCH_RISCV
 int flags2perm(int flags)
 {
     int perm = PTE_A;
@@ -29,7 +30,17 @@ int flags2perm(int flags)
       perm |= PTE_W;
     return perm;
 }
+#else
+unsigned long int flags2perm(int flags) {
+  unsigned long int perm = 0;
+  if(!(flags & 0x1)) 
+    perm = PTE_NX;
+  if(flags & 0x2)
+    perm |= PTE_W;
+  return perm;
+}
 
+#endif
 int execve(char *path, char **argv, char **envp)
 {
   
@@ -166,8 +177,13 @@ int execve(char *path, char **argv, char **envp)
               interp_ph.vaddr, interp_ph.memsz, interp_ph.filesz, interp_ph.off, interp_ph.flags);
 #endif
           uint64 sz1;
+#ifdef __ARCH_RISCV
           if ((sz1 = uvmalloc(pagetable, sz, interp_base + interp_ph.vaddr + interp_ph.memsz, PTE_W | PTE_X)) == 0)
               goto bad;
+#else
+          if ((sz1 = uvmalloc(pagetable, sz, interp_base + interp_ph.vaddr + interp_ph.memsz, PTE_W)) == 0)
+            goto bad;
+#endif
           sz = sz1;
 
           uint margin_size = 0;
@@ -321,7 +337,11 @@ int execve(char *path, char **argv, char **envp)
   p->mm.pagetable = pagetable;
   p->sz = sz;
   // Log("exec: %s, sz = %p", p->name, sz);
+#ifdef __ARCH_RISCV
   t->trapframe->epc = prog_entry;
+#else
+  t->trapframe->era = prog_entry;
+#endif
   t->trapframe->sp = sp; // initial stack pointer
 // #ifdef __DEBUG_EXEC
 //   Log("check elf.entry = %p", elf.entry);

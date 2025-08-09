@@ -126,7 +126,12 @@
         "vm.h": "c",
         "ext4_super.h": "c",
         "ext4_dir_idx.h": "c",
-        "ext4_mkfs.h": "c"
+        "ext4_mkfs.h": "c",
+        "arch.h": "c",
+        "loongarch.h": "c",
+        "device.h": "c",
+        "ext4fs.h": "c",
+        "sbi.h": "c"
     },
 
     "multiCommand.commands": [

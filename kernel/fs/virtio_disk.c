@@ -7,7 +7,7 @@
 
 #ifdef __LEGACY
 #include "types.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
@@ -354,7 +354,7 @@ virtio_disk_intr()
 // Compatible with virtio 1.0 legacy interface (MMIO version 1)
 
 // #include "types.h"
-// #include "riscv.h"
+// #include "arch.h"
 // #include "defs.h"
 // #include "param.h"
 // #include "memlayout.h"
@@ -560,7 +560,7 @@ virtio_disk_intr()
 //
 
 #include "types.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 #include "param.h"
 #include "spinlock.h"

@@ -1,6 +1,10 @@
 #ifndef __RISCV_H
 #define __RISCV_H
 
+#ifndef __ARCH_RISCV
+#define __ARCH_RISCV
+#endif
+
 #ifndef __ASSEMBLER__
 
 // which hart (core) is this?
@@ -375,7 +379,7 @@ w_sscratch(uint64 x) {
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
 
-// PTE->PA 屏蔽掉第十位flags 再左移十二位(PGSHIFT)
+// PTE->PA 屏蔽掉十位flags 再左移十二位(PGSHIFT)
 #define PTE2PA(pte) (((pte) >> 10) << 12)
 
 #define PTE_FLAGS(pte) ((pte) & 0x3FF)

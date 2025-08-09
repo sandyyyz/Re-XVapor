@@ -1,7 +1,7 @@
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 #include "thread.h"
 #include "sched.h"
@@ -13,6 +13,10 @@
 #include "uname.h"
 #include "futex.h"
 #include "sbi.h"
+#ifdef __ARCH_LOONGARCH
+#include "pci.h"
+#include "ahci.h"
+#endif
 
 extern struct utsname g_uts;
 volatile static int started = 0;
@@ -27,16 +31,9 @@ static void initfss() {
   mntinit();      //  init mount table , maybe duplicate with vfs_mount_table
   bdev_table_init();  // init block device table
   init_vfs_mtable(); // init vfs mount table
-  
-#ifdef __USE_XV6FS
-  if(init_xv6fs() < 0) {
-    panic("xv6fs_init failed");
-  }
-  #else 
   if(init_ext4fs() < 0) {
     panic("ext4fs_init failed");
   }
-#endif
   install_rootfs(); 
 }
 void clear_bss_section(void)
@@ -63,8 +60,9 @@ static void start_harts()
     }
 }
 #endif
-void
-main()
+
+#ifdef __ARCH_RISCV
+void main()
 {
    if(boot_hart == -1){
     boot_hart = cpuid();
@@ -77,10 +75,8 @@ main()
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
-
     procinit();      // process table
     tcb_init();
-    
     INIT_UTS(g_uts); // initialize utsname structur
     futex_hash_init(); // init futex hash table
     trapinit();      // trap vectorsr
@@ -110,7 +106,50 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
   set_next_trigger();
-
   thread_scheduler();        
 }
 
+#elif defined(__ARCH_LOONGARCH)
+
+void main() {
+  if(cpuid() == 0) {
+    consoleinit();
+    printfinit();
+    printf("\n");
+    printf("reXvapor-loongarch kernel is booting\n");
+    printf("\n");
+    kinit();         // physical page allocator
+    kvminit();       // create kernel page table
+    procinit();      // process table
+    tcb_init();
+    INIT_UTS(g_uts); // initialize utsname structur
+    futex_hash_init(); // init futex hash table
+    trapinit();      // trap vectorsr
+    trapinithart();  // install kernel trap vector
+    apic_init();
+    extioi_init();
+    binit();         // buffer cache
+    iinit();         // inode table
+    fileinit();      // file table
+    initfss();      // init all filesystems
+#ifdef __VIRTIO
+    virtio_disk_init(); // emulated hard disk
+#elif defined(__AHCI)
+    pci_init();
+    disk_init();
+#endif
+    userinit();      // first user process
+    __sync_synchronize();
+    started = 1;
+    printf("hart %d started\n", cpuid());
+  } else {
+    while(started == 0)
+      ;
+    __sync_synchronize();
+    printf("hart %d starting\n", cpuid());
+  }
+
+  thread_scheduler();
+}
+
+#endif

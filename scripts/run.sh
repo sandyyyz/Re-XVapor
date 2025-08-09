@@ -1,2 +1,2 @@
-make user
-make qemu
+make riscv
+make qemu-rv

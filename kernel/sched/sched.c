@@ -4,7 +4,7 @@
 #include "thread.h"
 #include "sched.h"
 #include "debug.h"
-#include "riscv.h"
+#include "arch.h"
 
 queue_t unused_p_q, used_p_q, zombie_p_q;
 queue_t *g_pcb_queues[PROC_STATEMAX] = {

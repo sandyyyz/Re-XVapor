@@ -4,14 +4,35 @@ USER_DIR=../user
 USER_INIT_DIR=../user/init
 KERNEL_DIR=.
 USER_BUILD_DIR=../build/user
+LOONGARCH_DIR:=./arch/loongarch
+RISCV_DIR=./arch/riscv
 
 SRC := $(shell find $(KERNEL_DIR) -type f -name "*.c")
 ASM_SRC := $(shell find $(KERNEL_DIR) -type f -name "*.S")
-
 OBJS := $(patsubst $(KERNEL_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 OBJS += $(patsubst $(KERNEL_DIR)/%.S, $(BUILD_DIR)/%.o, $(ASM_SRC))
-ENTRY_OBJ := $(BUILD_DIR)/asm/entry.o
-OBJS := $(filter-out $(ENTRY_OBJ), $(OBJS))
+
+ifeq ($(ARCH), riscv)
+	ENTRY_OBJ := $(BUILD_DIR)/arch/riscv/entry.o
+	EXCLUDE_DIR := $(LOONGARCH_DIR)
+	KLD:= $(RISCV_DIR)/kernel.ld
+	KIMAGE:=../kernel-rv
+	KASM := ../kernel.asm
+else
+	ENTRY_OBJ := $(BUILD_DIR)/arch/loongarch/entry.o
+	EXCLUDE_DIR := $(RISCV_DIR)
+	KLD:=$(LOONGARCH_DIR)/kernel.ld
+	KIMAGE:=../kernel-la
+	KASM:=../kernel-la.asm
+endif
+
+# 过滤掉非目标架构的所有文件
+EXCLUDE_C := $(patsubst $(KERNEL_DIR)/%.c, $(BUILD_DIR)/%.o, $(shell find $(EXCLUDE_DIR) -type f -name "*.c" 2>/dev/null || true))
+EXCLUDE_S := $(patsubst $(KERNEL_DIR)/%.S, $(BUILD_DIR)/%.o, $(shell find $(EXCLUDE_DIR) -type f -name "*.S" 2>/dev/null || true))
+EXCLUDE_OBJS := $(EXCLUDE_C) $(EXCLUDE_S)
+
+# 重新排列对象文件：entry.o 在前，过滤掉排除的文件
+OBJS := $(filter-out $(ENTRY_OBJ) $(EXCLUDE_OBJS), $(OBJS))
 OBJS := $(ENTRY_OBJ) $(OBJS) 
 
 # CFLAGS += -D__DEBUG_SYS_EXEC
@@ -121,18 +142,20 @@ $(BUILD_DIR)/%.o: $(KERNEL_DIR)/%.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 
-$(BUILD_DIR)/kernel: $(OBJS) $(KERNEL_DIR)/kernel.ld $(USER_BUILD_DIR)/initcode
-	$(LD) $(LDFLAGS) -T $(KERNEL_DIR)/kernel.ld -o $(BUILD_DIR)/kernel $(OBJS)
+$(BUILD_DIR)/kernel: $(OBJS) $(USER_BUILD_DIR)/initcode
+	$(LD) $(LDFLAGS) -T  $(KLD) -o $(BUILD_DIR)/kernel $(OBJS)
 	$(OBJDUMP) -S $(BUILD_DIR)/kernel > $(BUILD_DIR)/kernel.asm
 	$(OBJDUMP) -t $(BUILD_DIR)/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD_DIR)/kernel.sym
-	cp $(BUILD_DIR)/kernel ../kernel-rv
+	cp $(BUILD_DIR)/kernel $(KIMAGE)
+	cp $(BUILD_DIR)/kernel.asm $(KASM)
 
 # 清理
+# @if [ -f ../kernel-rv ]; then rm ../kernel-rv; fi
 clean:
 	@rm -rf $(BUILD_DIR)
 	@if [ -f $(INCLUDE_DIR)/sysnum.h ]; then rm $(INCLUDE_DIR)/sysnum.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysfunc.h ]; then rm $(INCLUDE_DIR)/sysfunc.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysdecl.h ]; then rm $(INCLUDE_DIR)/sysdecl.h; fi
 	@if [ -f $(INCLUDE_DIR)/sysname.h ]; then rm $(INCLUDE_DIR)/sysname.h; fi
-	@if [ -f ../kernel-rv ]; then rm ../kernel-rv; fi
+
 

@@ -2,7 +2,7 @@
 #include "mmap.h"
 #include "defs.h"
 #include "proc.h" 
-#include "riscv.h"
+#include "arch.h"
 #include "debug.h"
 
 static uint64 allocvma() {
@@ -269,7 +269,7 @@ static int setperm(pagetable_t pagetable, uint64 va, uint64 perm)
 int do_mprotect(uint64 addr, int size, int prot) {
     struct proc *p = myproc();
     struct vma_struct *vma;
-    int perm;
+    uint64 perm;
     int pgnum;
     uint64 va = addr;
 

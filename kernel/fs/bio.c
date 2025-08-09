@@ -20,11 +20,12 @@
 #include "param.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 #include "xv6fs.h"
 #include "buf.h"
 #include "debug.h"
+#include "ahci_block_device.h"
 
 struct {
   struct spinlock lock;
@@ -114,7 +115,11 @@ bread(uint dev, uint blockno)
 #ifdef __DEBUG_BREAD
     Log("bread: read block from disk");
 #endif
+#ifdef __VIRTIO
     virtio_disk_rw(b, 0);
+#elif defined __AHCI
+    block_read(blockno, 1, (uint64_t)b->data, 1);
+#endif
     b->valid = 1;
   }
 #ifdef __DEBUG_BREAD
@@ -129,7 +134,11 @@ bwrite(struct buf *b)
 {
   if(!holdingsleep(&b->lock))
     panic("bwrite");
+#ifdef __VIRTIO
   virtio_disk_rw(b, 1);
+#elif defined __AHCI
+  block_write(b->blockno, 1, (uint64_t)b->data, 1);
+#endif
 }
 
 // Release a locked buffer.

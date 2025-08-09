@@ -2,7 +2,7 @@
 #define __SBI_H
 
 #include "types.h"
-#include "riscv.h"
+#include "arch.h"
 #include "timer.h"
 
 /* SBI Extension IDs */

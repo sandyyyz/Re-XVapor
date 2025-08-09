@@ -10,7 +10,8 @@ ULIB_DIR=lib
 
 SRC = $(wildcard *.c) $(foreach dir, $(SUBDIRS), $(wildcard $(dir)/*.c))
 OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRC))
-UPROGS = $(patsubst $(BUILD_DIR)/%.o, $(BUILD_DIR)/%.prog,$(OBJ))
+# UPROGS = $(patsubst $(BUILD_DIR)/%.o, $(BUILD_DIR)/%.prog,$(OBJ))
+UPROGS = $(patsubst %.c, $(BUILD_DIR)/%.prog, $(SRC))
 ULIBSRC = $(wildcard *.c) $(foreach dir, $(ULIB_DIR), $(wildcard $(dir)/*.c))
 ULIB = $(patsubst %.c, $(BUILD_DIR)/%.o, $(ULIBSRC))
 ULIB += $(BUILD_DIR)/$(ULIB_DIR)/usys.o
@@ -30,6 +31,14 @@ else
 USER_EXTRA_DEPS := $(KERNEL_DIR)/include/initcode.h
 endif
 
+ifeq ($(ARCH), riscv)
+	USYSPL:=$U/usys.pl
+	USERLD:=$U/user.ld
+else
+	USYSPL:=$U/loongarch_usys.pl
+	USERLD:=$U/loongarch_user.ld
+endif
+
 all: user
 
 uprogs-list.mk: $(UPROGS) $(UPROGS_TEST)
@@ -46,8 +55,8 @@ $(SUBDIR_PATHS):
 user: MKDIR $(BUILD_DIR)/initcode $(OBJ) $(ULIB) $(UPROGS) uprogs-list.mk $(USER_EXTRA_DEPS)
 
 
-$(BUILD_DIR)/%.prog: %.o $(ULIB) | $(BUILD_DIR)
-	$(LD) $(LDFLAGS) -T $U/user.ld -o $@ $^
+$(BUILD_DIR)/%.prog: $(BUILD_DIR)/%.o $(ULIB) | $(BUILD_DIR)
+	$(LD) $(LDFLAGS) -T $(USERLD) -o $@ $<  $(ULIB)
 
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
@@ -55,7 +64,8 @@ $(BUILD_DIR):
 # $(BUILD_DIR)/%: 
 # 	@mkdir -p $(dir $@)
 
-$(BUILD_DIR)%.o: $(U)%.c 
+$(BUILD_DIR)/%.o: %.c 
+	@mkdir -p $(dir $@)
 	@echo "Building $@"
 	$(CC) $(CFLAGS) -I$(KERNEL_DIR)/include -c $< -o $@
 
@@ -80,7 +90,8 @@ $(KERNEL_DIR)/include/initcode.h: $(BUILD_DIR)/initcode
 	sed 's/unsigned char .*\[\]/unsigned char initcode[]/' | \
 	sed 's/unsigned int .*_len/unsigned int initcode_len/' > $@
 
-$(BUILD_DIR)/$(ULIB_DIR)/usys.S : $U/usys.pl
+
+$(BUILD_DIR)/$(ULIB_DIR)/usys.S : $(USYSPL)
 	perl $< > $@
 
 $(BUILD_DIR)/$(ULIB_DIR)/usys.o : $(BUILD_DIR)/$(ULIB_DIR)/usys.S

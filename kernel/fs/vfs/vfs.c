@@ -452,20 +452,7 @@ int ext4_init();
 //           xsp->magic, xsp->size, xsp->nblocks, xsp->ninodes, xsp->nlog, xsp->logstart, xsp->inodestart, xsp->bmapstart);
 // }
 void fsinit(int dev) {
-  
-  #ifdef __USE_XV6FS
-  rootfs->fs_t->fsops->readsb(dev, &sb[dev]);
-  // TODO: how about other kind of fs?
-  if(rootfs->fs_t->type == VFS_TYPE_XV6FS) {
-    struct xv6fs_superblock *xsp = (struct xv6fs_superblock*)sb[dev].fs_info;
-    if(xsp->magic != FSMAGIC) {
-      panic("xv6fs: bad super block");
-    }
-    initlog(dev,xsp);
-  }
-  #else
   ext4_init();
-  #endif
 }
 
 /**

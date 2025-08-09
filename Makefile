@@ -4,36 +4,42 @@ MKFS_DIR=mkfs
 BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
 UTEST_DIR = user/test
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable -Wno-error=format
-CFLAGS += -MD
-CFLAGS += -mcmodel=medany
-CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
-CFLAGS += -Iinclude 
-CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-QEMU = qemu-system-riscv64
 
-# FS_XV6FS = 1
-ifdef FS_XV6FS
-FSIMG := $(BUILD_DIR)/fs/fs.img
+ARCHS:= riscv loongarch
+
+ARCH ?= riscv
+export ARCH
+
+ifeq ($(ARCH), riscv)
+	CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable -Wno-error=format
+	CFLAGS += -MD
+	CFLAGS += -mcmodel=medany
+	CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
+	CFLAGS += -Iinclude 
+	CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+    CFLAGS += -D__ARCH_RISCV
+	CFLAGS += -D__VIRTIO
+else ifeq ($(ARCH), loongarch)
+	CFLAGS = -Wall -O0 -fno-omit-frame-pointer -ggdb
+	# CFLAGS += -Werror
+	CFLAGS += -MD
+	CFLAGS += -march=loongarch64 -mabi=lp64s
+	CFLAGS += -ffreestanding -fno-common -nostdlib
+	CFLAGS += -I. -fno-stack-protector
+	CFLAGS += -Iinclude/
+	CFLAGS += -fno-pie -no-pie
+    CFLAGS += -D__ARCH_LOONGARCH
+	CFLAGS += -D__AHCI
 else
-FSIMG := sdcard-rv.img
+    $(error Unsupported ARCH: $(ARCH))
 endif
+
+FSIMG := sdcard-rv.img
+FSIMG-LA := sdcard-la.img
 UPROGS =
 
-test: $(UPROGS_TEST)
-	@echo "UPROGS_TEST: $(UPROGS_TEST)"
-	@echo "UPROGS: $(UPROGS)"
-	@echo "BUILD_DIR: $(BUILD_DIR)"
-	@echo "USER_DIR: $(USER_DIR)"
-	@echo "KERNEL_DIR: $(KERNEL_DIR)"
-	@echo "UEXTRA: $(UEXTRA)"
-	@echo "UTEST_DIR: $(UTEST_DIR)"
-# riscv64-unknown-elf- or riscv64-linux-gnu-
-# perhaps in /opt/riscv/bin
-#TOOLPREFIX = 
-
 # Try to infer the correct TOOLPREFIX if not set
-ifndef TOOLPREFIX
+ifeq ($(ARCH), riscv)
 TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
 	then echo 'riscv64-unknown-elf-'; \
 	elif riscv64-linux-gnu-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
@@ -44,6 +50,8 @@ TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' 
 	echo "*** Error: Couldn't find a riscv64 version of GCC/binutils." 1>&2; \
 	echo "*** To turn off this error, run 'gmake TOOLPREFIX= ...'." 1>&2; \
 	echo "***" 1>&2; exit 1; fi)
+else
+TOOLPREFIX := loongarch64-unknown-linux-gnu-
 endif
 
 CC = $(TOOLPREFIX)gcc
@@ -63,10 +71,16 @@ export OBJDUMP
 export CFLAGS
 export UPROGS
 
-.PHONY: all user kernel qemu qemu-gdb clean
-.default: kernel
+.PHONY: all user kernel qemu-rv qemu-la qemu-gdb qemu-gdb-la clean riscv loongarch
+.default: all
 
-all: kernel user syscall_gen
+all: $(ARCHS:%=build-%)
+
+riscv: build-riscv
+loongarch: build-loongarch
+
+build-%: 
+	$(MAKE) ARCH=$* user kernel syscall_gen
 
 SYSTBL=scripts/syscall.tbl
 SYSDECL=kernel/include/sysdecl.h
@@ -75,13 +89,16 @@ SYSFUNC=kernel/include/sysfunc.h
 SYSNAME=kernel/include/sysname.h
 
 USYSPL=user/usys.pl
+USYSPL_LOONGARCH=user/loongarch_usys.pl
+
 syscall_gen:
 	@echo "Generating syscall files..."
-	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL) $(SYSNAME)
-	@echo "Generating syscall files done."
+	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL) $(SYSNAME) $(USYSPL_LOONGARCH)
+	@echo "Generating syscall files done."	
 kernel:	user syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
 	$(MAKE) -C $(KERNEL_DIR)
+	$(MAKE) clean
 
 user: syscall_gen
 	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
@@ -121,21 +138,51 @@ ifndef CPUS
 CPUS := 1
 endif
 
-
-QEMUOPTS = -machine virt -bios default -kernel $(BUILD_DIR)/kernel/kernel -m 1G -smp $(CPUS) -nographic
+QEMU = qemu-system-riscv64
+QEMUOPTS = -machine virt -bios default -kernel kernel-rv -m 1G -smp $(CPUS) -nographic
 # QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -no-reboot 
 # QEMUOPTS += -device virtio-net-device,netdev=net -netdev user,id=net -rtc base=utc
 
-qemu: user kernel 
+# loongarch qemu command line
+
+# qemu-system-loongarch64 -kernel {os_file} -m {mem} -nographic -smp {smp} -drive file={fs},if=none,format=raw,id=x0  \
+#                         -device virtio-blk-pci,drive=x0,bus=virtio-mmio-bus.0 -no-reboot  -device virtio-net-pci,netdev=net0 \
+#                         -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555  \
+#                         -rtc base=utc \
+#                         -drive file=disk-la.img,if=none,format=raw,id=x1 -device virtio-blk-pci,drive=x1,bus=virtio-mmio-bus.1
+
+# QEMU-LA = qemu-system-loongarch64
+# QEMU-LA = ../qemu-la-20240526/bin/qemu-system-loongarch64
+QEMU-LA = ../qemu-la-20240401/bin/qemu-system-loongarch64
+QEMUOPTS-LA = -kernel kernel-la -m 1G -nographic -smp $(CPUS) -drive file=$(FSIMG-LA),if=none,format=raw,id=x0
+QEMUOPTS-LA += -device virtio-blk-pci,drive=x0 -no-reboot
+# QEMUOPTS-LA += -machine dumpdtb=loongarch64.dtb
+# QEMUOPTS-LA += -monitor stdio
+# QEMUOPTS-LA += -device virtio-blk-pci,drive=x0,bus=virtio-mmio-bus.0 -no-reboot
+# QEMUOPTS-LA += -device virtio-net-pci,netdev=net0
+# QEMUOPTS-LA += -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555 -rtc base=utc
+# QEMUOPTS-LA += -drive file=disk-la.img,if=none,format=raw,id=x1 -device virtio-blk-pci,drive=x1,bus=virtio-mmio-bus.1
+
+qemu-rv: .gdbinit
 	$(QEMU) $(QEMUOPTS)
+
+qemu-la: .gdbinit-la
+	$(QEMU-LA) $(QEMUOPTS-LA)
 
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: kernel .gdbinit $(FSIMG)
+.gdbinit-la: .gdbinit.tmpl-loongarch
+	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
+
+qemu-gdb: .gdbinit $(FSIMG)
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+qemu-gdb-la: .gdbinit-la $(FSIMG-LA)
+	@echo "*** Now run 'loongarch64-unknown-linux-gnu-gdb' in another window." 1>&2
+	$(QEMU-LA) $(QEMUOPTS-LA) -S -gdb tcp::$(GDBPORT)
 
 

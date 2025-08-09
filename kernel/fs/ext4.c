@@ -399,8 +399,10 @@ int ext4_mount(const char *dev_name, const char *mount_point,
 		return r;
 	}
 
-	if (bsize != bc->itemsize)
+	if (bsize != bc->itemsize) {
+		Warn("bsize != bc->itemsize!, bsize = %d, bc->itemsize = %d  ", bsize, bc->itemsize);
 		return ENOTSUP;
+	}
 
 	/*Bind block cache to block device*/
 	r = ext4_block_bind_bcache(bd, bc);

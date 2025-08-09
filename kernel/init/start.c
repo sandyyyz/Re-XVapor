@@ -1,7 +1,7 @@
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 
 void main();
@@ -20,9 +20,14 @@ extern void timervec();
 void
 start()
 {
+#ifdef __ARCH_RISCV
   w_satp(0);
   w_sstatus(r_sstatus() | SSTATUS_SIE);
   w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
+#elif defined(__ARCH_LOONGARCH)
+  // Loongarch, do nothing here, just for compatibility.
+// Loongarch, do nothing here, just for compatibility.
+#endif
   // 进入 main.c 之前就变成了 S 态
   main();
 }

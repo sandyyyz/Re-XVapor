@@ -4,7 +4,7 @@
 #include "proc.h"
 #include "thread.h"
 #include "debug.h"
-#include "riscv.h"
+#include "arch.h"
 #include "memlayout.h"
 #include "trap.h"
 #include "errno.h"
@@ -205,12 +205,20 @@ static int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, str
     walk_va(myproc()->mm.pagetable, TRAMPOLINE);
 #endif
     if (sig->sa_flags & SA_SIGINFO) {
+#ifdef __ARCH_RISCV
         tf->epc = (uint64)sig->sa_sigaction;
+#else
+        tf->era = (uint64)sig->sa_sigaction;
+#endif
         tf->a0 = (uint64)signo; /* a0: signal number */
         tf->a1 = (uint64)&frame->info;  // tf->a1  = (uint64)(&frame->info); 
         tf->a2 = (uint64)&frame->uc;  // tf->a2 = (uint64)(&frame->uc);  // TODO or uc_riscv?
     } else {
+#ifdef __ARCH_RISCV
         tf->epc = (uint64)sig->sa_handler;
+#else
+        tf->era = (uint64)sig->sa_handler;
+#endif
         tf->a0 = (uint64)signo;
         tf->a1 = 0;
         tf->a2 = 0;
@@ -299,7 +307,11 @@ int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf) {
         return -1;
     uint64 MC_PC = uc_riscv.uc_mcontext.__gregs[0];// for libc-test (pthread_cancel)
     if(MC_PC) {
+#ifdef __ARCH_RISCV
         t->trapframe->epc = MC_PC; 
+#else
+        t->trapframe->era = MC_PC;
+#endif
     }
     return 0;
 }

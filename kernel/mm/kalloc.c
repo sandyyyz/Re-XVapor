@@ -6,7 +6,7 @@
 #include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 #include "atomic.h"
 
@@ -26,17 +26,19 @@ struct {
   struct run *freelist;
 } kmem;
 
-void kinit() {
-  initlock(&kmem.lock, "kmem");
-  freerange(end, (void *)PHYSTOP);
-}
-
 void freerange(void *pa_start, void *pa_end) {
   char *p;
   p = (char *)PGROUNDUP((uint64)pa_start);
   for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)
     kfree(p);
 }
+
+#ifdef __ARCH_RISCV
+void kinit() {
+  initlock(&kmem.lock, "kmem");
+  freerange(end, (void *)PHYSTOP);
+}
+
 // junk == 1
 // add to freelist
 // Free the page of physical memory pointed at by pa,
@@ -63,6 +65,37 @@ void kfree(void *pa) {
   atomic_inc_return(&g_freecnt);
 }
 
+#else
+
+void kinit() {
+  initlock(&kmem.lock, "kmem");
+  // freerange((void*)RAMBASE, (void *)P2V(PHYSTOP));
+  // printf("kinit freerange :RAMBASE: %p - PHYSTOP %p\n", (void *)RAMBASE, (void *)P2V(PHYSTOP));
+  
+  printf("kinit freerange :end: %p - PHYSTOP %p\n", (void *)end, (void *)P2V(PHYSTOP));
+  freerange((void *)(end), (void *)P2V(PHYSTOP));
+}
+void kfree(void *pa) {
+  struct run *r;
+
+  if (((uint64)pa % PGSIZE) != 0 || (char *)pa < P2V(end) || (uint64)pa >= P2V(PHYSTOP))
+    panic("kfree");
+
+  // Fill with junk to catch dangling refs.
+  memset(pa, 1, PGSIZE);
+
+  r = (struct run *)pa;
+
+  acquire(&kmem.lock);
+  // 头插
+  r->next = kmem.freelist;
+  kmem.freelist = r;
+  release(&kmem.lock);
+
+  atomic_inc_return(&g_freecnt);
+}
+
+#endif
 // 1. 尝试从freelist中取
 // 2. fill with junk == 5
 // Allocate one 4096-byte page of physical memory.

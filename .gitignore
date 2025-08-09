@@ -33,4 +33,8 @@ build/*
 *.so
 kernel-rv
 kernel-la
+kernel.asm
 *.xz
+busybox_unstripped
+*.dtb
+*.dts

@@ -3,7 +3,7 @@
 #include "queue.h"
 #include "param.h"
 #include "debug.h"
-#include "riscv.h"
+#include "arch.h"
 #include "memlayout.h"
 #include "sched.h"
 #include "debug.h"
@@ -509,14 +509,22 @@ void thread_wakeup_specific(struct tcb *t) {
 
 void print_trapframe(struct trapframe *tf) {
     printf("trapframe at %p\n", tf);
+#ifdef __ARCH_RISCV
     printf("  kernel_satp %p\n", tf->kernel_satp);
-    printf("  kernel_sp %p\n", tf->kernel_sp);
     printf("  kernel_trap %p\n", tf->kernel_trap);
+#endif
+    printf("  kernel_sp %p\n", tf->kernel_sp);
     printf("  kernel_hartid %p\n", tf->kernel_hartid);
+#ifdef __ARCH_RISCV
     printf("  epc %p\n", tf->epc);
+#else
+    printf("  era %p\n", tf->era);
+#endif
     printf("  ra %p\n", tf->ra);
     printf("  sp %p\n", tf->sp);
+#ifdef __ARCH_RISCV
     printf("  gp %p\n", tf->gp);
+#endif
     printf("  tp %p\n", tf->tp);
     printf("  t0 %p\n", tf->t0);
 }
@@ -535,10 +543,15 @@ void transfer_trapframe(struct tcb* t, pagetable_t newpgtble, int unmmap_old) {
     uvmunmap(oldpgtble, tfva, 1, 0); 
     release(&t->p->mm.lock);
     }
-
+#ifdef __ARCH_RISCV
     if(mappages(newpgtble, tfva, PGSIZE, (uint64)tf, PTE_R | PTE_W) < 0) {
         panic("transfer trapframe failed\n");
     }
+#else
+    if(mappages(newpgtble, tfva, PGSIZE, (uint64)tf, PTE_W) < 0) {
+        panic("transfer trapframe failed\n");
+    }
+#endif
 }
 
 

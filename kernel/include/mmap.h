@@ -27,8 +27,11 @@
 
 #define MMAP_MAX_ADDR_START THREAD_TRAPFRAME(MAX_THREAD) /* max vitural start-address mmap can use, from here go downside*/
 #define MMAP_END_ADDRESS MMAP_MAX_ADDR_START - 1024 * 1024 * 1024 /* 1GB */
+#ifdef __ARCH_RISCV
 #define PROT2PTE_FLAGS(prot) ((prot & PROT_READ ? PTE_R : 0) | (prot & PROT_WRITE ? PTE_W : 0) | (prot & PROT_EXEC ? PTE_X : 0))
-
+#else
+#define PROT2PTE_FLAGS(prot) ((prot & PROT_READ ? 0 : PTE_NR) | (prot & PROT_WRITE ? PTE_W : 0) | (prot & PROT_EXEC ? 0 : PTE_NX))
+#endif
 uint64 sys_mmap(void);
 uint64 sys_munmap(void);
 uint64 do_mmap(uint64 addr, uint64 len, uint64 prot, uint64 flags, uint64 fd, struct file *fp, uint64 offset);

@@ -16,7 +16,7 @@
 #include "iovec.h"
 #include "fcntl.h"
 #include "timer.h"
-#include "riscv.h"
+#include "arch.h"
 #include "ext4_super.h"
 
 void ext4_ilock(struct inode *ip);
@@ -226,10 +226,6 @@ struct inode *ext4_namei(char *rel_path) {
     char abs_path[MAXPATH];
     char *cwd = myproc()->cinfo.path;
     get_absolute_path(rel_path, cwd, abs_path);
-    if (abs_path == NULL) {
-        printf("[ext4] get_absolute_path error!\n");
-        return NULL;
-    }
     if((ext4_i = ext4_ialloc()) == NULL) {
         printf("[ext4] ext4_ialloc error!\n");
         return NULL;
@@ -982,7 +978,7 @@ int ext4_vutimens(const char *path, __nullable const struct timespec *ts) {
     struct timespec atime, mtime, nowtime;
     int seta = 1, setm = 1;
     int r = 0;
-    nowtime = TIME2TIMESPEC(rdtime());
+    nowtime = TIME2TIMESPEC(r_time());
 
     if(ts == NULL) {
         atime = nowtime;

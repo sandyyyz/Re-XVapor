@@ -2,12 +2,12 @@
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
+#include "arch.h"
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
 #include "thread.h"
-#include "riscv.h"
+#include "arch.h"
 #include "vm.h"
 #include "mmap.h"
 #include "signal.h"
@@ -31,23 +31,13 @@ void kernelvec();
 
 extern int devintr();
 
-void
-trapinit(void)
-{
-  initlock(&tickslock, "time");
-  initlock(&timeout_lock, "timeout");
-
-}
-
-// set up to take exceptions and traps while in the kernel.
-void
-trapinithart(void)
-{
-  w_stvec((uint64)kernelvec);
-}
-
 static void pgfault_handler() {
+
+#ifdef __ARCH_RISCV
   uint64 va = PGROUNDDOWN(r_stval());
+#else
+  uint64 va = r_csr_badv();
+#endif
   struct vma_struct *vma;
   struct proc *p = myproc();
   struct tcb *t = mythread();
@@ -55,10 +45,10 @@ static void pgfault_handler() {
   acquire(&p->mm.lock);
   if(!(vma = find_vma(p, va))) {
     printf("thread %d usertrap: page fault at %p\n", t->tid, va);
-    printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
-    printf("scause=%p\n", r_scause());
-    printf("sstatus=%p\n", r_sstatus());
-    printf("satp=%p\n", r_satp());
+    // printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    // printf("scause=%p\n", r_scause());
+    // printf("sstatus=%p\n", r_sstatus());
+    // printf("satp=%p\n", r_satp());
     panic("usertrap: page fault");
   }
   char* mem;
@@ -68,9 +58,16 @@ static void pgfault_handler() {
 #ifdef __DEBUG_PGFAULT
   Log("proc %d thread %d usertrap: mappages va %p, size %p, mem %p, prem %p\n", p->pid, t->tid, va, PGSIZE, mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X);
 #endif
+#ifdef __ARCH_RISCV
   if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U | PTE_X) != 0) {
     panic("usertrap: mappages");
   }
+#else
+  if(mappages(p->mm.pagetable, va, PGSIZE, (uint64)mem, PROT2PTE_FLAGS(vma->prot) | PTE_U) != 0) {
+    panic("usertrap: mappages");
+  }
+#endif
+
 #ifdef __DEBUG_UTRAP
   // vmprint(p->mm.pagetable);
 #endif
@@ -84,13 +81,34 @@ static void pgfault_handler() {
   size_t rcnt = 0;
   if(fp->fops->read(fp, 1, va, offset, PGSIZE, &rcnt) != 0) {
     printf("thread %d usertrap: read file %s failed\n", t->tid, fp->info.path);
+#ifdef __ARCH_RISCV
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
     printf("scause=%p\n", r_scause());
     printf("sstatus=%p\n", r_sstatus());
     printf("satp=%p\n", r_satp());
+#else
+    printf("estat=%p\n", r_csr_estat());
+    printf("badv:%p\n", r_csr_badv());
+#endif
     panic("usertrap: read file failed");
   }
   // release(&p->mm.lock);
+}
+
+#ifdef __ARCH_RISCV
+
+void
+trapinit(void)
+{
+  initlock(&tickslock, "time");
+  initlock(&timeout_lock, "timeout");
+}
+
+// set up to take exceptions and traps while in the kernel.
+void
+trapinithart(void)
+{
+  w_stvec((uint64)kernelvec);
 }
 
 // trampoline已经换栈和页表
@@ -146,12 +164,7 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
-
-    if(which_dev == 3) {
-      // read/write pagefault,maybe mmap cause
-      // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
-      pgfault_handler();
-    }
+    // ok
   } else {
     // devintr unrecognized
 #ifdef __SHOW_UNEXPECTED_UTRAP
@@ -177,6 +190,12 @@ usertrap(void)
   if(which_dev == 2) {
     p->utime++;
     thread_yield();
+  }
+
+  if(which_dev == 3) {
+    // read/write pagefault,maybe mmap cause
+    // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
+    pgfault_handler();
   }
 
   signal_handle(t, 0, NULL); // handle the signal, if any
@@ -211,7 +230,7 @@ usertrapret(void)
   // uint64 trampoline_debug_uservec = TRAMPOLINE + (debug_uservec - trampoline);
 
   // if(t->tid != 1) {
-    w_stvec(trampoline_uservec);
+  w_stvec(trampoline_uservec);
   // } else {
   //   w_stvec(trampoline_debug_uservec);
   // }
@@ -244,9 +263,6 @@ usertrapret(void)
   // tell trampoline.S the user page table to switch to.
   // because the threads shared the same pagetable
   uint64 satp = MAKE_SATP(p->mm.pagetable);
-
-  // write tidx to sscratch for uservec in the future 
-  // w_sscratch(t->tidx);
 
   // jump to userret in trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
@@ -314,8 +330,7 @@ kerneltrap()
   w_sstatus(sstatus);
 }
 
-void
-clockintr()
+void clockintr()
 {
   acquire(&tickslock);
   ticks++;
@@ -394,3 +409,260 @@ devintr()
   }
 }
 
+#else // LOONGARCH
+/*
+Loongarch should implement the following functions:
+1. trapinit()
+2. trapinithart()
+3. usertrap()
+4. usertrapret()
+5. kerneltrap()
+6. clockintr()
+7. devintr()
+*/
+
+
+void handle_excep();
+void handle_tlbr();
+void handle_merr();
+void clockintr();
+
+void trapinit(void)
+{
+  initlock(&tickslock, "time");
+  initlock(&timeout_lock, "timeout");
+}
+// set up to take exceptions and traps while in the kernel.
+// loongarch do this by setting the eentry csr ub trapinit
+void trapinithart(void) {
+  uint32 ecfg = ( 0U << CSR_ECFG_VS_SHIFT ) | HWI_VEC | TI_VEC;
+  uint64 tcfg = 0x1000000UL | CSR_TCFG_EN | CSR_TCFG_PER;
+  w_csr_ecfg(ecfg);
+  w_csr_tcfg(tcfg);
+  w_csr_eentry((uint64)handle_excep);
+  w_csr_tlbrentry((uint64)handle_tlbr); //TODO
+  w_csr_merrentry((uint64)handle_merr); //TODO
+  intr_on();
+}
+
+int
+devintr()
+{
+  uint32 estat = r_csr_estat();
+  uint32 ecfg = r_csr_ecfg();
+
+
+  if(estat & HWI_VEC & ecfg){
+    // this is a supervisor external interrupt, via PLIC.
+    // irq indicates which device interrupted.
+    uint64 irq = extioi_claim();
+    if(irq & (1UL << UART0_IRQ)){
+      uartintr();
+
+    // tell the apic the device is
+    // now allowed to interrupt again.
+
+      extioi_complete(1UL << UART0_IRQ);
+    } else if(irq){
+      printf("unexpected interrupt irq=%d\n", irq);
+      apic_complete(irq); 
+      extioi_complete(irq);        
+    }
+    return 1;
+  } else if(estat & ecfg & TI_VEC){
+    // software interrupt from a machine-mode timer interrupt,
+    // forwarded by timervec in kernelvec.S.
+    if(cpuid() == 0){
+      clockintr();
+    }
+    w_csr_ticlr(r_csr_ticlr() | CSR_TICLR_CLR);
+    return 2;
+  } else if((r_csr_estat() >> 16) == PIL || (r_csr_estat() >> 16) == PIS) {
+    return 3;
+  }
+  else {
+    return 0;
+  }
+} 
+
+void
+usertrap(void)
+{
+  int which_dev = 0;
+// check SPP bit in sstatus
+  if((r_csr_prmd() & PRMD_PPLV) == 0) {
+    printf("\nprocess %d, thread %d\n", myproc()->pid, mythread()->tid);
+    panic("usertrap: not from user mode");
+  }
+
+  // send interrupts and exceptions to kerneltrap(),
+  // since we're now in the kernel.
+  // w_stvec((uint64)kernelvec);
+
+  struct proc *p = myproc();
+  struct tcb *t = mythread();
+  
+  // save user program counter.
+  t->trapframe->era = r_csr_era();
+  
+  if(((r_csr_estat()& CSR_ESTAT_ECODE) >> 16) == 0xb){
+    // system call
+
+    if(thread_killed(t))
+      thread_exit(-1);
+
+    // sepc points to the ecall instruction,
+    // but we want to return to the next instruction.
+    // p->trapframe->epc += 4;
+    t->trapframe->era += 4;
+
+    // an interrupt will change sepc, scause, and sstatus,
+    // so enable only now that we're done with those registers.
+    intr_on();
+    syscall();
+  } else if((which_dev = devintr()) != 0){
+    // ok
+  } else {
+    // devintr unrecognized
+#ifdef __SHOW_UNEXPECTED_UTRAP
+    printf("usertrap(): unexpected scause %p\n", p->pid);
+#endif
+    // panic("unexpected usertrap");
+    list_for_each_entry(t, &p->tg.threads, threads) {
+      thread_setkilled(t);
+    }
+    proc_setkilled(p);
+    thread_exit(-1);
+  }
+
+  if(thread_killed(t) || proc_killed(p))
+    // exit all threads of the process's thread group,
+    // and then exit the process
+    // every thread will go here
+    thread_exit(0);
+    // thread_exit(-1);
+    
+  // give up the CPU if this is a timer interrupt.
+  if(which_dev == 2) {
+    p->utime++;
+    thread_yield();
+  }
+
+  if(which_dev == 3) {
+    // read/write pagefault,maybe mmap cause
+    // printf("thread %d usertrap: page fault at %p\n", t->tid, r_stval());
+    pgfault_handler();
+  }
+
+  signal_handle(t, 0, NULL); // handle the signal, if any
+  // each of the syscall, interrupt, exceptions from userspace will return from here
+  // because we have set the t->tramframe->kernel_trap = (uint64)usertrap
+  // and set the stvec to uservec before returned to userspace last time
+  // next time's trap: uservec->usertrap->usertrapret->userret 
+  usertrapret();
+}
+
+void usertrapret(void)
+{
+  struct proc *p = myproc();
+  struct tcb *t = mythread();
+  // we're about to switch the destination of traps from
+  // kerneltrap() to usertrap(), so turn off interrupts until
+  // we're back in user space, where usertrap() is correct.
+  intr_off();
+
+
+  t->trapframe->kernel_pgdl = r_csr_pgdl();         // kernel page table
+  t->trapframe->kernel_sp = t->kstack + KSTACK_PAGE * PGSIZE; // thread's kernel stack
+  t->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
+
+  // set up the registers that trampoline.S's sret will use
+  // to get to user space.
+  
+  // set S Previous Privilege mode to User.
+  uint32 x = r_csr_prmd();
+  x |= PRMD_PPLV; // clear SPP to 0 for user mode
+  x |= PRMD_PIE; // enable interrupts in user mode
+  w_csr_prmd(x);
+  // send syscalls, interrupts, and exceptions to uservec in trampoline.S
+  uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
+  // set S Exception Program Counter to the saved user pc.
+  w_csr_era(t->trapframe->era);
+
+  // jump to userret in trampoline.S at the top of memory, which 
+  // switches to the user page table, restores user registers,
+  // and switches to user mode with sret.
+  // 定位到userret (trampoline.s)
+  
+  volatile uint64 pgdl = (uint64)(p->mm.pagetable);
+  
+  ((void (*)(uint64, uint64))trampoline_userret)(THREAD_TRAPFRAME(t->tidx), pgdl);
+}
+
+
+// interrupts and exceptions from kernel code go here via kernelvec,
+// on whatever the current kernel stack is.
+void kerneltrap()
+{
+  int which_dev = 0;
+
+  uint64 era = r_csr_era();
+  uint64 prmd = r_csr_prmd();
+  if((prmd & PRMD_PPLV) != 0)
+    panic("kerneltrap: not from privilege0");
+  if(intr_get() != 0)
+    panic("kerneltrap: interrupts enabled");
+
+  if((which_dev = devintr()) == 0){
+    printf("estat %p\n", r_csr_estat());
+    printf("era=%p eentry=%p\n", r_csr_era(), r_csr_eentry());
+    panic("kerneltrap");
+  }
+
+  // give up the CPU if this is a timer interrupt.
+  // and if there is a thread running on cpu
+  if(which_dev == 2 && mythread() != 0 && mythread()->state == TCB_RUNNING) {
+    myproc()->ktime++;  
+    thread_yield();
+  }
+
+  if(which_dev == 3) {
+    // read/write page fault
+    printf("thread %d kerneltrap: page fault at %p\n", mythread()->tid, r_csr_badv());
+    printf("t->kstack=%p\n", mythread()->kstack);
+    panic("kerneltrap: page fault");
+  }
+
+  // the yield() may have caused some traps to occur,
+  // so restore trap registers for use by kernelvec.S's sepc instruction.
+  w_csr_era(era);
+  w_csr_prmd(prmd);
+}
+
+void clockintr()
+{
+  acquire(&tickslock);
+  ticks++;
+  thread_wakeup_chan(&ticks);
+  // if(ticks % TICKS_PER_SECOND == 0) {
+  //   Warn("ticks %d", ticks);
+  // }
+  release(&tickslock);
+  
+  /*
+    I think here is a potential lost wakeup if we don't use a condition lock to constrain the 
+    futex sleep in futex_wait. if we wakeup timeout here before a potential futex_wait,
+    which haven't changed the thread state, we will lost the timeout wakeup.
+  */
+  acquire(&timeout_lock);
+  // wakeup all threads that are sleeping on timeout
+  thread_wakeup_timeout(ticks);
+  release(&timeout_lock);
+}
+
+void  machine_trap()
+{
+  panic("machine error");
+}
+
+#endif  

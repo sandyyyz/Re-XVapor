@@ -1,7 +1,7 @@
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
+#include "arch.h"
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
@@ -131,9 +131,15 @@ void thread_mapstacks(pagetable_t kpgtbl)
       if((pa = (char*)kzalloc()) == NULL) {
         panic("thread_mapstacks: kstack alloc failed");
       }
+#ifdef __ARCH_RISCV
       if(mappages(kpgtbl, va + i * PGSIZE, PGSIZE, (uint64)pa, PTE_R | PTE_W) < 0) {
         panic("thread_mapstacks: mappages failed");
       }
+#else 
+      if(mappages(kpgtbl, va + i * PGSIZE, PGSIZE, (uint64)pa, PTE_P | PTE_W | PTE_MAT | PTE_D) < 0) {
+        panic("thread_mapstacks: mappages failed");
+      }
+#endif
     }
 #ifdef __DEBUG_THREAD_MAPSTACKS
     Log("thread %d map with kstack base %p, kstack top %p", t - tcb_pool + 1, va + KSTACK_PAGE * PGSIZE , va);
@@ -350,6 +356,7 @@ proc_pagetable(struct proc *p)
   if(pagetable == 0)
   return 0;
 
+#ifdef __ARCH_RISCV
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
@@ -364,7 +371,22 @@ proc_pagetable(struct proc *p)
     uvmfree(pagetable, 0);
     return 0;
   }
+#else 
+    // map the trampoline code (for system call return)
+  // at the highest user virtual address.
+  // only the supervisor uses it, on the way
+  // to/from user space, so not PTE_U.
+  if(mappages(pagetable, TRAMPOLINE, PGSIZE,
+              (uint64)trampoline, PTE_P | PTE_W | PTE_MAT | PTE_D) < 0){
+    uvmfree(pagetable, 0);
+    return 0;
+  }
 
+  if(mappages(pagetable, SIGRETURN, PGSIZE, (uint64) __user_rt_sigreturn, PTE_P | PTE_W | PTE_MAT | PTE_D | PTE_U) < 0){
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+#endif
   // printf_green("trampoline : %p, __user_rt_sigreturn %p", (uint64)trampoline, (uint64) __user_rt_sigreturn);
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
@@ -433,8 +455,11 @@ userinit(void)
 #endif
 
   // prepare for the very first "return" from kernel to user.
-
+#ifdef __ARCH_RISCV
   t->trapframe->epc = 0;      // user program counter
+#else
+  t->trapframe->era = 0;
+#endif
   t->trapframe->sp = sz;  // user stack pointer
   // Log("userinit trapframe: %p", t->trapframe);
   safestrcpy(p->name, "initcode", sizeof(p->name));

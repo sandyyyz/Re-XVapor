@@ -9,6 +9,7 @@
 .globl kerneltrap
 .globl kernelvec
 .align 4
+
 kernelvec:
         # make room to save registers.
         addi sp, sp, -256
@@ -122,3 +123,4 @@ timervec:
         csrrw a0, mscratch, a0
 
         mret
+

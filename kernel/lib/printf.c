@@ -11,7 +11,7 @@
 #include "xv6fs.h"
 #include "file.h"
 #include "memlayout.h"
-#include "riscv.h"
+#include "arch.h"
 #include "defs.h"
 #include "proc.h"
 #include "sbi.h"
@@ -117,6 +117,15 @@ printf(const char *fmt, ...)
     release(&pr.lock);
 }
 
+#ifdef __ARCH_LOONGARCH
+static int qemu_raw_poweroff() {
+  volatile uint32_t *poweroff = (uint32_t *)FINISHER_BASE;
+  *poweroff = 0x5555; 
+  // while(1);
+  return 0;
+}
+#endif
+
 void
 panic(char *s)
 {
@@ -125,7 +134,12 @@ panic(char *s)
   printf(s);
   printf("\n");
   panicked = 1; // freeze uart output from other CPUs
+#ifdef __ARCH_RISCV
   sbi_shutdown(0);
+#else
+  // loongrach
+  // qemu_raw_poweroff();
+#endif
   for(;;)
   ;
 }
