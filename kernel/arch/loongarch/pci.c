@@ -458,7 +458,7 @@ void pci_init()
 	printf("scan done\n");
 	/*pci_device_t *pci_dev=pci_get_device_by_bus(0, 8, 0);
 	  pci_device_dump(pci_dev);*/
-	printf("init_pci: pci type device found %d.\n",
-		   pic_get_device_connected());
-	pci_device_dump(&pci_device_table[pic_get_device_connected()]);
+	// printf("init_pci: pci type device found %d.\n",
+	// 	   pic_get_device_connected());
+	// pci_device_dump(&pci_device_table[pic_get_device_connected()]);
 }
