@@ -131,7 +131,12 @@
         "loongarch.h": "c",
         "device.h": "c",
         "ext4fs.h": "c",
-        "sbi.h": "c"
+        "sbi.h": "c",
+        "io.h": "c",
+        "little_endian.h": "c",
+        "compiler.h": "c",
+        "barrier.h": "c",
+        "stdarg.h": "c"
     },
 
     "multiCommand.commands": [

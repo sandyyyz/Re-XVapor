@@ -234,6 +234,7 @@ static void pci_scan_device(unsigned char bus, unsigned char device, unsigned ch
 	unsigned int device_id = val >> 16;
 	/*总线设备不存在，直接返回*/
 	if (vendor_id == 0xffff) {
+		// printf("bus %d device %d fucntion  %d device does not exists\n", bus, device, function);
 		return;
 	}
 	/*分配一个空闲的pci设备信息结构体*/
@@ -454,7 +455,7 @@ void pci_init()
 	}
 	/*扫描所有总线设备*/
 	pci_scan_buses();
-	printf("scan done");
+	printf("scan done\n");
 	/*pci_device_t *pci_dev=pci_get_device_by_bus(0, 8, 0);
 	  pci_device_dump(pci_dev);*/
 	printf("init_pci: pci type device found %d.\n",

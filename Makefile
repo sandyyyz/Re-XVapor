@@ -29,6 +29,7 @@ else ifeq ($(ARCH), loongarch)
 	CFLAGS += -Iinclude/
 	CFLAGS += -fno-pie -no-pie
     CFLAGS += -D__ARCH_LOONGARCH
+	CFLAGS += -D__CONFIG_2K1000LA
 	CFLAGS += -D__AHCI
 else
     $(error Unsupported ARCH: $(ARCH))
@@ -158,6 +159,7 @@ QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -no-reboot
 QEMU-LA = ../qemu-la-20240401/bin/qemu-system-loongarch64
 QEMUOPTS-LA = -kernel kernel-la -m 1G -nographic -smp $(CPUS) -drive file=$(FSIMG-LA),if=none,format=raw,id=x0
 QEMUOPTS-LA += -device virtio-blk-pci,drive=x0 -no-reboot
+QEMUOPTS-LA += -M ls2k
 # QEMUOPTS-LA += -machine dumpdtb=loongarch64.dtb
 # QEMUOPTS-LA += -monitor stdio
 # QEMUOPTS-LA += -device virtio-blk-pci,drive=x0,bus=virtio-mmio-bus.0 -no-reboot

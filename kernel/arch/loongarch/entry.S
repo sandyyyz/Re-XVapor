@@ -12,8 +12,8 @@ _entry:
         # with a 4096-byte stack per CPU.
         # sp = stack0 + (hartid * 4096)
 
-	# This writes 0xa8 to control register 0, setting the privilege level to 0, disabling interrupts, and disabling paging.
-	li.w	$t0, 0xb0		# PLV=0, IE=0, PG=0
+	# This writes 0xa8 to control register 0, setting the privilege level to 0, disabling interrupts, and enabling paging.
+	li.w	$t0, 0xb0		# PLV=0, IE=0, PG=1, DATF = DATM = 01
 	csrwr	$t0, 0x0		# CRMD
 
 	# This writes 0x04 to control register 1, keeping the privilege level at 0, enabling interrupts, and disabling write protection.

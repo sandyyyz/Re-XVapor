@@ -1,6 +1,19 @@
 #ifndef __TYPES_H
 #define __TYPES_H
 
+
+typedef unsigned char		u8;
+typedef u8			        __u8;
+typedef unsigned short		u16;
+typedef u16                 __u16;
+typedef unsigned int		u32;
+typedef u32                 __u32;
+typedef unsigned long long	u64;
+typedef u64			        __u64;
+
+typedef signed short		s16;
+typedef signed long long    __s64;
+
 typedef unsigned int   uint;
 typedef unsigned short ushort;
 typedef unsigned char   uchar;
@@ -94,5 +107,55 @@ typedef unsigned int	tcflag_t;
 #ifndef __nonnull
 #define __nonnull
 #endif
+
+#ifdef __CHECKER
+#define __bitwise	__attribute__((bitwise))
+#else
+#define __bitwise
+#endif
+
+typedef unsigned int __bitwise gfp_t;
+
+#define __aligned_u64 __u64 __attribute__((aligned(8)))
+
+#ifndef INT_MAX
+#define INT_MAX			((int)(~0U>>1))
+#endif
+
+#ifndef UINT32_MAX
+#define UINT32_MAX		((u32)~0U)
+#endif
+
+#ifndef INT32_MAX
+#define INT32_MAX		((s32)(UINT32_MAX >> 1))
+#endif
+
+#ifdef CONFIG_64BIT
+typedef struct {
+	s64 counter;
+} atomic64_t;
+#endif
+
+#define _ULCAST_ (unsigned long)
+#define _U64CAST_ (u64)
+
+/* The kernel doesn't use this legacy form, but user space does */
+#define __bitwise__ __bitwise
+
+typedef __u16 __bitwise __le16;
+typedef __u16 __bitwise __be16;
+typedef __u32 __bitwise __le32;
+typedef __u32 __bitwise __be32;
+typedef __u64 __bitwise __le64;
+typedef __u64 __bitwise __be64;
+
+typedef __u16 __bitwise __sum16;
+typedef __u32 __bitwise __wsum;
+
+#define __aligned_u64 __u64 __attribute__((aligned(8)))
+#define __aligned_be64 __be64 __attribute__((aligned(8)))
+#define __aligned_le64 __le64 __attribute__((aligned(8)))
+
+typedef unsigned __bitwise __poll_t;
 
 // typedef uint32 dev_t;

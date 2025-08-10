@@ -26,7 +26,12 @@
 #define NTHREADS_PER_PROC 4
 #define NTHREADS (NPROC * NTHREADS_PER_PROC)
 
+#ifndef INT_MAX
 #define INT_MAX 2147483647 // maximum value for int
+#endif
+
+#ifndef INT_MIN
 #define INT_MIN (-INT_MAX - 1) // minimum value for int
+#endif
 
 #endif

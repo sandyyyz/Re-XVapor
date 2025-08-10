@@ -72,7 +72,7 @@ void kinit() {
   // freerange((void*)RAMBASE, (void *)P2V(PHYSTOP));
   // printf("kinit freerange :RAMBASE: %p - PHYSTOP %p\n", (void *)RAMBASE, (void *)P2V(PHYSTOP));
   
-  printf("kinit freerange :end: %p - PHYSTOP %p\n", (void *)end, (void *)P2V(PHYSTOP));
+  // printf("kinit freerange :end: %p - PHYSTOP %p\n", (void *)end, (void *)P2V(PHYSTOP));
   freerange((void *)(end), (void *)P2V(PHYSTOP));
 }
 void kfree(void *pa) {
