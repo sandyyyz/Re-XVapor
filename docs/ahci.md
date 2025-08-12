@@ -32,8 +32,9 @@ https://zhuanlan.zhihu.com/p/486729471
 7. 从BAR#6的地址(物理基地址)读出AHCI和全局寄存器和寄存器组。每个寄存器32位
 8. 操作系统需要为AHCI芯片分配空间。每个port需要PxCLB和PxFB。
 ![ahci-port-regs](image-6.png)
+![ahci-port-memory-regs](image-10.png)
 9. AHCI初始化
-    1. GHC寄存器AE置位，表示使用AHCI模式
+    1. GHC寄存器AE置位，表示使用AHCI模式(HBA memory registers)
     2. 读取PI寄存器，找出所有已经开启的端口
     3. 读取CAP寄存器的NCS字段，找出每个端口命令队列可用长度
     4. 对于每一个端口：
@@ -71,6 +72,13 @@ https://zhuanlan.zhihu.com/p/486729471
     - 数据的存储位置，需要物理上连续，挂在PRDT里
 
  
+ HBA memory registers 一开始是一连串的 generic host control registers,每个32位长
+
+ ![GHC](image-8.png)
+
+一个设备的每个port有自己的一组寄存器
+
+![port-regs](image-9.png)
 ## SCSI
 
 1. FIS --> CDB

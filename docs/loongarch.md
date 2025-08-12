@@ -7,6 +7,8 @@
 [loongarch指令集架构文档](https://loongson.github.io/LoongArch-Documentation/README-CN.html)   
 [loongarch.h](https://gbmc.googlesource.com/linux/+/17bbde2e1716e2ee4b997d476b48ae85c5a47671/arch/loongarch/include/asm/loongarch.h)  
 [寄存器总结](https://bbs.loongarch.org/d/51-3a5000)  
+[loongarch物理板驱动](https://github.com/Tikifire/ls2k1000la_driver/tree/main/ahci)
+
 1. set DMW
 2. 修改kernel.ld, 使得内核启动在直接映射窗口下。而用户使用虚拟地址进行页表映射
 3. four-level pgtable, 修改页表相关的代码

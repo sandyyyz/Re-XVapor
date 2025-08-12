@@ -18,6 +18,14 @@
 #define ATA_CMD_WRITE_DMA_EXT 0x30  // 写磁盘
 #define ATA_CMD_IDENTIFY 0xEC       // 读取磁盘信息
 
+#define ATA_IDENTIFY_DEVICE 0xec
+#define ATA_IDENTIFY_PAKCET_DEVICE 0xa1
+#define ATA_PACKET 0xa0
+#define ATA_READ_DMA_EXT 0xc8
+#define ATA_READ_DMA 0x25
+#define ATA_WRITE_DMA_EXT 0xca
+#define ATA_WRITE_DMA 0x35
+
 /*磁盘驱动程序的的返回结果*/
 enum disk_result {
     AHCI_SUCCESS,       // 请求成功
@@ -74,11 +82,11 @@ enum disk_result {
 #define PORT_PHYCR 0X78  // PHY 控制寄存器
 #define PORT_PHYSR 0X7C  // PHY 状态寄存器
 
-/*向CMD寄存器中填入的位*/
-#define HBA_PxCMD_ST 0x0001   // 表示端口的命令引擎的启动/停止位
-#define HBA_PxCMD_FRE 0x0010  // 表示端口的 FIS 接收引擎
-#define HBA_PxCMD_FR 0x4000   // 表示端口的 FIS 接收引擎状态位
-#define HBA_PxCMD_CR 0x8000   // 表示端口的命令引擎状态位
+// /*向CMD寄存器中填入的位*/
+// #define HBA_PxCMD_ST 0x0001   // 表示端口的命令引擎的启动/停止位
+// #define HBA_PxCMD_FRE 0x0010  // 表示端口的 FIS 接收引擎
+// #define HBA_PxCMD_FR 0x4000   // 表示端口的 FIS 接收引擎状态位
+// #define HBA_PxCMD_CR 0x8000   // 表示端口的命令引擎状态位
 
 /*向IE寄存器写入的位*/
 #define HBA_PORT_IE_DHRE (1UL << 0)  // 中断使能
@@ -345,7 +353,7 @@ struct hba_command_header {
     uint8_t reserved0 : 1;
     uint8_t pmport : 3;  // 指示端口多路复用的值
 
-    uint16_t prdt_len;
+    uint16_t prdt_len; // Physical Region Descriptor Table Length 
 
     volatile uint32_t prdb_count;  // 物理区域描述符字节长度
 
@@ -463,7 +471,7 @@ struct boot_sector
 }__attribute__( ( __packed__ ) );
 extern struct block_device_request_queue ahci_req_queue;  // io调度队列
 void disk_init(void);
-int ahci_read(unsigned long prot_base, unsigned int startl, unsigned int starth, unsigned int count, unsigned long buf);
+int ahci_read(unsigned long port_base, unsigned int startl, unsigned int starth, unsigned int count, unsigned long buf);
 
-int ahci_write(unsigned long prot_base, unsigned int startl, unsigned int starth, unsigned int count, unsigned long buf);
+int ahci_write(unsigned long port_base, unsigned int startl, unsigned int starth, unsigned int count, unsigned long buf);
 #endif

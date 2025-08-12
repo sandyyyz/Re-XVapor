@@ -118,7 +118,7 @@ bread(uint dev, uint blockno)
 #ifdef __VIRTIO
     virtio_disk_rw(b, 0);
 #elif defined __AHCI
-    block_read(blockno, 1, (uint64_t)b->data, 1);
+    block_read(blockno, 1, (uint64_t)b->data, 2);
 #endif
     b->valid = 1;
   }

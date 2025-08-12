@@ -32,16 +32,16 @@
         break;
     }
     //return pack;*/
-	int prot_base = port_num*PORT_OFFEST+PORT_BASE;
+	int port_base = port_num * PORT_OFFEST + PORT_BASE;
 	int LBA_startl = base_addr & 0xffffffff;
 	int LBA_starth = (base_addr >> 32);
 	switch (cmd)
 	{
 	case ATA_CMD_READ_DMA_EXT:
-		ahci_read(prot_base, LBA_startl, LBA_starth, count, buffer);
+		ahci_read(port_base, LBA_startl, LBA_starth, count, buffer);
 		break;
 	case ATA_CMD_WRITE_DMA_EXT:
-		ahci_write(prot_base,LBA_startl,LBA_starth,count,buffer);
+		ahci_write(port_base,LBA_startl,LBA_starth,count,buffer);
 		break;
 	default:
 		break;
@@ -56,7 +56,7 @@
 void block_read(uint64_t base_addr, uint64_t count, uint64_t buffer, uint8_t port_num)
 {
     /*struct block_device_request_packet * pack=*/ 
-    block_make_request(ATA_CMD_READ_DMA_EXT,base_addr, count, buffer,port_num);
+    block_make_request(ATA_CMD_READ_DMA_EXT, base_addr, count, buffer,port_num);
 
     //ahci_submit(pack);
 }
