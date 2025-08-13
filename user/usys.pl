@@ -48,6 +48,7 @@ entry("readv");
 entry("writev");
 entry("sendfile");
 entry("ppoll");
+entry("splice");
 entry("readlinkat");
 entry("fstatat");
 entry("fstat");

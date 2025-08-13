@@ -1501,11 +1501,11 @@ uint64 sys_utimensat(void) {
  * @param out_f which file to write to
  * @param in_f which file to read from
  * @param kbuf kernel buffer, just PGSIZE bytes
- * @param offset offset in the in_f file to read from
+ * @param in_off offset in the in_f file to read from
  * @param count count of bytes to read from in_f and write to out_f
  * @return On success, the number of bytes written to out_f is returned.
  */
-static int rw_sharp(struct file *out_f, struct file *in_f, void *kbuf, off_t offset, uint64 count) {
+static int rw_sharp(struct file *out_f, struct file *in_f, void *kbuf, off_t in_off, uint64 count) {
   int r = 0, n = 0, rcnt = 0, wcnt = 0;
 
   for(int i = 0; i < count; i += PGSIZE) {
@@ -1514,7 +1514,7 @@ static int rw_sharp(struct file *out_f, struct file *in_f, void *kbuf, off_t off
     } else {
       n = count - i;
     }
-    if((rcnt = fileread(in_f, 0, (uint64)kbuf, n, offset + i)) < 0) {
+    if((rcnt = fileread(in_f, 0, (uint64)kbuf, n, in_off + i)) < 0) {
       printf("rw_sharp: fileread failed, rcnt = %d\n", rcnt);
       return -1;
     }
@@ -1523,6 +1523,50 @@ static int rw_sharp(struct file *out_f, struct file *in_f, void *kbuf, off_t off
       break;
     }
     if((wcnt = filewrite(out_f, 0, (uint64)kbuf, rcnt, out_f->fpos)) < 0) {
+      printf("rw_sharp: filewrite failed, wcnt = %d\n", wcnt);
+      return -1;
+    }
+    if(wcnt != rcnt) {
+      printf("rw_sharp: wcnt != rcnt, wcnt = %d, rcnt = %d\n", wcnt, rcnt);
+      return -1;
+    }
+    r += wcnt; // accumulate the number of bytes written
+    if(wcnt < n) {
+      // we have reached the end of the file
+      break;
+    }
+  }
+  return r; // return the number of bytes written
+}
+
+/**
+ * @brief read count bytes from in_f at offset into kbuf, and write them to out_f.
+ * 
+ * @param out_f which file to write to
+ * @param in_f which file to read from
+ * @param kbuf kernel buffer, just PGSIZE bytes
+ * @param out_off offset in the out_F file to write to
+ * @param count count of bytes to read from in_f and write to out_f
+ * @return On success, the number of bytes written to out_f is returned.
+ */
+static int rw_sharp_outoff(struct file *out_f, struct file *in_f, void *kbuf, off_t out_off, uint64 count) {
+  int r = 0, n = 0, rcnt = 0, wcnt = 0;
+
+  for(int i = 0; i < count; i += PGSIZE) {
+    if(count - i > PGSIZE) {
+      n = PGSIZE;
+    } else {
+      n = count - i;
+    }
+    if((rcnt = fileread(in_f, 0, (uint64)kbuf, n, in_f->fpos)) < 0) {
+      printf("rw_sharp: fileread failed, rcnt = %d\n", rcnt);
+      return -1;
+    }
+    if(rcnt == 0) {
+      // no more data to read
+      break;
+    }
+    if((wcnt = filewrite(out_f, 0, (uint64)kbuf, rcnt, out_off + i)) < 0) {
       printf("rw_sharp: filewrite failed, wcnt = %d\n", wcnt);
       return -1;
     }
@@ -1822,3 +1866,102 @@ uint64 sys_renameat2() {
 #endif
   return r;
 }
+
+size_t do_splice(struct file *in_f, struct file *out_f, off_t *off_addr, size_t len, int inis_pipe) {
+  size_t nwritten = 0;
+  off_t offset = 0;
+  if(off_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&offset, (uint64) off_addr, sizeof(off_t)) < 0) {
+      Warn("[do_splice] copyin failed");
+      return -1;
+    }
+  } else {
+    Warn("[do_splice] off_addr is NULL");
+    return -1;
+  }
+  if(offset < 0) {
+    Warn("[do_splice] offset < 0");
+    return -1;
+  }
+  void *buf = kalloc();
+  if(buf == NULL) {
+    Warn("[do_splice] kalloc failed");
+    return -1;
+  }
+
+  if(inis_pipe) {
+    nwritten = rw_sharp_outoff(out_f, in_f, buf, offset, len);
+    offset += nwritten;
+  } else {
+    nwritten = rw_sharp(out_f, in_f, buf, offset, len);
+    offset += nwritten;
+  }
+#ifdef __DEBUG_DO_SPLICE
+  Log("[do_splice] nwritten = %d, offset = %d", nwritten, offset);
+#endif
+  if(off_addr) {
+    if(copyout(myproc()->mm.pagetable, (uint64) off_addr, (char *)&offset, sizeof(off_t)) < 0) {
+      Warn("[do_splice] copyout failed\n");
+      goto bad;
+    }
+  }
+  if(inis_pipe) {
+    out_f->fpos = offset;
+  } else {
+    in_f->fpos = offset;
+  }
+  if(off_addr) {
+    if(copyout(myproc()->mm.pagetable, (uint64) off_addr, (char *)&offset, sizeof(off_t)) < 0) {
+      Warn("[do_splice] copyout failed\n");
+      goto bad;
+    }
+  }
+  kfree(buf);
+  return nwritten;
+
+bad:
+  kfree(buf);
+  return -1;
+}
+
+/**
+ * @brief copy data from one pipe to another normal file.
+ * 
+ * @property ssize_t splice(int fd_in, off_t *_Nullable off_in,
+                      int fd_out, off_t *_Nullable off_out,
+                      size_t len, unsigned int flags);
+ * @return the number of bytes transferred, or -1 if the off_in or off_out is negative. if off_in is larger than the size of fd_in
+ *         the splice will return 0.
+ */
+uint64 sys_splice() {
+  int fd_in, fd_out, r;
+  __nullable off_t *offin_addr, *offout_addr;
+  struct file* in_f = NULL, *out_f = NULL;
+  size_t len;
+
+  if(argfd(0, &fd_in, &in_f) < 0) {
+    Warn("[sys_splice] argfd(0, 0, &in_f) failed\n");
+    return -1;
+  };
+  if(argfd(2, &fd_out, &out_f) < 0) {
+    Warn("[sys_splice] argfd(1, 0, &out_f) failed\n");
+    return -1;
+  };
+  if(in_f->type == FD_PIPE) {
+    argaddr(3, (uint64 *)&offout_addr);
+  } else {
+    argaddr(1, (uint64 *)&offin_addr);
+  }
+  argulong(4, &len);
+#ifdef __DEBUG_SYS_SPLICE
+  Log("[sys_splice] fd_in = %d, fd_out = %d, off_in_addr = %p, off_out_addr = %p, len = %d", fd_in, fd_out, offin_addr, offout_addr, len);
+#endif
+
+  if(in_f->type == FD_PIPE) {
+    r = do_splice(in_f, out_f, offout_addr, len, 1);
+  } else {
+    r = do_splice(in_f, out_f, offin_addr, len, 0);
+  }
+  return r;
+}
+
