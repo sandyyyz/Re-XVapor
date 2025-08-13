@@ -86,3 +86,4 @@
 4   poweroff    sys_poweroff
 276 renameat2   sys_renameat2
 76 splice   sys_splice
+285 copy_file_range sys_copy_file_range

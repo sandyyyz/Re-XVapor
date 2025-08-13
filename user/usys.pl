@@ -93,3 +93,4 @@ entry("wait4");
 entry("prlimit64");
 entry("renameat2");
 entry("getrandom");
+entry("copy_file_range");

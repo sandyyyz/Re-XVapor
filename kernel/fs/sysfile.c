@@ -1965,3 +1965,81 @@ uint64 sys_splice() {
   return r;
 }
 
+uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_t *offin_addr, __nullable off_t *offout_addr, size_t len) {
+  off_t offset_in = 0, offset_out = 0;
+  size_t nwritten = 0;
+  if(offin_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&offset_in, (uint64) offin_addr, sizeof(off_t)) < 0) {
+      Warn("[do_copy_file_range] copyin failed");
+      return -1;
+    }
+  } else {
+    offset_in = in_f->fpos;
+  }
+  if(offout_addr) {
+    if(copyin(myproc()->mm.pagetable, (char *)&offset_out, (uint64) offout_addr, sizeof(off_t)) < 0) {
+      Warn("[do_copy_file_range] copyin failed");
+      return -1;
+    }
+  } else {
+    offset_out = out_f->fpos;
+  }
+  void *buf = kalloc();
+  if(buf == NULL) {
+    Warn("[do_copy_file_range] kalloc failed");
+    return -1;
+  }
+  nwritten = rw_sharp(out_f, in_f, buf, offset_out, len);
+  if(nwritten < 0) {
+    Warn("[do_copy_file_range] rw_sharp failed");
+    goto bad;
+  }
+  if(offin_addr) {
+    offset_in += nwritten;
+    if(copyout(myproc()->mm.pagetable, (uint64) offin_addr, (char *)&offset_in, sizeof(off_t)) < 0) {
+      Warn("[do_copy_file_range] copyout failed");
+      goto bad;
+    }
+  }
+  if(offout_addr) {
+    offset_out += nwritten;
+    if(copyout(myproc()->mm.pagetable, (uint64) offout_addr, (char *)&offset_out, sizeof(off_t)) < 0) {
+      Warn("[do_copy_file_range] copyout failed");
+      goto bad;
+    }
+  }
+  kfree(buf);
+  return nwritten;
+bad:
+  kfree(buf);
+  return -1;
+}
+
+/**
+ * @brief copy data from one file descriptor to another.  
+ * 
+ * @property ssize_t copy_file_range(int fd_in, off_t *off_in,
+                        int fd_out, off_t *off_out,
+                        size_t len, unsigned int flags);
+ * @return bytes copied, or -1 on error.set the error number.
+ */
+uint64 sys_copy_file_range() {
+  int fd_in, fd_out;
+  __nullable off_t *offin_addr, *offout_addr;
+  struct file *in_f = NULL, *out_f = NULL;
+  size_t len;
+
+  if(argfd(0, &fd_in, &in_f) < 0) {
+    Warn("[sys_copy_file_range] argfd(0, 0, &in_f) failed\n");
+    return -1;
+  }
+  argaddr(1, (uint64 *)&offin_addr);
+  if(argfd(2, &fd_out, &out_f) < 0) {
+    Warn("[sys_copy_file_range] argfd(1, 0, &out_f) failed\n");
+    return -1;
+  }
+  argaddr(3, (uint64 *)&offout_addr);
+  argulong(4, &len);
+
+  return do_copy_file_range(in_f, out_f, offin_addr, offout_addr, len);
+}
