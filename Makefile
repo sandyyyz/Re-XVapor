@@ -23,7 +23,7 @@ else ifeq ($(ARCH), loongarch)
 	CFLAGS = -Wall -O0 -fno-omit-frame-pointer -ggdb
 	# CFLAGS += -Werror
 	CFLAGS += -MD
-	CFLAGS += -march=loongarch64 -mabi=lp64s
+	CFLAGS += -march=loongarch64 -mabi=lp64f
 	CFLAGS += -ffreestanding -fno-common -nostdlib
 	CFLAGS += -I. -fno-stack-protector
 	CFLAGS += -Iinclude/
@@ -52,7 +52,8 @@ TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' 
 	echo "*** To turn off this error, run 'gmake TOOLPREFIX= ...'." 1>&2; \
 	echo "***" 1>&2; exit 1; fi)
 else
-TOOLPREFIX := loongarch64-unknown-linux-gnu-
+# TOOLPREFIX := loongarch64-unknown-linux-gnu-
+TOOLPREFIX := loongarch64-linux-gnu-
 endif
 
 CC = $(TOOLPREFIX)gcc
