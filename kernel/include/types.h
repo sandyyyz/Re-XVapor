@@ -84,7 +84,7 @@ typedef unsigned int mode_t;
 typedef uint32 nlink_t;
 typedef uint32 uid_t;
 typedef uint32 gid_t;
-typedef uint32 blksize_t;
+typedef long int blksize_t;
 typedef uint64 blkcnt_t;
 typedef uint64 time_t;
 
@@ -158,4 +158,17 @@ typedef __u32 __bitwise __wsum;
 
 typedef unsigned __bitwise __poll_t;
 
-// typedef uint32 dev_t;
+
+#define __DEV_T_TYPE		__UQUAD_TYPE
+#define __UID_T_TYPE		__U32_TYPE
+#define __GID_T_TYPE		__U32_TYPE
+#define __INO_T_TYPE		__SYSCALL_ULONG_TYPE
+#define __INO64_T_TYPE		__UQUAD_TYPE
+#define __MODE_T_TYPE		__U32_TYPE
+#ifdef __x86_64__
+# define __NLINK_T_TYPE		__SYSCALL_ULONG_TYPE
+# define __FSWORD_T_TYPE	__SYSCALL_SLONG_TYPE
+#else
+# define __NLINK_T_TYPE		__UWORD_TYPE
+# define __FSWORD_T_TYPE	__SWORD_TYPE
+#endif

@@ -5,7 +5,7 @@
             "name": "Debug xv6",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/kernel/kernel",
+            "program": "${workspaceFolder}/kernel-rv",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",

@@ -2023,9 +2023,10 @@ int ext4_fseek(ext4_file *file, int64_t offset, uint32_t origin)
 {
 	switch (origin) {
 	case SEEK_SET:
-		if (offset < 0 || (uint64_t)offset > file->fsize)
+		// if (offset < 0 || (uint64_t)offset > file->fsize)
+		// 	return EINVAL;
+		if(offset < 0)
 			return EINVAL;
-
 		file->fpos = offset;
 		return EOK;
 	case SEEK_CUR:

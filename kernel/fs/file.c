@@ -194,7 +194,7 @@ int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off)
 
   // Log("file path = %s", f->info.path);
   // Log("file type = %d", f->type);
-  if(!(IS_WRITABLE(f->flags)))
+  if(!(IS_WRITABLE(f->flags))) 
     return -1;
 
   if(f->type == FD_PIPE){
@@ -213,7 +213,6 @@ int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off)
     panic("filewrite");
   }
   return ret;
-  
 }
 
 int is_exc_rcfile(struct proc *p) {

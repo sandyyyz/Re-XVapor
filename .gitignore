@@ -38,3 +38,4 @@ kernel.asm
 busybox_unstripped
 *.dtb
 *.dts
+*.gz

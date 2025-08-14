@@ -133,6 +133,7 @@ struct file_ops {
     int (*getdents)(struct file *fp, struct linux_dirent64 *dirp, int count);
     int (*writev)(struct file *fp, int user_src, __kernel_space uint64 iovec, int iovcnt, size_t *wcnt);
     off_t (*lseek)(struct file *fp, off_t offset, int whence);
+    int (*ftruncate)(struct file *fp, off_t length);
 };
 
 struct fs_ops {

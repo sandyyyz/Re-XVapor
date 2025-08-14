@@ -34,6 +34,7 @@ entry("linkat");
 entry("umount2");
 entry("mount");
 entry("statfs");
+entry("ftruncate");
 entry("faccessat");
 entry("chdir");
 entry("openat");

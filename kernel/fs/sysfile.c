@@ -1583,6 +1583,51 @@ static int rw_sharp_outoff(struct file *out_f, struct file *in_f, void *kbuf, of
   return r; // return the number of bytes written
 }
 
+/**
+ * @brief read count bytes from in_f at offset into kbuf, and write them to out_f.
+ * 
+ * @param out_f which file to write to
+ * @param in_f which file to read from
+ * @param kbuf kernel buffer, just PGSIZE bytes
+ * @param in_off  offset in the in_f file to read from
+ * @param out_off offset in the out_f file to write to
+ * @param count count of bytes to read from in_f and write to out_f
+ * @return On success, the number of bytes written to out_f is returned.
+ */
+static int rw_sharp_2off(struct file *out_f, struct file *in_f, void *kbuf, off_t in_off, off_t out_off, uint64 count) {
+  int r = 0, n = 0, rcnt = 0, wcnt = 0;
+
+  for(int i = 0; i < count; i += PGSIZE) {
+    if(count - i > PGSIZE) {
+      n = PGSIZE;
+    } else {
+      n = count - i;
+    }
+    if((rcnt = fileread(in_f, 0, (uint64)kbuf, n, in_off + i)) < 0) {
+      printf("rw_sharp: fileread failed, rcnt = %d\n", rcnt);
+      return -1;
+    }
+    if(rcnt == 0) {
+      // no more data to read
+      break;
+    }
+    if((wcnt = filewrite(out_f, 0, (uint64)kbuf, rcnt, out_off + i)) < 0) {
+      printf("rw_sharp: filewrite failed, wcnt = %d\n", wcnt);
+      return -1;
+    }
+    if(wcnt != rcnt) {
+      printf("rw_sharp: wcnt != rcnt, wcnt = %d, rcnt = %d\n", wcnt, rcnt);
+      return -1;
+    }
+    r += wcnt; // accumulate the number of bytes written
+    if(wcnt < n) {
+      // we have reached the end of the file
+      break;
+    }
+  }
+  return r; // return the number of bytes written
+}
+
 int do_sendfile(struct file *out_f, struct file *in_f, off_t *offset_addr, uint64 count) {
   
   ssize_t nread = 0;
@@ -1780,7 +1825,7 @@ uint64 sys_lseek(void) {
     return r;
   }
 #ifdef __DEBUG_SYS_LSEEK
-  Log("[sys_lseek] f->fops->lseek success, r = %d, f->fpos = %d", r, f->fpos);
+  Log("[sys_lseek] f->fops->lseek success, r = %d, f->fpos = %d, f->efp->fsize = %d", r, f->fpos, ((struct ext4_file*)f->private_data)->fsize);
 #endif
   return r; // return the new file position
 }
@@ -1968,6 +2013,9 @@ uint64 sys_splice() {
 uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_t *offin_addr, __nullable off_t *offout_addr, size_t len) {
   off_t offset_in = 0, offset_out = 0;
   size_t nwritten = 0;
+#ifdef __DEBUG_DO_COPY_FILE_RANGE
+  Log("[before do_copy_file_range] offin_addr = %p, offout_addr = %p, len = %d, in_f->fpos = %d, out_f->fpos = %d", offin_addr, offout_addr, len, in_f->fpos, out_f->fpos);
+#endif
   if(offin_addr) {
     if(copyin(myproc()->mm.pagetable, (char *)&offset_in, (uint64) offin_addr, sizeof(off_t)) < 0) {
       Warn("[do_copy_file_range] copyin failed");
@@ -1989,7 +2037,7 @@ uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_
     Warn("[do_copy_file_range] kalloc failed");
     return -1;
   }
-  nwritten = rw_sharp(out_f, in_f, buf, offset_out, len);
+  nwritten = rw_sharp_2off(out_f, in_f, buf, offset_in, offset_out, len);
   if(nwritten < 0) {
     Warn("[do_copy_file_range] rw_sharp failed");
     goto bad;
@@ -2009,6 +2057,9 @@ uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_
     }
   }
   kfree(buf);
+#ifdef __DEBUG_DO_COPY_FILE_RANGE
+  Log("[after do_copy_file_range] nwritten = %d, offset_in = %d, offset_out = %d, in_f->fpos = %d, out_f->fpos = %d", nwritten, offset_in, offset_out, in_f->fpos, out_f->fpos);
+#endif
   return nwritten;
 bad:
   kfree(buf);
@@ -2042,4 +2093,34 @@ uint64 sys_copy_file_range() {
   argulong(4, &len);
 
   return do_copy_file_range(in_f, out_f, offin_addr, offout_addr, len);
+}
+
+/**
+ * @brief truncate a file to a specified length
+ * 
+ * @property int ftruncate(int fd, off_t length);
+ * @return uint64    Upon successful completion, ftruncate() shall return 0; otherwise,
+       -1 shall be returned and errno set to indicate the error.
+ */
+uint64 sys_ftruncate() {
+  int fd, r;
+  off_t length;
+  struct file *f = NULL;
+
+  argfd(0, &fd, &f);
+  arglong(1, &length);
+#ifdef __DEBUG_SYS_FTRUNCATE
+  Log("[sys_ftruncate] fd = %d, length = %d", fd, length);
+#endif
+  if(f == NULL) {
+    Warn("[sys_ftruncate] f is NULL\n");
+    return -1;
+  }
+  if(f->type != FD_INODE) {
+    Warn("[sys_ftruncate] f->type is not FD_INODE\n");
+    return -1;
+  }
+  if((r = f->fops->ftruncate(f, length)) != 0)
+    return -r;
+  return 0;
 }

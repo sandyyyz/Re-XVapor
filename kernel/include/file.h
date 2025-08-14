@@ -80,6 +80,7 @@ struct file {
   ext4_dir dir; // directory entry. just used for ext4, and don't use a pointer because of lacking a small memory allocator in kernel right now
   int removed; // if the file is removed, this will be set to 1, and the file will be removed when the reference count reaches 0
   int istmp; 
+//   uint64 vfpos; // could larger than the file size, update only when reach ouside of the file when call lseek
   
 };
 

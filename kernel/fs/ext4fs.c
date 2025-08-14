@@ -26,6 +26,7 @@ int ext4_vcleansf(struct file *fp);
 int ext4_vmkdir(const char *pathname, mode_t mode);
 int ext4_vgetdents(struct file *fp, struct linux_dirent64 *dirp, int count);
 int ext4_vstatfs(struct vfs_filesystem *fs, struct statfs *buf);
+int ext4_vftruncate(struct file *fp, off_t length);
 
 struct {
     struct ext4_mfile fpool[NFILE];
@@ -52,6 +53,7 @@ struct file_ops ext4_file_ops = {
     .getdents = ext4_vgetdents,
     .writev = ext4_vwritev,
     .lseek = ext4_vlseek,
+    .ftruncate = ext4_vftruncate,
 };
 
 struct fs_ops ext4_fs_ops = {
@@ -267,6 +269,7 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t s
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kbuf = NULL;
+    int n = 0, nread = 0;
     if(!efp) {
         printf("[ext4] efp is NULL!\n");
         return EINVAL;
@@ -275,10 +278,42 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t s
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
+    if(size <= PGSIZE)
+        goto smallsize;
+    if(user_dst)
+        kbuf = kalloc();
+    else
+        kbuf = (char *)dst;
+    if(!kbuf) {
+        Warn("[ext4_vfread] kalloc error!\n");
+        return ENOMEM;
+    }
+    for(int i = 0; i < size; i += PGSIZE) {
+        if(size - i > PGSIZE)
+            n = PGSIZE;
+        else
+            n = size - i;
+        if((r = ext4_fread(efp, kbuf, n, (size_t*) rcnt)) != EOK) {
+            printf("[ext4] ext4_fread error! r=%d\n", r);
+            if(user_dst)
+                kfree(kbuf);
+            return r;
+        }
+        if((r = copyout(myproc()->mm.pagetable, dst + i, kbuf, *rcnt)) != EOK) {
+            printf("[ext4] copyout error! r=%d\n", r);
+            if(user_dst)
+                kfree(kbuf);
+            return r;
+        }
+        nread += *rcnt;
+    }
+    *rcnt = nread;
+    goto out;
+smallsize:
     if(user_dst) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
-            // printf("[ext4] kmalloc error!\n");
+            printf("[ext4] kmalloc error!\n");
             return ENOMEM;
         }
     } else {
@@ -294,7 +329,6 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t s
         }
         return r;
     }
-    fp->fpos = efp->fpos;
     #ifdef __DEBUG_EXT4_VFREAD
     Log("[ext4] ext4_vfread: finish, kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
     #endif
@@ -309,6 +343,8 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t s
     #ifdef __DEBUG_EXT4_VFREAD
     Log("[ext4] ext4_vfread: copyout finish, kbuf = %p, dst = %p, size = %d", kbuf, dst, size);
     #endif
+out:
+    fp->fpos = efp->fpos;
     return r;
 }
 
@@ -368,6 +404,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t s
     int r = EOK;
     struct ext4_file *efp = fp->private_data;
     char *kbuf = NULL;
+    int n = 0, nwritten = 0;
     if(!efp) {
         printf("[ext4] efp is NULL!\n");
         return EINVAL;
@@ -376,10 +413,54 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t s
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
+    if(size <= PGSIZE)
+        goto smallsize;
+// we can only allocate a PGSIZE large buffer
+    if(user_src)
+        kbuf = kalloc();
+    else
+        kbuf = (char *)src;
+    if(!kbuf) {
+        Warn("[ext4_vwrite] kalloc error!");
+        return ENOMEM;
+    }
+    for(int i = 0; i < size; i += PGSIZE) {
+        if(size - i > PGSIZE)
+            n = PGSIZE;
+        else 
+            n = size - i;
+        if(user_src) {
+            if((r = copyin(myproc()->mm.pagetable, kbuf, src + i, n)) != EOK) {
+                printf("[ext4] copyin error! r=%d\n", r);
+                kfree(kbuf);
+                return r;
+            }
+        } else {
+            kbuf = (char *)src + i;
+        }
+        if((r = ext4_fwrite(efp, kbuf, n, (size_t*)wcnt)) != EOK) {
+            printf("[ext4] ext4_fwrite error! r=%d\n", r);
+            if(user_src) {
+                kfree(kbuf);
+            }
+            return r;
+        }
+        if(*wcnt != n) {
+            Warn("[ext4_vwrite] *wcnt != n, *wcnt = %d, n = %d", *wcnt, n);
+            if(user_src) {
+                kfree(kbuf);
+            }
+            return -1;
+        }
+        nwritten += *wcnt;
+    }
+    *wcnt = nwritten;
+    goto out;
+smallsize:
     if(user_src) {
         kbuf = (char *)kmalloc(size);
         if(!kbuf) {
-            // printf("[ext4] kmalloc error!\n");
+            Warn("[ext4_vwrite] kmalloc error!");
             return ENOMEM;
         }
         if((r = copyin(myproc()->mm.pagetable, kbuf, src, size)) != EOK) {
@@ -397,6 +478,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t s
         }
         return r;
     }
+out:
     fp->fpos = efp->fpos;
     if(user_src) {
         kfree(kbuf);
@@ -537,6 +619,7 @@ int ext4_vstat(char *path, struct kstat *st) {
     st->st_gid = ext4_inode_get_gid(&inode);
     st->st_rdev = 0;
     st->st_size = (off_t) inode.size_lo;
+    // st->st_size = 0;
     st->st_blksize = inode.size_lo / inode.blocks_count_lo;
     st->st_blocks = (blkcnt_t) inode.blocks_count_lo;
     st->st_atime_sec = 0;
@@ -564,7 +647,7 @@ int ext4_vfstat(struct file *f, struct kstat *st) {
         panic("can't get file");
     }
     struct ext4_inode_ref ref;
-
+    struct ext4_file *efp = (struct ext4_file *) f->private_data;
     int r = ext4_fs_get_inode_ref(&file->mp->fs, file->inode, &ref);
     if (r != EOK) {
         return r;
@@ -577,7 +660,8 @@ int ext4_vfstat(struct file *f, struct kstat *st) {
     st->st_uid = 0;
     st->st_gid = 0;
     st->st_rdev = 0;
-    st->st_size = ref.inode->size_lo;
+    // st->st_size = ref.inode->size_lo;
+    st->st_size = efp->fsize;
     st->st_blksize = ref.inode->size_lo / ref.inode->blocks_count_lo;
     st->st_blocks = (uint64) ref.inode->blocks_count_lo;
 
@@ -1045,10 +1129,15 @@ off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
     }
     if(offset > efp->fsize) {
         // TODO: and fp->fpos??
+        fp->fpos = offset;
         return offset; // no need to seek, just return the offset
     }
     if(whence == SEEK_END && offset < 0) {
         offset = -offset;
+    }
+    if(whence == SEEK_CUR && fp->fpos + offset > efp->fsize) {
+        fp->fpos+= offset;
+        return fp->fpos;
     }
     off_t r = ext4_fseek(efp, offset, whence);
     if(r != EOK) {
@@ -1090,4 +1179,15 @@ int ext4_vfrename(const char *oldpath, const char *newpath) {
         return -r;
     }
     return r;
+}
+
+int ext4_vftruncate(struct file *fp, off_t length) {
+    int r;
+    ext4_file *efp = fp->private_data;
+#ifdef __DEBUG_EXT4_VFTRUNCATE
+    Log("efp->fsize before truncate = %d, truncate length %d ", efp->fsize, length);
+#endif
+    if((r = ext4_ftruncate(efp, length)) != 0)
+        return -r;
+    return 0;
 }

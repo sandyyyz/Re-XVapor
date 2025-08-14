@@ -14,6 +14,7 @@
 #include "mmap.h"
 #include "vfs.h"
 #include "../include/sched.h"
+#include "debug.h"
 
 void thread_forkret(void);
 
@@ -363,6 +364,9 @@ proc_pagetable(struct proc *p)
   // to/from user space, so not PTE_U.
   if(mappages(pagetable, TRAMPOLINE, PGSIZE,
               (uint64)trampoline, PTE_R | PTE_X) < 0){
+    Warn("mappages failed, trampoline : %p", (uint64)trampoline);
+    Warn("freepages: %d", freemem_pages());
+    Warn("total freeram: %p", totalram_bytes());
     uvmfree(pagetable, 0);
     return 0;
   }
