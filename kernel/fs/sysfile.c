@@ -1802,7 +1802,7 @@ uint64 sys_lseek(void) {
   arglong(1, &offset);
   argint(2, &whence);
 #ifdef __DEBUG_SYS_LSEEK
-  Log("[sys_lseek] fd = %d, offset = %d, whence = %d", fd, offset, whence);
+  Log("[sys_lseek] fd = %d, offset = %d, whence = %d, fpos = %d", fd, offset, whence, f->fpos);
 #endif  
   if(f == NULL) {
     printf("[sys_lseek] f is NULL\n");

@@ -39,3 +39,4 @@ busybox_unstripped
 *.dtb
 *.dts
 *.gz
+out.md

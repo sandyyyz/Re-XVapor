@@ -28047,9 +28047,3 @@ test.c:257: compare failed
 [1;34m[LOG][fs/ext4.c,1983,ext4_fwrite] size after while, 6[0m
 [1;34m[LOG][fs/ext4.c,1998,ext4_fwrite] fblk == 8192[0m
 [1;34m[LOG][fs/ext4.c,2031,ext4_fwrite] ext4_fwrite finished! *wcnt  = 4096[0m
-
-![copy_from_range_first_write](image.png)
-![copy_from_range_first_write1](image-1.png)
-![copy_from_range_first_write1.1](image-2.png)
-
-![alt text](image-3.png)

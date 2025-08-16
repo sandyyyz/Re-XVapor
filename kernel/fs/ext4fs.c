@@ -1133,11 +1133,11 @@ off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
         printf("[ext4] efp is NULL!\n");
         return -1;
     }
-    if(offset > efp->fsize) {
-        // TODO: and fp->fpos??
-        fp->fpos = offset;
-        return offset; // no need to seek, just return the offset
-    }
+    // if(offset > efp->fsize) {
+    //     // TODO: and fp->fpos??
+    //     fp->fpos = offset;
+    //     return offset; // no need to seek, just return the offset
+    // }
     if(whence == SEEK_END && offset < 0) {
         offset = -offset;
     }
@@ -1165,6 +1165,9 @@ off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
         return -r;
     }
 out:
+#ifdef __DEBUG_EXT4_VLSEEK
+    Log("efp->fpos = %d", efp->fpos);
+#endif
     fp->fpos = efp->fpos;
     return fp->fpos;
 }
