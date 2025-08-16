@@ -1871,31 +1871,31 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 	/*Sync file size*/
 	file->fsize = ext4_inode_get_size(sb, ref.inode);
 	block_size = ext4_sb_get_block_size(sb);
-	if (file->fpos > file->fsize) {
-#ifdef __DEBUG_EXT4_FWRITE
-			Warn("test:  out_fsize, file->fpos == %d, file->fsize == %d", file->fpos, file->fsize);
-#endif	
-			size_t osize = file->fpos - file->fsize;
-			size_t wc;
-			file->fpos = file->fsize;
-			void* kbuf = kmalloc(osize);
-			if(!kbuf) {
-				Warn("kmalloc failed!");
-				return -1;
-			}
-			memset(kbuf, 0, osize);
-			if(ext4_fwrite(file, kbuf, osize, &wc) != EOK) {
-				Warn("ext4_fwrite failed!");
-				kfree(kbuf);
-				return -1;
-			}
-			if(wc != osize) {
-				Warn("ext4_fwrite wc failed!");
-				kfree(kbuf);
-				return -1;
-			}
-		kfree(kbuf);
-	}
+// 	if (file->fpos > file->fsize) {
+// #ifdef __DEBUG_EXT4_FWRITE
+// 			Warn("test:  out_fsize, file->fpos == %d, file->fsize == %d", file->fpos, file->fsize);
+// #endif	
+// 			size_t osize = file->fpos - file->fsize;
+// 			size_t wc;
+// 			file->fpos = file->fsize;
+// 			void* kbuf = kmalloc(osize);
+// 			if(!kbuf) {
+// 				Warn("kmalloc failed!");
+// 				return -1;
+// 			}
+// 			memset(kbuf, 0, osize);
+// 			if(ext4_fwrite(file, kbuf, osize, &wc) != EOK) {
+// 				Warn("ext4_fwrite failed!");
+// 				kfree(kbuf);
+// 				return -1;
+// 			}
+// 			if(wc != osize) {
+// 				Warn("ext4_fwrite wc failed!");
+// 				kfree(kbuf);
+// 				return -1;
+// 			}
+// 		kfree(kbuf);
+// 	}
 	iblock_last = (uint32_t)((file->fpos + size) / block_size);
 	iblk_idx = (uint32_t)(file->fpos / block_size);
 	ifile_blocks = (uint32_t)((file->fsize + block_size - 1) / block_size);

@@ -2185,7 +2185,7 @@ uint64 sys_pread64() {
     Warn("[sys_pread64] lseek failed\n");
     return -1;
   }
-  f->fpos = oroff;
+  // f->fpos = oroff;
 #ifdef __DEBUG_SYS_PREAD64
   Log("[sys_pread64] fd = %d, buf = %p, count = %d, offset = %d, r = %d, oroff = %d", fd, (void *)buf, count, offset, r, oroff);
 #endif

@@ -412,6 +412,35 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t s
         printf("[ext4] efp is NULL!\n");
         return EINVAL;
     }
+    if(efp->fsize < off) {
+        // fsize --- off should be zero
+        size_t zero_size = off - efp->fsize;
+        efp->fpos = efp->fsize;
+        if(zero_size > PGSIZE){
+            Warn("zero_size > PGSIZE");
+            return -1;
+        }
+        void* tbuf = kzalloc();
+        size_t wzero = 0;
+        if(!tbuf) {
+            Warn("[ext4_vwrite] kzalloc error!");
+            return ENOMEM;
+        }
+        if((r = ext4_fwrite(efp, tbuf, zero_size, &wzero)) != EOK) {
+            Warn("[ext4_vwrite] ext4_fwrite error! r=%d", r);
+            kfree(tbuf);
+            return r;
+        }
+        if(wzero != zero_size) {
+            Warn("wzero != zero_size, wzero = %d, zero_size = %d",wzero, zero_size);
+            kfree(tbuf);
+            return -1;
+        }
+#ifdef __DEBUG_EXT4_VWRITE
+        Log("set %d to %d be zero", off - zero_size, off);
+#endif
+        kfree(tbuf);
+    }
     if((r = ext4_fseek(efp, off, SEEK_SET)) != EOK) {
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
