@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "iovec.h"
 #include "errno.h"
+#include "ext4.h"
 
 static void set_omode(struct file *f, int omode);
 
@@ -164,11 +165,11 @@ uint64 sys_dup3(void) {
 uint64 sys_read(void)
 {
   struct file *f;
-  int n;
+  size_t n;
   uint64 p;
   int fd;
   argaddr(1, &p);
-  argint(2, &n);
+  argulong(2, &n);
   if(argfd(0, &fd, &f) < 0)
     return -1;
 #ifdef __DEBUG_SYS_READ
@@ -1597,7 +1598,8 @@ static int rw_sharp_outoff(struct file *out_f, struct file *in_f, void *kbuf, of
 static int rw_sharp_2off(struct file *out_f, struct file *in_f, void *kbuf, off_t in_off, off_t out_off, uint64 count) {
   int r = 0, n = 0, rcnt = 0, wcnt = 0;
 
-  for(int i = 0; i < count; i += PGSIZE) {
+  for(int64_t i = 0; i < count; i += PGSIZE) {
+    memset(kbuf, 0, PGSIZE);
     if(count - i > PGSIZE) {
       n = PGSIZE;
     } else {
@@ -2012,9 +2014,13 @@ uint64 sys_splice() {
 
 uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_t *offin_addr, __nullable off_t *offout_addr, size_t len) {
   off_t offset_in = 0, offset_out = 0;
+  off_t oroffin = in_f->fpos, oroffout = out_f->fpos;
   size_t nwritten = 0;
+  struct ext4_file *inefp = (struct ext4_file *)in_f->private_data, *outefp = (struct ext4_file*)out_f->private_data;
 #ifdef __DEBUG_DO_COPY_FILE_RANGE
+
   Log("[before do_copy_file_range] offin_addr = %p, offout_addr = %p, len = %d, in_f->fpos = %d, out_f->fpos = %d", offin_addr, offout_addr, len, in_f->fpos, out_f->fpos);
+  Log("inefp->fsize = %d, outefp->fsize = %d", inefp->fsize, outefp->fsize);
 #endif
   if(offin_addr) {
     if(copyin(myproc()->mm.pagetable, (char *)&offset_in, (uint64) offin_addr, sizeof(off_t)) < 0) {
@@ -2032,11 +2038,18 @@ uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_
   } else {
     offset_out = out_f->fpos;
   }
+  if(inefp->fsize < offset_in) {
+    Warn("[do_copy_file_range] offset_in > inefp->fsize");
+    return 0;
+  }
   void *buf = kalloc();
   if(buf == NULL) {
     Warn("[do_copy_file_range] kalloc failed");
     return -1;
   }
+#ifdef __DEBUG_DO_COPY_FILE_RANGE
+  Log("offset_in = %d, offset_out  = %d", offset_in, offset_out);
+#endif
   nwritten = rw_sharp_2off(out_f, in_f, buf, offset_in, offset_out, len);
   if(nwritten < 0) {
     Warn("[do_copy_file_range] rw_sharp failed");
@@ -2057,8 +2070,15 @@ uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_
     }
   }
   kfree(buf);
+  if(offin_addr && in_f->fops->lseek(in_f, oroffin, SEEK_SET) < 0){
+    Warn("in_f lseek failed");
+  }
+  if(offout_addr && out_f->fops->lseek(out_f, oroffout, SEEK_SET) < 0){
+    Warn("out_f lseek failed");
+  }
 #ifdef __DEBUG_DO_COPY_FILE_RANGE
   Log("[after do_copy_file_range] nwritten = %d, offset_in = %d, offset_out = %d, in_f->fpos = %d, out_f->fpos = %d", nwritten, offset_in, offset_out, in_f->fpos, out_f->fpos);
+  Log("inefp->fsize = %d, outefp->fsize = %d", inefp->fsize, outefp->fsize);
 #endif
   return nwritten;
 bad:
@@ -2123,4 +2143,51 @@ uint64 sys_ftruncate() {
   if((r = f->fops->ftruncate(f, length)) != 0)
     return -r;
   return 0;
+}
+
+/**
+ * @brief pread() reads up to count bytes from file descriptor fd at offset
+       offset (from the start of the file) into the buffer starting at
+       buf.  The file offset is not changed.
+    
+  @property
+    ssize_t pread(int fd, void buf[.count], size_t count,
+                     off_t offset);
+ * 
+ * @return  On success, pread() returns the number of bytes read (a return of
+       zero indicates end of file) and pwrite() returns the number of
+       bytes written.
+
+       Note that it is not an error for a successful call to transfer
+       fewer bytes than requested (see read(2) and write(2)).
+
+       On error, -1 is returned and errno is set to indicate the error.
+ */
+uint64 sys_pread64() {
+  int fd;
+  uint64 buf;
+  size_t count;
+  off_t offset;
+  off_t oroff;
+
+  struct file *f = NULL;
+
+  if(argfd(0, &fd, &f) < 0) {
+    Warn("[sys_pread64] argfd(0, 0, &f) failed\n");
+    return -1;
+  }
+  argaddr(1, &buf);
+  argulong(2, &count);
+  arglong(3, &offset);
+  oroff = f->fpos;
+  size_t r = fileread(f, 1, buf, count, offset);
+  if(f->fops->lseek(f, oroff, SEEK_SET) < 0) {
+    Warn("[sys_pread64] lseek failed\n");
+    return -1;
+  }
+  f->fpos = oroff;
+#ifdef __DEBUG_SYS_PREAD64
+  Log("[sys_pread64] fd = %d, buf = %p, count = %d, offset = %d, r = %d, oroff = %d", fd, (void *)buf, count, offset, r, oroff);
+#endif
+  return r;
 }

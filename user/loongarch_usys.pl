@@ -46,6 +46,7 @@ entry("read");
 entry("write");
 entry("readv");
 entry("writev");
+entry("pread64");
 entry("sendfile");
 entry("ppoll");
 entry("splice");

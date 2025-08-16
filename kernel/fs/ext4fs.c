@@ -278,6 +278,9 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t s
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;
     }
+    // if(efp->fsize < off + size) {
+    //     size = efp->fsize - off;
+    // }
     if(size <= PGSIZE)
         goto smallsize;
     if(user_dst)
@@ -569,6 +572,9 @@ isdir:
         Log("[ext4] ext4_vfopen: device file opened, major = %d, path = %s", fp->major, path);
     }
         
+#ifdef __DEBUG_EXT4_VFOPEN
+    Log("file:%s, fsize : %d ", fp->info.path, efp->fsize);
+#endif
     return r;
 }
 
@@ -1136,8 +1142,21 @@ off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
         offset = -offset;
     }
     if(whence == SEEK_CUR && fp->fpos + offset > efp->fsize) {
-        fp->fpos+= offset;
-        return fp->fpos;
+        // fp->fpos+= offset;
+        if(offset) {
+            void* kbuf = kmalloc(PGSIZE);
+            if(!kbuf) {
+                Warn("kmalloc failed!");
+                return -1;
+            }
+            memset(kbuf, 0, PGSIZE);
+    #ifdef __DEBUG_EXT4_VLSEEK
+            Log("write 0 to file %s size %d from %d to %d", offset, fp->info.path, fp->fpos, fp->fpos + offset);
+    #endif
+            filewrite(fp, 0, (uint64)kbuf, offset, fp->fpos);
+            kfree(kbuf);
+        }
+        goto out;
     }
     off_t r = ext4_fseek(efp, offset, whence);
     if(r != EOK) {
@@ -1145,6 +1164,7 @@ off_t ext4_vlseek(struct file *fp, off_t offset, int whence) {
         printf("[ext4] whence = %d, offset = %d\n", whence, offset);
         return -r;
     }
+out:
     fp->fpos = efp->fpos;
     return fp->fpos;
 }

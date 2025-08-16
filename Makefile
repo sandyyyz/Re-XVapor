@@ -11,7 +11,7 @@ ARCH ?= riscv
 export ARCH
 
 ifeq ($(ARCH), riscv)
-	CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable -Wno-error=format
+	CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2 -Wno-error=unused-but-set-variable -Wno-error=format
 	CFLAGS += -MD
 	CFLAGS += -mcmodel=medany
 	CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax

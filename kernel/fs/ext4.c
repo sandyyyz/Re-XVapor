@@ -1680,21 +1680,14 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 
 #ifdef __DEBUG_EXT4_FREAD
 	Log("ready to read %d bytes from %s", size, file->mp->name);
-	// Log("ready to get inode ref!");
 #endif
 	r = ext4_fs_get_inode_ref(fs, file->inode, &ref);
 	if (r != EOK) {
 		EXT4_MP_UNLOCK(file->mp);
 		return r;
 	}
-#ifdef __DEBUG_EXT4_FREAD
-	// Log("ready to get inode size!");
-#endif
 	/*Sync file size*/
 	file->fsize = ext4_inode_get_size(sb, ref.inode);
-#ifdef __DEBUG_EXT4_FREAD
-	// Log("ready to get block size!");
-#endif
 	block_size = ext4_sb_get_block_size(sb);
 
 	size = ((uint64_t)size > (file->fsize - file->fpos))
@@ -1704,9 +1697,6 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 	iblock_last = (uint32_t)((file->fpos + size) / block_size);
 	unalg = (file->fpos) % block_size;
 
-#ifdef __DEBUG_EXT4_FREAD
-	// Log("ready to get softlink!");
-#endif
 	/*If the size of symlink is smaller than 60 bytes*/
 	bool softlink;
 	softlink = ext4_inode_is_type(sb, ref.inode, EXT4_INODE_MODE_SOFTLINK);
@@ -1727,7 +1717,9 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 		r = EOK;
 		goto Finish;
 	}
-
+#ifdef __DEBUG_EXT4_FREAD
+	Log("unalg == %d", unalg);
+#endif
 	if (unalg) {
 		size_t len =  size;
 		if (size > (block_size - unalg))
@@ -1736,7 +1728,9 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 		r = ext4_fs_get_inode_dblk_idx(&ref, iblock_idx, &fblock, true);
 		if (r != EOK)
 			goto Finish;
-
+#ifdef __DEBUG_EXT4_FREAD
+		Log("fblock == %d", fblock);
+#endif
 		/* Do we get an unwritten range? */
 		if (fblock != 0) {
 			uint64_t off = fblock * block_size + unalg;
@@ -1758,12 +1752,11 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 
 		iblock_idx++;
 	}
-
+#ifdef __DEBUG_EXT4_FREAD
+	Log("size after unalg read %d", size);
+#endif
 	fblock_start = 0;
 	fblock_count = 0;
-#ifdef __DEBUG_EXT4_FREAD
-	Log("size = %d, block_size = %d", size, block_size);
-#endif
 	while (size >= block_size) {
 		while (iblock_idx < iblock_last) {
 			r = ext4_fs_get_inode_dblk_idx(&ref, iblock_idx,
@@ -1782,7 +1775,7 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 			fblock_count++;
 		}
 #ifdef __DEBUG_EXT4_FREAD
-		Log("fblock_start = %d, fblock_count = %d", fblock_start,
+		Log("ext4_fread size >= block_size,fblock_start = %d, fblock_count = %d", fblock_start,
 		    fblock_count);
 #endif
 		r = ext4_blocks_get_direct(file->mp->fs.bdev, u8_buf, fblock_start,
@@ -1800,17 +1793,18 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 		fblock_start = fblock;
 		fblock_count = 1;
 	}
-
+#ifdef __DEBUG_EXT4_FREAD
+	Log("size after while, %d", size);
+#endif
 	if (size) {
 		uint64_t off;
 		r = ext4_fs_get_inode_dblk_idx(&ref, iblock_idx, &fblock, true);
 		if (r != EOK)
 			goto Finish;
-
-		off = fblock * block_size;
 #ifdef __DEBUG_EXT4_FREAD
-		Log("read %d bytes from %d", size, off);
+		Log("fblock == %d", fblock);
 #endif
+		off = fblock * block_size;
 		r = ext4_block_readbytes(file->mp->fs.bdev, off, u8_buf, size);
 		if (r != EOK)
 			goto Finish;
@@ -1820,13 +1814,12 @@ int ext4_fread(ext4_file *file, void *buf, size_t size, size_t *rcnt)
 		if (rcnt)
 			*rcnt += size;
 	}
-
-#ifdef __DEBUG_EXT4_FREAD
-	Log("ready to put inode ref!");
-#endif
 Finish:
 	ext4_fs_put_inode_ref(&ref);
 	EXT4_MP_UNLOCK(file->mp);
+#ifdef __DEBUG_EXT4_FREAD
+	Log("ext4_fread finished! *rcnt = %d", *rcnt);
+#endif
 	return r;
 }
 
@@ -1865,7 +1858,9 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 
 	if (wcnt)
 		*wcnt = 0;
-
+#ifdef __DEBUG_EXT4_FWRITE
+	Log("ready to write %d bytes to %s", size, file->mp->name);
+#endif
 	r = ext4_fs_get_inode_ref(fs, file->inode, &ref);
 	if (r != EOK) {
 		ext4_trans_abort(file->mp);
@@ -1876,13 +1871,39 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 	/*Sync file size*/
 	file->fsize = ext4_inode_get_size(sb, ref.inode);
 	block_size = ext4_sb_get_block_size(sb);
-
+	if (file->fpos > file->fsize) {
+#ifdef __DEBUG_EXT4_FWRITE
+			Warn("test:  out_fsize, file->fpos == %d, file->fsize == %d", file->fpos, file->fsize);
+#endif	
+			size_t osize = file->fpos - file->fsize;
+			size_t wc;
+			file->fpos = file->fsize;
+			void* kbuf = kmalloc(osize);
+			if(!kbuf) {
+				Warn("kmalloc failed!");
+				return -1;
+			}
+			memset(kbuf, 0, osize);
+			if(ext4_fwrite(file, kbuf, osize, &wc) != EOK) {
+				Warn("ext4_fwrite failed!");
+				kfree(kbuf);
+				return -1;
+			}
+			if(wc != osize) {
+				Warn("ext4_fwrite wc failed!");
+				kfree(kbuf);
+				return -1;
+			}
+		kfree(kbuf);
+	}
 	iblock_last = (uint32_t)((file->fpos + size) / block_size);
 	iblk_idx = (uint32_t)(file->fpos / block_size);
 	ifile_blocks = (uint32_t)((file->fsize + block_size - 1) / block_size);
 
 	unalg = (file->fpos) % block_size;
-
+#ifdef __DEBUG_EXT4_FWRITE
+	Log("unalg == %d", unalg);
+#endif
 	if (unalg) {
 		size_t len =  size;
 		uint64_t off;
@@ -1892,7 +1913,9 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 		r = ext4_fs_init_inode_dblk_idx(&ref, iblk_idx, &fblk);
 		if (r != EOK)
 			goto Finish;
-
+#ifdef __DEBUG_EXT4_FWRITE
+		Log("fblk == %d", fblk);
+#endif
 		off = fblk * block_size + unalg;
 		r = ext4_block_writebytes(file->mp->fs.bdev, off, u8_buf, len);
 		if (r != EOK)
@@ -1907,7 +1930,9 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 
 		iblk_idx++;
 	}
-
+#ifdef __DEBUG_EXT4_FWRITE
+	Log("size after unalg write %d", size);
+#endif
 	/*Start write back cache mode.*/
 	r = ext4_block_cache_write_back(file->mp->fs.bdev, 1);
 	if (r != EOK)
@@ -1945,7 +1970,10 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 
 			fblock_count++;
 		}
-
+#ifdef __DEBUG_EXT4_FWRITE
+		Log("ext4_fwrite size >= block_size,fblock_start = %d, fblock_count = %d", fblock_start,
+		    fblock_count);
+#endif
 		r = ext4_blocks_set_direct(file->mp->fs.bdev, u8_buf, fblock_start,
 					   fblock_count);
 		if (r != EOK)
@@ -1975,7 +2003,9 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 
 	if (r != EOK)
 		goto Finish;
-
+#ifdef __DEBUG_EXT4_FWRITE
+	Log("size after while, %d", size);
+#endif
 	if (size) {
 		uint64_t off;
 		if (iblk_idx < ifile_blocks) {
@@ -1988,7 +2018,9 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 				/*Node size sholud be updated.*/
 				goto out_fsize;
 		}
-
+#ifdef __DEBUG_EXT4_FWRITE
+		Log("fblk == %d", fblk);
+#endif
 		off = fblk * block_size;
 		r = ext4_block_writebytes(file->mp->fs.bdev, off, u8_buf, size);
 		if (r != EOK)
@@ -2002,6 +2034,9 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 
 out_fsize:
 	if (file->fpos > file->fsize) {
+#ifdef __DBEUG_EXT4_FWRITE
+		Log("out_fsize, file->fpos == %d, file->fsize == %d", file->fpos, file->fsize);
+#endif
 		file->fsize = file->fpos;
 		ext4_inode_set_size(ref.inode, file->fsize);
 		ref.dirty = true;
@@ -2016,6 +2051,9 @@ Finish:
 		ext4_trans_stop(file->mp);
 
 	EXT4_MP_UNLOCK(file->mp);
+#ifdef __DEBUG_EXT4_FWRITE
+	Log("ext4_fwrite finished! *wcnt  = %d", *wcnt);
+#endif
 	return r;
 }
 

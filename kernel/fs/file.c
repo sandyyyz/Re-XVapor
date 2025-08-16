@@ -153,7 +153,7 @@ filestat(struct file *f, uint64 addr)
 }
 
 
-int fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off)
+size_t fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off)
 {
   size_t r = 0;
 
