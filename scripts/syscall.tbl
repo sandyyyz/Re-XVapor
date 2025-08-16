@@ -89,3 +89,4 @@
 285 copy_file_range sys_copy_file_range
 46 ftruncate sys_ftruncate
 67 pread64 sys_pread64
+233 madvice sys_madvice

@@ -90,6 +90,7 @@ entry("clone");
 entry("execve");
 entry("mmap");
 entry("mprotect");
+entry("madvice");
 entry("wait4");
 entry("prlimit64");
 entry("renameat2");

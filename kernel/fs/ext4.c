@@ -1934,7 +1934,7 @@ int ext4_fwrite(ext4_file *file, const void *buf, size_t size, size_t *wcnt)
 	Log("size after unalg write %d", size);
 #endif
 	/*Start write back cache mode.*/
-	r = ext4_block_cache_write_back(file->mp->fs.bdev, 1);
+r = ext4_block_cache_write_back(file->mp->fs.bdev, 1);
 	if (r != EOK)
 		goto Finish;
 

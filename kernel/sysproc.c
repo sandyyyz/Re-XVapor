@@ -644,5 +644,31 @@ uint64 sys_futex(void) {
   }
   return do_futex(uaddr, futex_op, val, timeout_addr ? &timeout : NULL, 
                   uaddr2, val2, val3);
+}
 
+/**
+ * @brief The madvise() system call is used to give advice or directions to
+       the kernel about the address range beginning at address addr and
+       with size size.  madvise() only operates on whole pages, therefore
+       addr must be page-aligned.  The value of size is rounded up to a
+       multiple of page size.  In most cases, the goal of such advice is
+       to improve system or application performance.
+
+ * @property int madvise(void addr[.size], size_t size, int advice);
+  
+ * @return uint64    On success, madvise() returns zero.  On error, it returns -1 and
+       errno is set to indicate the error.
+ */
+uint64 sys_madvice() {
+  uint64 addr;
+  size_t size;
+  int advice;
+  argaddr(0, &addr);
+  argulong(1, &size);
+  argint(2, &advice);
+
+#ifdef __DEBUG_SYS_MADVICE
+  Log("[sys_madvice] addr: %p, size: %d, advice: %d", addr, size, advice);
+#endif
+  return 0;
 }
