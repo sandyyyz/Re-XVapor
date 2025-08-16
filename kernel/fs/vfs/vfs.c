@@ -46,11 +46,6 @@ struct {
 
 struct vfs_filesystem *vfs_fs[VFS_MAXFS];
 
-struct file_ops *vfs_fops[VFS_MAXFS] = {
-    [VFS_TYPE_UNKNOWN] = NULL,
-    [VFS_TYPE_EXT4] = &ext4_fops,
-    [VFS_TYPE_XV6FS] = &xv6fs_fops,
-};
 
 struct {
     struct spinlock lock;
@@ -123,6 +118,14 @@ install_rootfs(void)
   // add the rootfs to the vfs table
   if(addfs(fst) < 0) {
     panic("Failed to add rootfs to the vfs table");
+  }
+
+  fst = getfs(PROCFSTYPE);
+  if(vfs_mount(fst, "/proc") < 0) {
+    panic("Failed to mount procfs");
+  }
+  if(addfs(fst) < 0) {
+    panic("Failed to add procfs to the vfs table");
   }
 }
 

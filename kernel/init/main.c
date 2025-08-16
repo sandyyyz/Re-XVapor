@@ -13,6 +13,8 @@
 #include "uname.h"
 #include "futex.h"
 #include "sbi.h"
+#include "procfs.h"
+
 #ifdef __ARCH_LOONGARCH
 #include "pci.h"
 #include "ahci.h"
@@ -33,6 +35,9 @@ static void initfss() {
   init_vfs_mtable(); // init vfs mount table
   if(init_ext4fs() < 0) {
     panic("ext4fs_init failed");
+  }
+  if(init_procfs() < 0) {
+    panic("procfs_init failed");
   }
   install_rootfs(); 
 }

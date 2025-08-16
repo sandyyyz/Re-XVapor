@@ -355,7 +355,7 @@ static int generic_unlink(char *path, int flags) {
     return -1;
   }
   if (fs->fsops->unlink(path, flags) < 0) {
-    printf("sys_unlink: fsops->unlink failed\n");
+    // printf("sys_unlink: fsops->unlink failed\n");
     return -1;
   }
   return 0;
@@ -882,18 +882,13 @@ uint64 generic_open(char *path, int flags, int omode) {
   if((f = filealloc()) == NULL) {
     return -1;
   }
+#ifdef __DEBUG_GOPEN
+  Log("vfs->type %d, name %s", fs->type, fs->name);
+#endif
   if((fd = fdalloc(f)) < 0) {
     fileclose(f, 0);
     return fd;
   }
-  // if(strcmp(path, "/usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache") == 0) {
-  //   Warn("generic_open: trying to open /usr/lib/riscv64-linux-gnu/gconv/gconv-modules.cache, this is not supported yet");
-  //   path = "/dev/null";
-  //   // f->major = 0;
-  //   // f->type = FD_DEVICE;
-  //   // f->fops->read = fileread_com;
-  //   // return fd;
-  // }
   if (fs == NULL) {
     printf("FS type not found\n");
     return -1;
@@ -2016,9 +2011,9 @@ uint64 do_copy_file_range(struct file *in_f, struct file *out_f, __nullable off_
   off_t offset_in = 0, offset_out = 0;
   off_t oroffin = in_f->fpos, oroffout = out_f->fpos;
   size_t nwritten = 0;
-  struct ext4_file *inefp = (struct ext4_file *)in_f->private_data, *outefp = (struct ext4_file*)out_f->private_data;
+  struct ext4_file *inefp = (struct ext4_file *)in_f->private_data;
 #ifdef __DEBUG_DO_COPY_FILE_RANGE
-
+  struct ext4_file *outefp = (struct ext4_file*)out_f->private_data;
   Log("[before do_copy_file_range] offin_addr = %p, offout_addr = %p, len = %d, in_f->fpos = %d, out_f->fpos = %d", offin_addr, offout_addr, len, in_f->fpos, out_f->fpos);
   Log("inefp->fsize = %d, outefp->fsize = %d", inefp->fsize, outefp->fsize);
 #endif

@@ -12,6 +12,7 @@
 #include "mmap.h"
 #include "signal.h"
 #include "sbi.h"
+#include "procfs.h"
 
 struct spinlock tickslock, timeout_lock;
 uint ticks = 0;
@@ -382,6 +383,7 @@ devintr()
     if(irq)
       plic_complete(irq);
 
+    record_intr(9);
     return 1;
   } else if (scause == 0x8000000000000005L) {
       // timer interrupt
@@ -398,9 +400,10 @@ devintr()
       // the STIP bit in sip.
       w_sip(r_sip() & ~1 << 5);
       set_next_trigger();
-
+      record_intr(5);
       return 2;
   } else if(scause == 13 || scause == 15) {
+    // exception
     // read /write page fault
     return 3;
   }

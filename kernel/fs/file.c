@@ -168,11 +168,12 @@ size_t fileread(struct file *f, int user_dst, uint64 addr, size_t n, int64_t off
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
     f->fops->read(f, user_dst, addr, off, n, &r);
+  } else if(f->type == FD_SPEC) {
+    f->fops->read(f, user_dst, addr, off, n, &r);
   } else {
     Log("file %p type = %d", f, f->type);
     panic("fileread");
   }
-
   return r;
 }
 
@@ -209,6 +210,8 @@ int filewrite(struct file *f, int user_src, uint64 addr, size_t n, int64_t off)
       ret = r;
     else
       ret = -1;
+  } else if(f->type == FD_SPEC) {
+    ret = f->fops->write(f, user_src, addr, off, n, &r);
   } else {
     panic("filewrite");
   }

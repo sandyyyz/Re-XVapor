@@ -23,6 +23,7 @@
 #define NPROC_GROUP  64 // maximum number of process groups
 
 #define ROOTFSTYPE  "ext4"
+#define PROCFSTYPE  "procfs"
 #define NTHREADS_PER_PROC 4
 #define NTHREADS (NPROC * NTHREADS_PER_PROC)
 

@@ -113,6 +113,14 @@ strlen(const char *s)
   return n;
 }
 
+size_t strnlen(const char *s, size_t count) {
+  const char *sc;
+
+  for (sc = s; *sc != '\0' && count--; ++sc)
+      /* nothing */;
+  return sc - s;
+}
+
 char *
 strcpy(char *des, const char *src)
 {

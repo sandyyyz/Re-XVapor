@@ -61,7 +61,7 @@ struct file_info {
 };
 
 struct file {
-  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE, FD_SOFTLINK, FD_SOCKET, FD_DIR} type;
+  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE, FD_SOFTLINK, FD_SOCKET, FD_DIR, FD_SPEC} type;
   int ref; // reference count
   // char readable;
   // char writable;
@@ -80,7 +80,7 @@ struct file {
   ext4_dir dir; // directory entry. just used for ext4, and don't use a pointer because of lacking a small memory allocator in kernel right now
   int removed; // if the file is removed, this will be set to 1, and the file will be removed when the reference count reaches 0
   int istmp; 
-//   uint64 vfpos; // could larger than the file size, update only when reach ouside of the file when call lseek
+  
   
 };
 

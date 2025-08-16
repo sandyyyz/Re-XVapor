@@ -282,7 +282,7 @@ int main(void)
       printf("init: chdir %s failed\n", musl_dir);
       exit(-1);
     }
-    int ret = execve("/musl/busybox", musl_shell_argv, busybox_envp);
+    int ret = execve("/glibc/busybox", glibc_shell_argv, busybox_envp);
     printf("execve returned %d\n", ret);
     exit(-1);
   } else {

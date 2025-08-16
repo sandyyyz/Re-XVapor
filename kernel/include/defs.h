@@ -138,6 +138,7 @@ void*           memmove(void*, const void*, uint);
 void*           memset(void*, int, uint);
 char*           safestrcpy(char*, const char*, int);
 int             strlen(const char*);
+size_t strnlen(const char *s, size_t count);
 int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 int strcmp(const char *p, const char *q);

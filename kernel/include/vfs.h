@@ -41,6 +41,7 @@ typedef enum vfs_type {
     VFS_TYPE_UNKNOWN = 0,
     VFS_TYPE_EXT4,
     VFS_TYPE_XV6FS,
+    VFS_TYPE_PROCFS
 } vfs_type_t;
 
 /*
