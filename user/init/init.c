@@ -253,6 +253,20 @@ char *musl_libc_test_dynamic_cmds[] = {
   NULL
 };
 
+char * musl_final_test_cmd[] = {
+  "/musl/splice_testcode.sh",
+  // "/musl/copy-file-range_testcode.sh",
+  "/musl/interrupts_testcode.sh",
+  NULL
+};
+
+char * glibc_final_test_cmd[] = {
+  "/glibc/splice_testcode.sh",
+  // "/musl/copy-file-range_testcode.sh",
+  "/glibc/interrupts_testcode.sh",
+  NULL
+};
+
 char *busybox_envp[] = {
   "LC_ALL=C",
   "LANG=C",
@@ -260,7 +274,7 @@ char *busybox_envp[] = {
   NULL
 };
 
-#define SHELL
+// #define SHELL
 
 int main(void)
 {
@@ -269,7 +283,6 @@ int main(void)
   dup(0); // stderr
   printf("======================== init: starting rexvapor init !!! ========================\n\n");
   mkdir("/dev", 0755);
-  mkdir("/proc", 0755);
   mkdir("/tmp", 0755);
 
   mknod("/dev/null", S_IFCHR | 0666, 0);
@@ -278,8 +291,8 @@ int main(void)
 #ifdef SHELL
   pid = fork();
   if(pid == 0) {
-    if(chdir(musl_dir) < 0) {
-      printf("init: chdir %s failed\n", musl_dir);
+    if(chdir(glibc_dir) < 0) {
+      printf("init: chdir %s failed\n", glibc_dir);
       exit(-1);
     }
     int ret = execve("/glibc/busybox", glibc_shell_argv, busybox_envp);
@@ -288,7 +301,7 @@ int main(void)
   } else {
     wait(0);
   }
-#else
+#elif defined(LIBCTEST)
 
   // musl basic
   printf(musl_basic_start_str);
@@ -382,6 +395,40 @@ int main(void)
     }
   }
 
+
+#else
+
+    for (int i = 0; musl_final_test_cmd[i] != NULL; i++) {
+      pid = fork();
+      if (pid == 0) {
+        if (chdir(musl_dir) < 0) {
+          printf("init: chdir %s failed\n", musl_dir);
+          exit(-1);
+        }
+        char *argv[] = {"/musl/busybox", "sh", musl_final_test_cmd[i], NULL};
+        int ret = execve("/musl/busybox", argv, busybox_envp);
+        printf("execve returned %d\n", ret);
+        exit(-1);
+      } else {
+        wait(0);
+      }
+    }
+
+  for (int i = 0; glibc_final_test_cmd[i] != NULL; i++) {
+    pid = fork();
+    if (pid == 0) {
+      if (chdir(glibc_dir) < 0) {
+        printf("init: chdir %s failed\n", glibc_dir);
+        exit(-1);
+      }
+      char *argv[] = {"/glibc/busybox", "sh", glibc_final_test_cmd[i], NULL};
+      int ret = execve("/glibc/busybox", argv, busybox_envp);
+      printf("execve returned %d\n", ret);
+      exit(-1);
+    } else {
+      wait(0);
+    }
+  }
 #endif
 
   printf("\n=================== all tests ended ===================\n");

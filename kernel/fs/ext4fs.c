@@ -274,6 +274,10 @@ int ext4_vfread(struct file *fp, int user_dst, uint64 dst, int64_t off, size_t s
         printf("[ext4] efp is NULL!\n");
         return EINVAL;
     }
+    if(off > efp->fsize) {
+        *rcnt = 0;
+        return 0;
+    }
     if((r = ext4_fseek(efp, off, SEEK_SET)) != EOK) {
         printf("[ext4] ext4_fseek error! r=%d\n", r);
         return r;

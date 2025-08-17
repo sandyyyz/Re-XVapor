@@ -91,6 +91,9 @@ static void signal_default(struct tcb *t, int sig_no) {
             // Default action for SIGCHLD is to ignore it
             // wait_one(0); // Wait for the child process to exit
             break;
+        case SIGIOT:
+            thread_setkilled(t);
+            break;
         default:
             // For other signals, we can just ignore them or log a warning
             Warn("Default action for signal %d not implemented", sig_no);

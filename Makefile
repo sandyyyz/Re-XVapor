@@ -5,7 +5,8 @@ BUILD_DIR=build
 UPROGS_LIST = $(BUILD_DIR)/user/uprogs-list.mk
 UTEST_DIR = user/test
 
-ARCHS:= riscv loongarch
+# ARCHS:= riscv loongarch
+ARCHS := riscv
 
 ARCH ?= riscv
 export ARCH

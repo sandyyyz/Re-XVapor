@@ -990,7 +990,7 @@ uint64 generic_fstat(char *path, __kernel_space struct kstat *buf) {
       return EINVAL;
   }
   if(fs->fsops->fstat == NULL) {
-      printf("fsops->fstat is NULL\n");
+      // printf("fsops->fstat is NULL\n");
       return EINVAL;
   }
   if ((r = fs->fsops->fstat(path, buf)) != EOK) {
