@@ -136,7 +136,8 @@
         "little_endian.h": "c",
         "compiler.h": "c",
         "barrier.h": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "ext4_oflags.h": "c"
     },
 
     "multiCommand.commands": [
