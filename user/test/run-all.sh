@@ -20,7 +20,7 @@ tests="
 ./munmap
 ./openat
 ./open
-./pipessss
+./pipe
 ./read
 ./times
 ./umount

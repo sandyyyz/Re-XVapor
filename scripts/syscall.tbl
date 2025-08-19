@@ -3,7 +3,6 @@
 1   fork        sys_fork
 2   dev         sys_dev
 3   wait        sys_wait
-
 12  sbrk        sys_sbrk
 13  sleep       sys_sleep
 14  uptime      sys_uptime
@@ -11,13 +10,11 @@
 17  getcwd      sys_getcwd
 18  unlink      sys_unlink
 19  link        sys_link
-
 153 times       sys_times
 169 gettimeofday sys_gettimeofday
 160 uname       sys_uname
 124 sched_yield sys_sched_yield
 101 nanosleep   sys_nanosleep
-
 221 execve      sys_execve
 220 clone       sys_clone
 172 getpid      sys_getpid
@@ -25,7 +22,6 @@
 260 wait4       sys_wait4
 222 mmap        sys_mmap
 215 munmap      sys_munmap
-
 96 set_tid_address sys_set_tid_address
 99 set_robust_list sys_set_robust_list 
 261 prlimit64 sys_prlimit64

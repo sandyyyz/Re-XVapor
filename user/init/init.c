@@ -27,8 +27,9 @@ char *musl_basic_end_echo_argv[] = {"/musl/busybox", "echo", musl_basic_end_str,
 char *glibc_basic_end_echo_argv[] = {"/glibc/busybox", "echo", glibc_basic_end_str, NULL};
 char *glibc_basic_test_argv[] = {"/glibc/busybox_unstripped", "sh", "/glibc/basic/run-all.sh", NULL};
 char *glibc_busybox_test_argv[] = {"/glibc/busybox", "sh", "/glibc/busybox_testcode.sh", NULL };
-char *musl_basic_test_argv[] = {"/glibc/busybox", "sh", "/musl/basic/run-all.sh", NULL };
-char *musl_busybox_test_argv[] = {"/glibc/busybox", "sh", "/musl/busybox_testcode.sh", NULL };
+char *musl_basic_test_argv[] = {"/musl/busybox", "sh", "/musl/basic/run-all.sh", NULL };
+char *musl_busybox_test_argv[] = {"/musl/busybox", "sh", "/musl/busybox_testcode.sh", NULL };
+char *musl_git_test_argv[] = {"/musl/busybox", "sh", "/musl/git_testcode.sh", NULL };
 char *glibc_shell_argv[] = {"/glibc/busybox", "sh", NULL };
 char *musl_shell_argv[] = {"/musl/busybox", "sh", NULL };
 
@@ -275,6 +276,9 @@ char *busybox_envp[] = {
 };
 
 // #define SHELL
+// #define LIBCTEST
+// #define FINAL_ONLINE
+#define GIT
 
 int main(void)
 {
@@ -396,7 +400,7 @@ int main(void)
   }
 
 
-#else
+#elif defined(FINAL_ONLINE)
 
     for (int i = 0; musl_final_test_cmd[i] != NULL; i++) {
       pid = fork();
@@ -429,6 +433,21 @@ int main(void)
       wait(0);
     }
   }
+
+#elif defined(GIT)
+    // musl busybox test
+    pid = fork();
+    if(pid == 0) {
+      if(chdir(musl_dir) < 0) {
+        printf("init: chdir %s failed\n", musl_dir);
+        exit(-1);
+      }
+      int ret = execve(musl_busybox_path, musl_git_test_argv, busybox_envp);
+      printf("execve returned %d\n", ret);
+    } else { 
+      wait(0);
+    }
+  
 #endif
 
   printf("\n=================== all tests ended ===================\n");
