@@ -40,3 +40,4 @@ busybox_unstripped
 *.dts
 *.gz
 out.md
+testdir/*

@@ -279,8 +279,8 @@ char *busybox_envp[] = {
 };
 
 // #define SHELL
-#define LIBCTEST
-// #define FINAL_ONLINE
+// #define LIBCTEST
+#define FINAL_ONLINE
 // #define GIT
 
 int main(void)
@@ -451,13 +451,10 @@ int main(void)
     }
     mkdir("/musl/.git", 0755);
     // musl busybox test
+    char* git_argv[] = {"help", NULL};
     pid = fork();
     if(pid == 0) {
-      if(chdir(musl_dir) < 0) {
-        printf("init: chdir %s failed\n", musl_dir);
-        exit(-1);
-      }
-      int ret = execve(musl_busybox_path, musl_git_test_argv, busybox_envp);
+      int ret = execve("usr/bin/git", git_argv, NULL);
       printf("execve returned %d\n", ret);
     } else { 
       wait(0);
