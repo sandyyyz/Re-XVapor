@@ -25,7 +25,9 @@
 #include "xv6fs.h"
 #include "buf.h"
 #include "debug.h"
-#include "ahci_block_device.h"
+#include "libahci.h"
+
+extern struct ahci_device g_ahci_dev;
 
 struct {
   struct spinlock lock;
@@ -118,7 +120,7 @@ bread(uint dev, uint blockno)
 #ifdef __VIRTIO
     virtio_disk_rw(b, 0);
 #elif defined __AHCI
-    block_read(blockno, 1, (uint64_t)b->data, 2);
+    ahci_sata_read_common(&g_ahci_dev, b->blockno, 1, b->data);
 #endif
     b->valid = 1;
   }
@@ -137,7 +139,7 @@ bwrite(struct buf *b)
 #ifdef __VIRTIO
   virtio_disk_rw(b, 1);
 #elif defined __AHCI
-  block_write(b->blockno, 1, (uint64_t)b->data, 1);
+  ahci_sata_write_common(&g_ahci_dev, b->blockno, 1, b->data);
 #endif
 }
 

@@ -17,7 +17,8 @@
 
 #ifdef __ARCH_LOONGARCH
 #include "pci.h"
-#include "ahci.h"
+#include "libahci.h"
+#include "efi.h"
 #endif
 
 extern struct utsname g_uts;
@@ -65,6 +66,24 @@ static void start_harts()
     }
 }
 #endif
+
+struct ahci_device g_ahci_dev;
+
+/*磁盘驱动初始化*/
+void disk_init(void) {
+	printf("disk_init start\n");
+	// char* block_data = 0;
+	/*获取磁盘控制器的bar地址*/
+	pci_device_t *pci_dev= pci_get_device_by_bus(0, 8, 0);
+	pci_device_dump(pci_dev);
+	/*sata控制器不存在则报错*/
+	if (pci_dev==NULL)
+	{
+		printf("[ahci]: no AHCI controllers present!\n");
+	}
+  ahci_init(&g_ahci_dev, pci_dev->bar[0].base_addr);
+	printf("disk_init down\n");
+}
 
 #ifdef __ARCH_RISCV
 void main()
@@ -116,13 +135,28 @@ void main()
 
 #elif defined(__ARCH_LOONGARCH)
 
-void main() {
+void main(uint64 efi_boot, char * cmdline, EFI_SYSTEM_TABLE * systemtable) {
+  EFI_SYSTEM_TABLE *systbl = systemtable;
   if(cpuid() == 0) {
     consoleinit();
     printfinit();
     printf("\n");
     printf("reXvapor-loongarch kernel is booting\n");
     printf("\n");
+
+    printf("efi_boot = %p\n", efi_boot);
+    printf("cmdline = %p\n", cmdline);
+    printf("cmdline = %s\n", cmdline);
+    printf("*cmdline = %p\n", *(int64*)cmdline);
+    printf("**cmdline = %p\n", **(int64**)cmdline);
+    printf("EFI System Table at %p\n", systbl);
+    printf("Signature: %p\n", systbl->Hdr.Signature);
+    printf("NumberOfTableEntries: %d\n", systbl->NumberOfTableEntries);
+    for (int i = 0; i < systbl->NumberOfTableEntries; i++) {
+      printf("Table[%d]: %x\n", i, systbl->ConfigurationTable[i].VendorGuid.Data1);
+    }
+    panic("manually");
+
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
     procinit();      // process table
