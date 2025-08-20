@@ -882,9 +882,6 @@ uint64 generic_open(char *path, int flags, int omode) {
   if((f = filealloc()) == NULL) {
     return -1;
   }
-#ifdef __DEBUG_GOPEN
-  Log("vfs->type %d, name %s", fs->type, fs->name);
-#endif
   if((fd = fdalloc(f)) < 0) {
     fileclose(f, 0);
     return fd;
@@ -902,17 +899,25 @@ uint64 generic_open(char *path, int flags, int omode) {
   f->fops = fs->fops;
   set_omode(f, omode);
   if(strcmp(path, "/musl/dlopen_dso.so") == 0) {
-    path = "musl/lib//musl/dlopen_dso.so";
+    path = "musl/lib/musl/dlopen_dso.so";
   }
   strcpy(f->info.path, path);
+  if(strcmp(path, "/dev/null") == 0) {
+    f->major = DEVNULL;
+    goto out;
+  }
+#ifdef __DEBUG_GOPEN
+  Log("try to open file %s", path);
+#endif
   if ((r = fs->fops->open(f, path, flags)) < 0) {
     fileclose(f, 1);
     myproc()->ofile[fd] = 0;
     // printf("fsops->open failed, path %s\n", path);
     return r;
   }
+out:
   #ifdef __DEBUG_GOPEN
-  Log("generic_open : path %s successfully opened, type = %d", path, f->type);
+  Log("generic_open : path %s successfully opened, type = %d, fd %d", path, f->type, fd);
   #endif
 
   return fd;
@@ -928,8 +933,10 @@ uint64 sys_openat(void) {
     return -1;
   argint(2, &flags);
   argint(3, &omode);
-
-  // printf("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d\n", dirfd, path, flags, omode);
+#ifdef __DEBUG_SYS_OPENAT
+  Log("[sys_openat] dirfd = %d, path = %s, flags = %d, omode = %d", dirfd, path, flags, omode);
+  Log("p->cinfo.path = %s", myproc()->cinfo.path);
+#endif
   get_abpath_from_dirfd(path, dirfd, abs_path);
 #ifdef __DEBUG_SYS_OPENAT
   Log("[sys_openat] abs_path = %s, flags = 0x%x, omode = 0x%x", abs_path, flags, omode);
@@ -959,7 +966,9 @@ sys_open(void)
     return -1;
   argint(1, &flags);
   argint(2, &omode);
-  // printf("[sys_open] path = %s, flags = %d, omode = %d\n", path, flags, omode);
+#ifdef __DEBUG_SYS_OPEN
+  Log("[sys_open] path = %s, flags = %d, omode = %d\n", path, flags, omode);
+#endif
   if((r = generic_open(path, flags, omode)) < 0) {
     return -1;
   }
@@ -1335,20 +1344,17 @@ uint64 sys_faccessat(void) {
   argint(3, &flag);
   get_abpath_from_dirfd(path, dirfd, abs_path);
 #ifdef __DEBUG_SYS_FACCESSAT
-  printf("sys_faccessat: abs_path = %s, amode = %d, flag = %d\n", abs_path, amode, flag);
+  Log("sys_faccessat: abs_path = %s, amode = %d, flag = %d", abs_path, amode, flag);
 #endif
   fs = vfs_resolve_fs(abs_path);
   if (fs == NULL) {
     printf("sys_faccessat: vfs_resolve_fs failed\n");
     return -1;
   }
-  if(fs->fsops->faccess == NULL) {
-    printf("sys_faccessat: fsops->faccessat is NULL\n");
-    return -1;
-  }
-  if (fs->fsops->faccess(abs_path, amode, flag) < 0) {
-    // printf("sys_faccessat: fsops->faccessat failed\n");
-    return -1;
+  int r = 0;
+  if ((r = fs->fsops->faccess(abs_path, amode, flag)) != 0) {
+    Log("sys_faccessat: fsops->faccessat failed %d", r);
+    return -r;
   }
 #ifdef __DEBUG_SYS_FACCESSAT
   Log("sys_faccessat: abs_path %s successfully accessed", abs_path);
@@ -2185,4 +2191,13 @@ uint64 sys_pread64() {
   Log("[sys_pread64] fd = %d, buf = %p, count = %d, offset = %d, r = %d, oroff = %d", fd, (void *)buf, count, offset, r, oroff);
 #endif
   return r;
+}
+
+uint64 sys_fchmodat() {
+  // int dirfd;
+  // char path[MAXPATH];
+  // char abs_path[MAXPATH];
+  // int flags;
+  // int mod;
+  return 0;
 }

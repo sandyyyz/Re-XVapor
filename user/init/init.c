@@ -272,13 +272,15 @@ char *busybox_envp[] = {
   "LC_ALL=C",
   "LANG=C",
   "CHARSET=C",
+  "HOME=/",
+  "PATH=/",
   NULL
 };
 
-// #define SHELL
+#define SHELL
 // #define LIBCTEST
 // #define FINAL_ONLINE
-#define GIT
+// #define GIT
 
 int main(void)
 {
@@ -293,13 +295,14 @@ int main(void)
   int pid;
   
 #ifdef SHELL
+  mkdir("/musl/proj", 0755);
   pid = fork();
   if(pid == 0) {
-    if(chdir(glibc_dir) < 0) {
-      printf("init: chdir %s failed\n", glibc_dir);
+    if(chdir("musl/proj") < 0) {
+      printf("init: chdir %s failed\n", "musl/proj");
       exit(-1);
     }
-    int ret = execve("/glibc/busybox", glibc_shell_argv, busybox_envp);
+    int ret = execve("/musl/busybox", musl_shell_argv, busybox_envp);
     printf("execve returned %d\n", ret);
     exit(-1);
   } else {
@@ -435,6 +438,22 @@ int main(void)
   }
 
 #elif defined(GIT)
+
+    int fd;
+    mkdir("/etc", 0755);
+    if((fd = open("/etc/gitconfig", O_CREAT, 0)) < 0) {
+      printf("create /etc/gitconfig failed");
+    } else {
+      // printf("create /etc/gitconfig successfully !");
+      close(fd);
+    }
+    if((fd = open("/.gitconfig", O_CREAT, 0)) < 0) {
+      printf("create /.gitconfig failed");
+    } else {
+      // printf("create /.gitconfig successfully !");
+      close(fd);
+    }
+    mkdir("/musl/.git", 0755);
     // musl busybox test
     pid = fork();
     if(pid == 0) {

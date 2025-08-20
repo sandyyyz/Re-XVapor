@@ -441,7 +441,7 @@ int ext4_vwrite(struct file *fp, int user_src, uint64 src, int64_t off, size_t s
             return -1;
         }
 #ifdef __DEBUG_EXT4_VWRITE
-        Log("set %d to %d be zero", off - zero_size, off);
+        // Log("set %d to %d be zero", off - zero_size, off);
 #endif
         kfree(tbuf);
     }
@@ -519,6 +519,10 @@ out:
     if(user_src) {
         kfree(kbuf);
     }
+#ifdef __DEBUG_EXT4_VWRITE
+    Log("ext4vwrite fp %p size %d return with *wcnt %d", fp, size, *wcnt);
+#endif
+
     return r;
 }
 
@@ -1060,14 +1064,14 @@ int ext4_vfaccess(char *path, int amode, int flags) {
     struct ext4_sblock *sb = NULL;
     uint32_t ino = 0;
     int inode_amode = 0;
-
-    if(ext4_raw_inode_fill(path, &ino, &inode) != EOK) {
+    int r;
+    if((r = ext4_raw_inode_fill(path, &ino, &inode)) != EOK) {
         // printf("[ext4_vfaccess] ext4_raw_inode_fill error!, path %s\n", path);
-        return -1;
+        return r;
     }
-    if(ext4_get_sblock(path, &sb) != EOK) {
+    if((r = ext4_get_sblock(path, &sb)) != EOK) {
         printf("[ext4_vfaccess] ext4_get_sblock error!\n");
-        return -1;
+        return r;
     }
     inode_amode = ext4_inode_get_mode(sb, &inode);
 

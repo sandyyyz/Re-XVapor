@@ -280,7 +280,15 @@ void get_absolute_path(const char *path, const char *cwd, char *absolute_path) {
     if (path == NULL) {
         strncpy(absolute_path, cwd, strlen(cwd));
     } else if (path[0] == '/') {
-        strcpy(absolute_path, path);
+        if(strncmp(path, "/usr", 4) != 0)
+          strcpy(absolute_path, path);
+        else if(strncmp(cwd, "/musl", 5) == 0) {
+          strcpy(absolute_path, "/musl");
+          strcat(absolute_path, path);
+        } else if(strncmp(cwd, "/glibc", 6) == 0) {
+          strcpy(absolute_path, "/glibc");
+          strcat(absolute_path, path);
+        }
     } else {
         strcpy(absolute_path, cwd);
         strcat(absolute_path, "/");

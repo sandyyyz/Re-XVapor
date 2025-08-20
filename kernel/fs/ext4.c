@@ -3208,6 +3208,9 @@ int ext4_dir_open(ext4_dir *dir, const char *path)
 
 	EXT4_MP_LOCK(mp);
 	r = ext4_generic_open(&dir->f, path, "r", false, 0, 0);
+#ifdef __DEBUG_EXT4_DIROPEN
+	Log("ext4_generic_open r = %d ", r);
+#endif
 	dir->next_off = 0;
 	EXT4_MP_UNLOCK(mp);
 	return r;

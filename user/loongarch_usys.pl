@@ -37,6 +37,7 @@ entry("statfs");
 entry("ftruncate");
 entry("faccessat");
 entry("chdir");
+entry("fchmodat");
 entry("openat");
 entry("close");
 entry("pipe");

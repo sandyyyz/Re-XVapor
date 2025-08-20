@@ -101,7 +101,7 @@ syscall_gen:
 	./scripts/sysgen.sh $(SYSTBL) $(SYSNUM) $(SYSFUNC) $(SYSDECL) $(USYSPL) $(SYSNAME) $(USYSPL_LOONGARCH)
 	@echo "Generating syscall files done."	
 kernel:	user syscall_gen
-	if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
+	if [ ! -d $(BUILD_DIR) ]; then  $(BUILD_DIR); fi
 	$(MAKE) -C $(KERNEL_DIR)
 	$(MAKE) clean
 
@@ -148,6 +148,7 @@ QEMUOPTS = -machine virt -bios default -kernel kernel-rv -m 1G -smp $(CPUS) -nog
 # QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=$(FSIMG),if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -no-reboot 
+QEMUOPTS += -snapshot
 # QEMUOPTS += -device virtio-net-device,netdev=net -netdev user,id=net -rtc base=utc
 
 # loongarch qemu command line
@@ -163,7 +164,7 @@ QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -no-reboot
 QEMU-LA = ../qemu-la-20240401/bin/qemu-system-loongarch64
 QEMUOPTS-LA = -kernel kernel-la -m 1G -nographic -smp $(CPUS) -drive file=$(FSIMG-LA),if=none,format=raw,id=x0
 QEMUOPTS-LA += -device virtio-blk-pci,drive=x0 -no-reboot
-QEMUOPTS-LA += -M ls2k
+# QEMUOPTS-LA += -M ls2k
 # QEMUOPTS-LA += -machine dumpdtb=loongarch64.dtb
 # QEMUOPTS-LA += -monitor stdio
 # QEMUOPTS-LA += -device virtio-blk-pci,drive=x0,bus=virtio-mmio-bus.0 -no-reboot

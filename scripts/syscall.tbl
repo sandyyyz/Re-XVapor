@@ -86,3 +86,4 @@
 46 ftruncate sys_ftruncate
 67 pread64 sys_pread64
 233 madvice sys_madvice
+53 fchmodat sys_fchmodat
