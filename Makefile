@@ -36,9 +36,10 @@ else
     $(error Unsupported ARCH: $(ARCH))
 endif
 
-# FSIMG := sdcard-rv.img
+FSIMG := sdcard-rv.img
 # FSIMG := ../disk.img
-FSIMG := git-sdcard-rv.img
+# FSIMG := git-sdcard-rv.img
+# FSIMG := ./alpine-linux-riscv64-ext4fs.img
 FSIMG-LA := sdcard-la.img
 UPROGS =
 

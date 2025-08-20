@@ -32,6 +32,7 @@ char *musl_busybox_test_argv[] = {"/musl/busybox", "sh", "/musl/busybox_testcode
 char *musl_git_test_argv[] = {"/musl/busybox", "sh", "/musl/git_testcode.sh", NULL };
 char *glibc_shell_argv[] = {"/glibc/busybox", "sh", NULL };
 char *musl_shell_argv[] = {"/musl/busybox", "sh", NULL };
+char *bin_shell_argv[] = {"/bin/busybox", "sh", NULL};
 
 char *musl_libctest_static_cmds[] = {
   "echo '#### OS COMP TEST GROUP START libctest-musl ####'",
@@ -277,8 +278,8 @@ char *busybox_envp[] = {
   NULL
 };
 
-#define SHELL
-// #define LIBCTEST
+// #define SHELL
+#define LIBCTEST
 // #define FINAL_ONLINE
 // #define GIT
 
@@ -295,14 +296,9 @@ int main(void)
   int pid;
   
 #ifdef SHELL
-  mkdir("/musl/proj", 0755);
   pid = fork();
   if(pid == 0) {
-    if(chdir("musl/proj") < 0) {
-      printf("init: chdir %s failed\n", "musl/proj");
-      exit(-1);
-    }
-    int ret = execve("/musl/busybox", musl_shell_argv, busybox_envp);
+    int ret = execve("/bin/busybox", musl_shell_argv, busybox_envp);
     printf("execve returned %d\n", ret);
     exit(-1);
   } else {

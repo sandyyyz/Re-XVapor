@@ -47,7 +47,8 @@ int proc_copy_vma(struct proc *p, struct proc *np) {
             return -1;
         }
         *nvma = *vma;
-        nvma->file->ref++;
+        if(nvma->file)
+            nvma->file->ref++;
         list_add_tail(&nvma->vma_list, &np->mm.vma_list);
     }
     return 0;

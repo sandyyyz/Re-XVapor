@@ -139,6 +139,7 @@ int execve(char *path, char **argv, char **envp)
       struct elfhdr interp_elf;
       struct proghdr interp_ph;
       const char* interp_path = "/musl/lib/libc.so";
+      // const char* interp_path = "/lib/ld-musl-riscv64.so.1";
 
       interp_base = PGROUNDUP(sz);
       if((interp = filealloc()) == 0) {
